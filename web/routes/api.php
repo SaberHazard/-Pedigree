@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
+use App\Http\Controllers\Api\KinController;
 use App\Http\Controllers\Api\LinkRequestController;
 use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\MarriageController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\OpinionController;
 use App\Http\Controllers\Api\PersonController;
 use App\Http\Controllers\Api\ProfileTextController;
 use App\Http\Controllers\Api\RelativeController;
+use App\Http\Controllers\Api\SocialController;
 use App\Http\Controllers\Api\TreeController;
 use Illuminate\Support\Facades\Route;
 
@@ -79,6 +81,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::delete('persons/{person}', [PersonController::class, 'destroy']);
     Route::get('persons/{person}/history', [PersonController::class, 'history']);
     Route::get('persons/{person}/relationship/{other}', [PersonController::class, 'relationship']);
+    Route::get('persons/{person}/kin', [KinController::class, 'index'])->middleware('throttle:30,1');
 
     // متن‌های رنگی پروفایل (چکیده، توضیحات، زندگی‌نامه، رزومه) و نسخه‌های آن‌ها
     Route::put('persons/{person}/texts/{field}', [ProfileTextController::class, 'update'])->middleware('throttle:writes');
@@ -118,6 +121,8 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('persons/{person}/media', [MediaController::class, 'store'])->middleware('throttle:uploads');
     Route::post('persons/{person}/avatar', [MediaController::class, 'uploadAvatar'])->middleware('throttle:uploads');
     Route::put('persons/{person}/avatar', [MediaController::class, 'setAvatar']);
+    Route::post('persons/{person}/social-avatar', [SocialController::class, 'storeAvatar'])->middleware('throttle:uploads');
+    Route::get('social/preview', [SocialController::class, 'preview'])->middleware('throttle:20,1');
     Route::get('media/{media}', [MediaController::class, 'show']);
     Route::match(['put', 'patch'], 'media/{media}', [MediaController::class, 'update']);
     Route::delete('media/{media}', [MediaController::class, 'destroy']);

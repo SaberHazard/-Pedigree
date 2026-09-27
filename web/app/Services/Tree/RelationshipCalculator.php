@@ -109,6 +109,34 @@ class RelationshipCalculator
     }
 
     /**
+     * نام نسبت برای مسیری که از قبل پیدا شده (مثلاً در فهرست بستگان تا درجه ۴)
+     *
+     * @param  string[]  $path  شناسه‌ها از مبدأ تا مقصد
+     */
+    public function labelForPath(array $path): string
+    {
+        if (count($path) < 2) {
+            return 'خود شخص';
+        }
+        $steps = $this->collapseSiblings($this->toSteps($path));
+        $keys = array_map(fn ($s) => $s['type'], $steps);
+        $label = self::NAMED[implode('>', $keys)] ?? $this->generational($keys) ?? $this->describe($steps);
+        if (count($steps) === 1 && in_array($keys[0], ['brother', 'sister'], true) && ($steps[0]['half'] ?? false)) {
+            $label .= ' ناتنی';
+        }
+
+        return $label;
+    }
+
+    /** بارگذاری یک‌جای اشخاص پیش از چند بار labelForPath */
+    public function preload(array $ids): void
+    {
+        foreach (array_chunk(array_values(array_unique($ids)), 500) as $chunk) {
+            $this->load($chunk);
+        }
+    }
+
+    /**
      * مسیر خونی از طریق نزدیک‌ترین جد مشترک (بالا رفتن از a، سپس پایین آمدن به b)
      *
      * @return string[]|null

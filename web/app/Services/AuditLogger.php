@@ -21,6 +21,8 @@ class AuditLogger
         'password', 'remember_token', 'search_text', 'updated_at', 'created_at',
         // نشانی و موقعیت خانه، تلفن ثابت و ایمیل (تاریخچه برای همه اعضا قابل دیدن است)
         'address', 'postal_code', 'home_lat', 'home_lng', 'landline', 'email', 'username',
+        // شبکه‌های اجتماعی (شماره واتس‌اپ/تلگرام در آن است) و شناسه عکس‌های شبکه‌ها
+        'social', 'social_avatars',
     ];
 
     public function log(string $action, ?Model $subject = null, array $properties = [], ?User $user = null): ActivityLog

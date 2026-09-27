@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\Access\PersonAccess;
 use App\Services\Kinship;
+use App\Services\KinshipDegrees;
 use App\Services\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
         // این سرویس‌ها در طول یک درخواست نتایج را کش می‌کنند (scoped = یک نمونه برای هر درخواست)
         $this->app->scoped(Kinship::class);
         $this->app->scoped(PersonAccess::class);
+        $this->app->scoped(KinshipDegrees::class);
         $this->app->singleton(SmsManager::class);
     }
 

@@ -64,7 +64,8 @@ class ProfileFeaturesTest extends TestCase
             'home_lng' => '13.4132',
             'landline' => '+49 30 1234',
             'website' => 'example.org',
-            'social' => ['telegram' => '@ali', 'instagram' => ''],
+            'social' => ['telegram' => '@ali_rezaei', 'instagram' => ''],
+            'contact_visibility' => 'd1',
             'blood_type' => 'O+',
             'custom_fields' => [['label' => 'غذای محبوب', 'value' => 'قورمه‌سبزی'], ['label' => '', 'value' => 'x']],
             'burial_lat' => null,
@@ -74,7 +75,8 @@ class ProfileFeaturesTest extends TestCase
             ->assertJsonPath('data.country', 'DE')
             ->assertJsonPath('data.home_location.lat', 52.5219)
             ->assertJsonPath('data.website', 'https://example.org')
-            ->assertJsonPath('data.social.telegram', '@ali')
+            ->assertJsonPath('data.social.telegram', 'ali_rezaei')
+            ->assertJsonPath('data.social_profiles.0.url', 'https://t.me/ali_rezaei')
             ->assertJsonPath('data.custom_fields.0.value', 'قورمه‌سبزی')
             ->assertJsonCount(1, 'data.custom_fields');
 
@@ -96,7 +98,7 @@ class ProfileFeaturesTest extends TestCase
             ->assertJsonPath('data.address', 'Alexanderplatz 1');
 
         // با اجازه خود شخص همه اعضا می‌بینند
-        $this->actingAs($this->me, 'sanctum')->patchJson("/api/persons/{$id}", ['share_location' => true, 'share_contact' => true])->assertOk();
+        $this->actingAs($this->me, 'sanctum')->patchJson("/api/persons/{$id}", ['location_visibility' => 'all', 'contact_visibility' => 'all'])->assertOk();
         $this->actingAs($this->cousin, 'sanctum')->getJson("/api/persons/{$id}")
             ->assertJsonPath('data.address', 'Alexanderplatz 1')
             ->assertJsonPath('data.landline', '+49 30 1234');
@@ -108,6 +110,7 @@ class ProfileFeaturesTest extends TestCase
         $this->patchJson("/api/persons/{$id}", ['home_lat' => '35.7', 'home_lng' => null])->assertJsonValidationErrors('home_lng');
         $this->patchJson("/api/persons/{$id}", ['education_level' => 'wizard'])->assertJsonValidationErrors('education_level');
         $this->patchJson("/api/persons/{$id}", ['social' => ['myspace' => 'x']])->assertJsonValidationErrors('social');
+        $this->patchJson("/api/persons/{$id}", ['contact_visibility' => 'd9'])->assertJsonValidationErrors('contact_visibility');
     }
 
     public function test_field_editors_are_tracked_with_colors(): void
@@ -280,8 +283,8 @@ class ProfileFeaturesTest extends TestCase
 
     public function test_family_map_respects_location_privacy(): void
     {
-        $this->me->person->forceFill(['home_lat' => '35.7', 'home_lng' => '51.4', 'share_location' => false])->save();
-        $this->cousin->person->forceFill(['home_lat' => '32.6', 'home_lng' => '51.6', 'share_location' => true])->save();
+        $this->me->person->forceFill(['home_lat' => '35.7', 'home_lng' => '51.4', 'location_visibility' => 'd1'])->save();
+        $this->cousin->person->forceFill(['home_lat' => '32.6', 'home_lng' => '51.6', 'location_visibility' => 'all'])->save();
         $grave = Person::factory()->deceased()->create();
         $grave->forceFill(['burial_lat' => 31.9, 'burial_lng' => 54.3])->save();
 

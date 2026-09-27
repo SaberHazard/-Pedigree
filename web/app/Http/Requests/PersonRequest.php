@@ -7,12 +7,14 @@ use App\Models\User;
 use App\Rules\NationalCodeRule;
 use App\Rules\PartialDateRule;
 use App\Rules\PhoneRule;
+use App\Services\KinshipDegrees;
 use App\Support\BlindIndex;
 use App\Support\Countries;
 use App\Support\NationalCode;
 use App\Support\PartialDate;
 use App\Support\PersianText;
 use App\Support\Phone;
+use App\Support\SocialNetworks;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -90,11 +92,18 @@ class PersonRequest extends FormRequest
         if (isset($input['website']) && is_string($input['website']) && trim($input['website']) !== '' && ! preg_match('#^https?://#i', trim($input['website']))) {
             $out['website'] = 'https://'.trim($input['website']);
         }
+        // شبکه‌های اجتماعی: لینک کامل، @شناسه یا شماره ← شکل استاندارد (نامعتبرها برای خطای اعتبارسنجی دست‌نخورده می‌مانند)
         if (isset($input['social']) && is_array($input['social'])) {
-            $out['social'] = array_filter(
-                array_map(fn ($v) => is_string($v) ? trim($v) : $v, $input['social']),
-                fn ($v) => $v !== null && $v !== '',
-            ) ?: null;
+            $social = [];
+            foreach ($input['social'] as $network => $value) {
+                if ($value === null || (is_string($value) && trim($value) === '')) {
+                    continue;
+                }
+                $social[$network] = is_string($network) && is_string($value)
+                    ? (SocialNetworks::normalize($network, $value) ?? trim($value))
+                    : $value;
+            }
+            $out['social'] = $social ?: null;
         }
         if (isset($input['custom_fields']) && is_array($input['custom_fields'])) {
             $rows = [];
@@ -149,6 +158,8 @@ class PersonRequest extends FormRequest
             // تحصیلات و شغل
             'education_level' => ['nullable', Rule::in(array_keys(config('pedigree.profile.education_levels', [])))],
             'education_field' => ['nullable', 'string', 'max:150'],
+            'education_field_group' => ['nullable', Rule::in(array_keys(config('pedigree.profile.education_field_groups', [])))],
+            'honorific_mode' => ['sometimes', 'in:auto,none'],
             'education_institution' => ['nullable', 'string', 'max:150'],
             'academic_rank' => ['nullable', Rule::in(array_keys(config('pedigree.profile.academic_ranks', [])))],
             'workplace' => ['nullable', 'string', 'max:150'],
@@ -161,7 +172,7 @@ class PersonRequest extends FormRequest
             'postal_code' => ['nullable', 'string', 'max:20', 'regex:/^[0-9A-Za-z \-]+$/'],
             'home_lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:home_lng'],
             'home_lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:home_lat'],
-            'share_location' => ['sometimes', 'boolean'],
+            'location_visibility' => ['sometimes', Rule::in(KinshipDegrees::LEVELS)],
             'burial_lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:burial_lng'],
             'burial_lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:burial_lat'],
 
@@ -169,8 +180,16 @@ class PersonRequest extends FormRequest
             'landline' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-() ]+$/'],
             'website' => ['nullable', 'string', 'max:191', 'url:http,https'],
             'social' => ['nullable', 'array:'.implode(',', array_keys(config('pedigree.profile.social_networks', [])))],
-            'social.*' => ['nullable', 'string', 'max:191'],
-            'share_contact' => ['sometimes', 'boolean'],
+            'social.*' => ['nullable', 'string', 'max:191', function (string $attribute, mixed $value, \Closure $fail) {
+                $network = substr($attribute, 7);
+                if (is_string($value) && SocialNetworks::normalize($network, $value) !== $value) {
+                    $label = SocialNetworks::all()[$network]['label'] ?? $network;
+                    $fail(($network === 'whatsapp')
+                        ? "شماره {$label} معتبر نیست (مثلاً ۰۹۱۲۱۲۳۴۵۶۷ یا +۴۹۱۵۱...)."
+                        : "شناسه {$label} معتبر نیست؛ شناسه (مثلاً @ali.rezaei) یا لینک صفحه را وارد کنید.");
+                }
+            }],
+            'contact_visibility' => ['sometimes', Rule::in(KinshipDegrees::LEVELS)],
 
             // ویژگی‌های دیگر
             'blood_type' => ['nullable', Rule::in(config('pedigree.profile.blood_types', []))],
@@ -243,6 +262,8 @@ class PersonRequest extends FormRequest
             'city' => 'شهر', 'address' => 'نشانی', 'postal_code' => 'کد پستی', 'home_lat' => 'عرض جغرافیایی',
             'home_lng' => 'طول جغرافیایی', 'burial_lat' => 'عرض جغرافیایی مزار', 'burial_lng' => 'طول جغرافیایی مزار',
             'landline' => 'تلفن ثابت', 'website' => 'وب‌سایت', 'social' => 'شبکه‌های اجتماعی', 'blood_type' => 'گروه خونی',
+            'education_field_group' => 'گروه رشته', 'honorific_mode' => 'عنوان خودکار',
+            'contact_visibility' => 'نمایش شماره و راه‌های ارتباطی', 'location_visibility' => 'نمایش نشانی',
             'languages' => 'زبان‌ها', 'interests' => 'علاقه‌مندی‌ها', 'custom_fields' => 'ویژگی‌های دیگر',
             'custom_fields.*.label' => 'عنوان ویژگی', 'custom_fields.*.value' => 'مقدار ویژگی',
         ];

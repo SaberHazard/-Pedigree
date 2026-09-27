@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\Person;
 use App\Models\User;
 use App\Services\AuditLogger;
+use App\Services\Social\SocialAvatarService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -111,8 +112,9 @@ class MediaService
 
     public function delete(Media $media, User $actor): void
     {
+        $wasAvatar = Person::where('avatar_media_id', $media->id)->exists();
         DB::transaction(function () use ($media, $actor) {
-            Person::where('avatar_media_id', $media->id)->update(['avatar_media_id' => null]);
+            Person::where('avatar_media_id', $media->id)->update(['avatar_media_id' => null, 'avatar_source' => null]);
             $media->delete();
             $this->audit->log('media.deleted', $media, [
                 'person' => $media->person_id, 'type' => $media->type, 'category' => $media->category,
@@ -120,6 +122,11 @@ class MediaService
             ], $actor);
         });
         $this->deleteFiles($media);
+
+        // اگر عکس پروفایل حذف شد، عکس شبکه‌های اجتماعی (به ترتیب اولویت) جایگزین می‌شود
+        if ($wasAvatar && $media->person) {
+            app(SocialAvatarService::class)->fallback($media->person);
+        }
     }
 
     private function folder(string $type): string

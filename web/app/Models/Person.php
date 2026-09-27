@@ -58,9 +58,9 @@ class Person extends Model
         'is_deceased', 'death_date', 'death_place', 'burial_place', 'burial_lat', 'burial_lng',
         'birth_cert_place', 'email', 'occupation', 'education', 'residence',
         // پروفایل کامل
-        'education_level', 'education_field', 'education_institution', 'academic_rank', 'workplace',
-        'country', 'province', 'city', 'address', 'postal_code', 'home_lat', 'home_lng', 'share_location',
-        'landline', 'website', 'social', 'share_contact',
+        'education_level', 'education_field', 'education_field_group', 'education_institution', 'academic_rank', 'workplace',
+        'honorific_mode', 'country', 'province', 'city', 'address', 'postal_code', 'home_lat', 'home_lng', 'location_visibility',
+        'landline', 'website', 'social', 'contact_visibility',
         'blood_type', 'languages', 'interests', 'custom_fields',
     ];
 
@@ -85,9 +85,8 @@ class Person extends Model
             'is_deceased' => 'boolean',
             'is_locked' => 'boolean',
             'birth_order' => 'integer',
-            'share_location' => 'boolean',
-            'share_contact' => 'boolean',
             'social' => 'array',
+            'social_avatars' => 'array',
             'custom_fields' => 'array',
             'field_meta' => 'array',
             'burial_lat' => 'float',
@@ -117,7 +116,7 @@ class Person extends Model
                 }
             }
             $person->search_text = mb_substr(PersianText::searchable(implode(' ', array_filter([
-                $person->title, $person->first_name, $person->last_name, $person->nickname, $person->code,
+                $person->honorific(), $person->title, $person->first_name, $person->last_name, $person->nickname, $person->code,
             ]))), 0, 500);
         });
     }
@@ -370,11 +369,76 @@ class Person extends Model
         return $this->gender === self::MALE;
     }
 
-    /** نام کامل با عنوان: «حاج محمد احمدی» */
+    /**
+     * عنوان خودکار علمی پیش از نام:
+     *  - «دکتر» برای دکترای حرفه‌ای (پزشکی، دندان‌پزشکی ...)، دکترای تخصصی و بالاتر
+     *  - «مهندس» برای لیسانس و فوق‌لیسانس در رشته‌های فنی و مهندسی، معماری و مهندسی کشاورزی
+     *    (هرگز برای پرستاری، پیراپزشکی و رشته‌های غیرفنی)
+     * اگر خود شخص/بستگان «عنوان خودکار» را خاموش کرده باشند یا همین عنوان دستی نوشته شده باشد، null.
+     */
+    public function honorific(): ?string
+    {
+        if ($this->honorific_mode === 'none' || (! $this->education_level && ! $this->academic_rank)) {
+            return null;
+        }
+        $rules = config('pedigree.profile.honorifics', []);
+        $honorific = null;
+        if (in_array($this->education_level, $rules['doctor_levels'] ?? [], true)
+            || in_array($this->academic_rank, $rules['doctor_ranks'] ?? [], true)) {
+            $honorific = 'دکتر';
+        } elseif (in_array($this->education_level, $rules['engineer_levels'] ?? [], true) && $this->isEngineeringField()) {
+            $honorific = 'مهندس';
+        }
+        // اگر عنوان دستی خودش عنوان علمی دارد («دکتر»، «مهندس»، «پروفسور») تکرار نمی‌شود
+        if ($honorific === null || ($this->title && preg_match('/دکتر|مهندس|پروفسور|\bdr\b|\beng\b/iu', $this->title))) {
+            return null;
+        }
+
+        return $honorific;
+    }
+
+    /** رشته فنی/مهندسی است؟ گروه انتخاب‌شده مقدم است؛ وگرنه فقط کلمه صریح «مهندسی» در نام رشته */
+    public function isEngineeringField(): bool
+    {
+        $groups = config('pedigree.profile.education_field_groups', []);
+        if ($this->education_field_group && isset($groups[$this->education_field_group])) {
+            return (bool) ($groups[$this->education_field_group]['engineer'] ?? false);
+        }
+        $field = mb_strtolower((string) $this->education_field);
+        if ($field === '') {
+            return false;
+        }
+        foreach (config('pedigree.profile.honorifics.engineer_keywords', []) as $keyword) {
+            if (str_contains($field, mb_strtolower($keyword))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** عنوان کامل پیش از نام با ترتیب درست: «حاج دکتر»، «دکتر سید»، «شهید مهندس» */
+    public function displayTitle(bool $withManualTitle = true): ?string
+    {
+        $honorific = $this->honorific();
+        $title = $withManualTitle ? $this->title : null;
+        if (! $title) {
+            return $honorific;
+        }
+        if (! $honorific) {
+            return $title;
+        }
+        $before = config('pedigree.profile.honorifics.before', []);
+        $first = explode(' ', $title)[0];
+
+        return in_array($first, $before, true) ? "{$title} {$honorific}" : "{$honorific} {$title}";
+    }
+
+    /** نام کامل با عنوان: «حاج دکتر محمد احمدی» */
     public function fullName(bool $withTitle = true): string
     {
         return trim(implode(' ', array_filter([
-            $withTitle ? $this->title : null,
+            $withTitle ? $this->displayTitle() : null,
             $this->first_name,
             $this->last_name,
         ])));

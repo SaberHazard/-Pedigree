@@ -3,13 +3,18 @@
 namespace App\Services\People;
 
 use App\Exceptions\DomainException;
+use App\Jobs\FetchSocialAvatars;
 use App\Models\Person;
 use App\Models\User;
 use App\Notifications\ProfileChanged;
 use App\Services\Access\PersonAccess;
 use App\Services\AuditLogger;
+use App\Services\Social\SocialProfileFetcher;
+use App\Support\SocialNetworks;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+
+use function Illuminate\Support\defer;
 
 /**
  * ساخت، ویرایش و حذف اشخاص.
@@ -50,12 +55,19 @@ class PersonService
 
             $this->audit->log('person.created', $person, ['name' => $person->fullName()], $actor);
 
+            $networks = array_values(array_intersect(SocialProfileFetcher::FETCHABLE, array_keys((array) ($person->social ?? []))));
+            if ($networks && config('pedigree.social.fetch_enabled', true)) {
+                defer(fn () => FetchSocialAvatars::dispatchSync($person->id, $networks, $actor->id));
+            }
+
             return $person;
         });
     }
 
     public function update(Person $person, array $data, User $actor): Person
     {
+        $data = $this->guardPrivateFields($person, $data, $actor);
+
         return DB::transaction(function () use ($person, $data, $actor) {
             $person->fill(Arr::only($data, $person->getFillable()));
 
@@ -79,6 +91,7 @@ class PersonService
             }
 
             $changes = $this->audit->diff($person);
+            $socialChanged = $this->changedSocialNetworks($person);
             $this->trackEditors($person, $actor);
             $person->updated_by = $actor->id;
             $person->save();
@@ -100,6 +113,11 @@ class PersonService
             if ($changes) {
                 $this->audit->log('person.updated', $person, ['changes' => $changes], $actor);
                 $this->notifyOwner($person, $actor, array_keys($changes));
+            }
+
+            // عکس پروفایل شبکه‌هایی که شناسه‌شان تازه ثبت شده، پس از پاسخ دریافت می‌شود
+            if ($socialChanged) {
+                defer(fn () => FetchSocialAvatars::dispatchSync($person->id, $socialChanged, $actor->id));
             }
 
             return $person->refresh();
@@ -124,6 +142,54 @@ class PersonService
     {
         $person->restore();
         $this->audit->log('person.restored', $person, ['name' => $person->fullName()], $actor);
+    }
+
+    /** @return string[] شبکه‌های قابل دریافت خودکار که مقدارشان عوض شده */
+    private function changedSocialNetworks(Person $person): array
+    {
+        if (! $person->isDirty('social') || ! config('pedigree.social.fetch_enabled', true)) {
+            return [];
+        }
+        $old = (array) (json_decode((string) $person->getRawOriginal('social'), true) ?: []);
+        $new = (array) ($person->social ?? []);
+        $changed = [];
+        foreach (SocialProfileFetcher::FETCHABLE as $network) {
+            if (($new[$network] ?? null) !== null && ($new[$network] ?? null) !== ($old[$network] ?? null)) {
+                $changed[] = $network;
+            }
+        }
+
+        return $changed;
+    }
+
+    /**
+     * ویرایشگری که شماره/نشانی این شخص را نمی‌بیند (چون خود شخص محدودش کرده) نباید بتواند
+     * آن‌ها را تغییر دهد یا ناخواسته پاک کند (فرم او این فیلدها را خالی دارد).
+     * تنظیم «چه کسانی ببینند» هم فقط دست خود شخص است.
+     */
+    private function guardPrivateFields(Person $person, array $data, User $actor): array
+    {
+        if (! $this->access->canManagePrivacy($actor, $person)) {
+            unset($data['contact_visibility'], $data['location_visibility']);
+        }
+        if (! $this->access->canViewLocation($actor, $person)) {
+            unset($data['address'], $data['postal_code'], $data['home_lat'], $data['home_lng']);
+        }
+        if (! $this->access->canViewContact($actor, $person)) {
+            unset($data['email'], $data['landline']);
+            if (array_key_exists('social', $data)) {
+                // شماره‌های واتس‌اپ/تلگرام قبلی دست‌نخورده می‌مانند و شماره جدید پذیرفته نمی‌شود
+                $social = array_filter((array) ($data['social'] ?? []), fn ($v, $k) => ! SocialNetworks::isPhone($k, $v), ARRAY_FILTER_USE_BOTH);
+                foreach ((array) ($person->social ?? []) as $network => $value) {
+                    if (SocialNetworks::isPhone($network, $value)) {
+                        $social[$network] = $value;
+                    }
+                }
+                $data['social'] = $social ?: null;
+            }
+        }
+
+        return $data;
     }
 
     /** ساخت یا به‌روزرسانی حساب کاربری شخص با رمز عبور */

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Media;
 use App\Models\Person;
 use App\Models\PersonText;
 use App\Models\ResumeItem;
@@ -9,6 +10,7 @@ use App\Services\Access\PersonAccess;
 use App\Services\People\ProfileService;
 use App\Services\Tree\NodePresenter;
 use App\Support\AttributedText;
+use App\Support\SocialNetworks;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +18,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * نمایش کامل اطلاعات یک شخص.
  *
  * - فیلدهای حساس (کد ملی، شناسنامه) فقط برای کسی که دسترسی دارد پر می‌شوند و برای بقیه null هستند.
- * - نشانی و موقعیت خانه، و راه‌های ارتباطی طبق اجازه خود شخص (share_location / share_contact).
+ * - نشانی و موقعیت خانه، و راه‌های ارتباطی طبق تنظیم خود شخص (همه / بستگان تا درجه ۴..۱ / فقط خودش).
+ * - شماره واتس‌اپ و تلگرام هم مثل موبایل فقط برای مجازها.
  * - contributors: نویسندگان پروفایل با رنگ هر کدام (برای رنگ‌بندی متن‌ها و راهنمای رنگ).
  *
  * @mixin Person
@@ -36,6 +39,18 @@ class PersonResource extends JsonResource
         $canEdit = $access->canEdit($user, $person);
         $account = $person->user;
         $avatar = $person->avatar;
+
+        // شماره واتس‌اپ/تلگرام فقط برای کسانی که اجازه دیدن موبایل را دارند
+        $social = (array) ($person->social ?? []);
+        $hiddenSocial = false;
+        if (! $contact) {
+            foreach ($social as $network => $value) {
+                if (SocialNetworks::isPhone($network, $value)) {
+                    unset($social[$network]);
+                    $hiddenSocial = true;
+                }
+            }
+        }
 
         $texts = $person->relationLoaded('texts') ? $person->texts : $person->texts()->get();
         $resume = $person->relationLoaded('resumeItems') ? $person->resumeItems : $person->resumeItems()->get();
@@ -59,6 +74,8 @@ class PersonResource extends JsonResource
             'education' => $person->education,
             'education_level' => $person->education_level,
             'education_field' => $person->education_field,
+            'education_field_group' => $person->education_field_group,
+            'honorific_mode' => $person->honorific_mode ?? 'auto',
             'education_institution' => $person->education_institution,
             'academic_rank' => $person->academic_rank,
             'workplace' => $person->workplace,
@@ -71,7 +88,8 @@ class PersonResource extends JsonResource
             'interests' => $person->interests,
             'custom_fields' => $person->custom_fields ?? [],
             'website' => $person->website,
-            'social' => (object) ($person->social ?? []),
+            'social' => (object) $social,
+            'social_profiles' => $this->socialProfiles($person, $social),
             'biography' => $person->biography,
             'is_locked' => $person->is_locked,
 
@@ -79,14 +97,16 @@ class PersonResource extends JsonResource
             'address' => $location ? $person->address : null,
             'postal_code' => $location ? $person->postal_code : null,
             'home_location' => $location ? $person->homeLocation() : null,
-            'share_location' => $person->share_location,
+            'location_visibility' => $person->location_visibility ?? 'd1',
             'has_home_location' => $person->home_lat !== null,
+            'location_hidden' => ! $location && ($person->address || $person->home_lat !== null),
 
             // راه‌های ارتباطی
             'phone' => $contact ? $person->phone : null,
             'email' => $contact ? $person->email : null,
             'landline' => $contact ? $person->landline : null,
-            'share_contact' => $person->share_contact,
+            'contact_visibility' => $person->contact_visibility ?? 'all',
+            'contact_hidden' => ! $contact && ($person->phone_hash || $person->email || $person->landline || $hiddenSocial),
 
             // اطلاعات هویتی
             'national_code' => $sensitive ? $person->national_code : null,
@@ -123,6 +143,41 @@ class PersonResource extends JsonResource
             'created_by' => $person->creator?->displayName(),
             'permissions' => $access->summary($user, $person),
         ];
+    }
+
+    /**
+     * فهرست مرتب شبکه‌ها با لینک مستقیم و عکس پروفایل دریافت‌شده (برای نمایش در پروفایل)
+     *
+     * @return array<int, array>
+     */
+    private function socialProfiles(Person $person, array $social): array
+    {
+        $avatars = (array) ($person->social_avatars ?? []);
+        $mediaIds = array_filter(array_map(fn ($a) => $a['media_id'] ?? null, $avatars));
+        $media = $mediaIds ? Media::query()->whereIn('id', array_values($mediaIds))->where('status', Media::STATUS_APPROVED)->get()->keyBy('id') : collect();
+
+        $out = [];
+        foreach (SocialNetworks::all() as $network => $def) {
+            if (! isset($social[$network])) {
+                continue;
+            }
+            $value = $social[$network];
+            $photo = $media->get($avatars[$network]['media_id'] ?? '');
+            // عکسِ شناسه قبلی نمایش داده نمی‌شود
+            if ($photo && ($avatars[$network]['handle'] ?? null) !== $value) {
+                $photo = null;
+            }
+            $out[] = [
+                'network' => $network,
+                'label' => $def['label'],
+                'value' => $value,
+                'display' => SocialNetworks::display($network, $value),
+                'url' => SocialNetworks::url($network, $value),
+                'photo' => $photo ? ['thumb' => $photo->url('thumb'), 'medium' => $photo->url('medium'), 'media_id' => $photo->id] : null,
+            ];
+        }
+
+        return $out;
     }
 
     public static function resumeItem(ResumeItem $item): array

@@ -94,6 +94,24 @@ class ImageProcessor
         }
     }
 
+    /** تصویر کوچک مربعی از داده باینری (پیش‌نمایش عکس شبکه‌های اجتماعی؛ پیکسل‌ها کاملاً بازنویسی می‌شوند) */
+    public function thumbnailFromBinary(string $binary, int $size = 256): ?string
+    {
+        $temp = tempnam(sys_get_temp_dir(), 'thumb');
+        try {
+            file_put_contents($temp, $binary);
+            $this->assertSafeDimensions($temp, 40);
+            $image = $this->manager->decodePath($temp);
+            $image->coverDown($size, $size);
+
+            return (string) $image->encode(new WebpEncoder(quality: 80, strip: true));
+        } catch (Throwable) {
+            return null;
+        } finally {
+            @unlink($temp);
+        }
+    }
+
     /** ساخت پوستر/تصویر کوچک از یک فریم ویدیو */
     public function poster(string $framePath): array
     {

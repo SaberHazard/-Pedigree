@@ -5,6 +5,7 @@ namespace App\Services\Access;
 use App\Models\Person;
 use App\Models\User;
 use App\Services\Kinship;
+use App\Services\KinshipDegrees;
 use Illuminate\Support\Collection;
 
 /**
@@ -18,14 +19,19 @@ use Illuminate\Support\Collection;
  *  ۵. اگر شخص درگذشته باشد، نوادگانش (نوه، نتیجه ...) هم حق ویرایش دارند.
  *  ۶. سازنده یک پروفایل تا وقتی صاحبش وارد سیستم نشده (و حداکثر چند ساعت پس از ساخت)، حق ویرایش دارد.
  *  ۷. اطلاعات حساس (موبایل، کد ملی، رمز) شخصی که حساب فعال دارد فقط دست خودش است.
- *  ۸. نشانی و موقعیت خانه / راه‌های ارتباطی فقط برای ویرایشگران، مگر خود شخص اجازه نمایش عمومی بدهد.
+ *  ۸. موبایل و راه‌های ارتباطی: پیش‌فرض برای همه اعضای خاندان؛ خود شخص می‌تواند به بستگان تا درجه ۴/۳/۲/۱ یا فقط خودش محدود کند.
+ *  ۹. نشانی و موقعیت خانه: پیش‌فرض بستگان درجه یک؛ خود شخص می‌تواند گسترده‌تر یا محدودتر کند.
+ *     (درجه‌ها در KinshipDegrees تعریف شده‌اند؛ مدیر و خود شخص همیشه می‌بینند.)
  */
 class PersonAccess
 {
     /** @var array<string, bool> کش نتایج در طول یک درخواست */
     private array $cache = [];
 
-    public function __construct(private readonly Kinship $kinship) {}
+    public function __construct(
+        private readonly Kinship $kinship,
+        private readonly KinshipDegrees $degrees,
+    ) {}
 
     /** دیدن اطلاعات عمومی شخص (نام، تاریخ‌ها، عکس‌های تأییدشده) */
     public function canView(?User $user, Person $target): bool
@@ -120,21 +126,46 @@ class PersonAccess
     /** نشانی دقیق، کد پستی و موقعیت خانه روی نقشه */
     public function canViewLocation(?User $user, Person $target): bool
     {
-        if ($user === null || ! $user->isActive()) {
-            return false;
-        }
-
-        return $target->share_location || $user->isAdmin() || $this->canEdit($user, $target);
+        return $this->allowedByLevel($user, $target, $target->location_visibility ?: 'd1');
     }
 
-    /** موبایل، ایمیل و تلفن ثابت */
+    /** موبایل، ایمیل، تلفن ثابت و شماره واتس‌اپ */
     public function canViewContact(?User $user, Person $target): bool
+    {
+        return $this->allowedByLevel($user, $target, $target->contact_visibility ?: 'all');
+    }
+
+    /** تغییر تنظیم «چه کسانی شماره/نشانی را ببینند» فقط با خود شخص (یا مدیر، یا ویرایشگرِ پروفایل بدون حساب) */
+    public function canManagePrivacy(?User $user, Person $target): bool
+    {
+        return $this->canManageSensitive($user, $target);
+    }
+
+    /**
+     * اجازه دیدن طبق سطح: all | d4 | d3 | d2 | d1 | self
+     * خود شخص، مدیر و کسی که اطلاعات حساس این پروفایل (بدون حساب) را مدیریت می‌کند همیشه می‌بینند.
+     */
+    private function allowedByLevel(?User $user, Person $target, string $level): bool
     {
         if ($user === null || ! $user->isActive()) {
             return false;
         }
+        if ($level === 'all' || $user->isAdmin() || $user->person_id === $target->id) {
+            return true;
+        }
+        if ($this->canManageSensitive($user, $target)) {
+            return true;
+        }
+        $max = KinshipDegrees::levelMax($level);
+        if ($max === null) {
+            return true;
+        }
+        if ($max === 0 || $user->person === null) {
+            return false;
+        }
+        $degree = $this->degrees->degree($user->person, $target);
 
-        return $target->share_contact || $this->canViewSensitive($user, $target);
+        return $degree !== null && $degree <= $max;
     }
 
     /** تاریخچه تغییرات پروفایل (چه کسی چه چیزی را اضافه/حذف/ویرایش کرد) */
@@ -225,6 +256,7 @@ class PersonAccess
             'delete' => $this->canDelete($user, $target),
             'admin' => (bool) $user?->isAdmin(),
             'history' => $this->canViewHistory($user, $target),
+            'privacy' => $this->canManagePrivacy($user, $target),
             'comment' => $user !== null && $user->isActive() && (bool) config('pedigree.comments.enabled', true),
             'rate' => $user !== null && $user->isActive() && $user->person_id !== $target->id && (bool) config('pedigree.ratings.enabled', true),
         ];

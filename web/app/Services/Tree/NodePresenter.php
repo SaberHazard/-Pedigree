@@ -24,6 +24,9 @@ class NodePresenter
             'last_name' => $p->last_name,
             'nickname' => $p->nickname,
             'title' => $p->title,
+            // عنوان خودکار «دکتر/مهندس» و عنوان کامل مرتب‌شده (برای نام روی دایره و چاپ)
+            'honorific' => $p->honorific(),
+            'display_title' => $p->displayTitle(),
             'gender' => $p->gender,
             'father_id' => $p->father_id,
             'mother_id' => $p->mother_id,

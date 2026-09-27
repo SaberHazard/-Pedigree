@@ -99,6 +99,8 @@ class MediaController extends Controller
         }
 
         $person->avatar_media_id = $data['media_id'] ?? null;
+        // انتخاب دستی (حتی اگر عکس یک شبکه اجتماعی باشد) با اولویت شبکه‌ها عوض نمی‌شود
+        $person->avatar_source = null;
         $person->save();
         $this->audit->log('person.avatar_changed', $person, ['media' => $data['media_id'] ?? null], $request->user());
 

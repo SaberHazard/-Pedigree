@@ -11,6 +11,7 @@ use App\Notifications\MediaAwaitingVote;
 use App\Notifications\MediaDecided;
 use App\Services\AuditLogger;
 use App\Services\Kinship;
+use App\Services\Social\SocialAvatarService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -198,8 +199,11 @@ class ApprovalService
         }
         $media->save();
 
-        if ($status === Media::STATUS_APPROVED && $media->set_as_avatar && $media->isImage()) {
-            Person::whereKey($media->person_id)->update(['avatar_media_id' => $media->id]);
+        if ($status === Media::STATUS_APPROVED && $media->category === Media::CATEGORY_SOCIAL) {
+            // عکس شبکه اجتماعی فقط اگر عکس آپلودی نباشد و اولویتش بالاتر باشد
+            app(SocialAvatarService::class)->promote($media);
+        } elseif ($status === Media::STATUS_APPROVED && $media->set_as_avatar && $media->isImage()) {
+            Person::whereKey($media->person_id)->update(['avatar_media_id' => $media->id, 'avatar_source' => null]);
         }
 
         // فایلِ ردشده نگه داشته نمی‌شود (ممکن است محتوای نامناسب باشد)

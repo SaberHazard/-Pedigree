@@ -25,7 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $mime
  * @property int $size
  * @property bool $set_as_avatar
- * @property string $category gallery|story
+ * @property string $category gallery|story|social
  */
 class Media extends Model
 {
@@ -44,6 +44,9 @@ class Media extends Model
     public const CATEGORY_GALLERY = 'gallery';
 
     public const CATEGORY_STORY = 'story';
+
+    /** عکس پروفایل یک شبکه اجتماعی (اینستاگرام، واتس‌اپ، تلگرام ...) */
+    public const CATEGORY_SOCIAL = 'social';
 
     protected $fillable = ['caption', 'description', 'taken_at', 'category'];
 

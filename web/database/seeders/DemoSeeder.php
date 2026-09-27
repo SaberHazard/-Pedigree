@@ -52,7 +52,7 @@ class DemoSeeder extends Seeder
         $mohammad = $this->p('محمد', 'احمدی', 'm', '1300-02-10', '1375-06-30', ['occupation' => 'معلم', 'birth_order' => 1], $hasan, $fatemeh);
         $ali = $this->p('علی', 'احمدی', 'm', '1303', '1380', ['occupation' => 'کارمند راه‌آهن', 'birth_order' => 2], $hasan, $fatemeh);
         $zahra = $this->p('زهرا', 'احمدی', 'f', '1306', '1390', ['birth_order' => 3], $hasan, $fatemeh);
-        $reza = $this->p('رضا', 'احمدی', 'm', '1320-07-05', null, ['occupation' => 'مهندس عمران', 'residence' => 'تهران'], $hasan, $sakineh);
+        $reza = $this->p('رضا', 'احمدی', 'm', '1320-07-05', null, ['occupation' => 'مهندس عمران', 'residence' => 'تهران', 'education_level' => 'bachelor', 'education_field' => 'مهندسی عمران', 'education_field_group' => 'engineering'], $hasan, $sakineh);
         $maryam = $this->p('مریم', 'احمدی', 'f', '1322', null, ['residence' => 'اصفهان'], $hasan, $sakineh);
 
         // همسران نسل اول (معصومه از درخت رضایی)
@@ -67,15 +67,15 @@ class DemoSeeder extends Seeder
         $this->m($mahmoud, $maryam, '1342');
 
         // نسل دوم
-        $hossein = $this->p('حسین', 'احمدی', 'm', '1330-01-20', null, ['occupation' => 'پزشک', 'title' => 'دکتر', 'education_level' => 'subspecialist', 'education_field' => 'فوق‌تخصص قلب و عروق', 'education_institution' => 'دانشگاه علوم پزشکی تهران', 'academic_rank' => 'associate_professor', 'workplace' => 'بیمارستان شریعتی', 'country' => 'IR', 'city' => 'تهران'], $mohammad, $masoumeh);
-        $fateme2 = $this->p('فاطمه', 'احمدی', 'f', '1333', null, [], $mohammad, $masoumeh);
+        $hossein = $this->p('حسین', 'احمدی', 'm', '1330-01-20', null, ['occupation' => 'پزشک', 'education_level' => 'subspecialist', 'education_field_group' => 'medical', 'education_field' => 'فوق‌تخصص قلب و عروق', 'education_institution' => 'دانشگاه علوم پزشکی تهران', 'academic_rank' => 'associate_professor', 'workplace' => 'بیمارستان شریعتی', 'country' => 'IR', 'city' => 'تهران'], $mohammad, $masoumeh);
+        $fateme2 = $this->p('فاطمه', 'احمدی', 'f', '1333', null, ['occupation' => 'پرستار', 'education_level' => 'bachelor', 'education_field' => 'پرستاری', 'education_field_group' => 'nursing'], $mohammad, $masoumeh);
         $amir = $this->p('امیر', 'احمدی', 'm', '1336-05-12', null, ['occupation' => 'بازنشسته بانک', 'education_level' => 'bachelor', 'country' => 'IR', 'city' => 'تهران'], $mohammad, $masoumeh);
         $mahdi = $this->p('مهدی', 'احمدی', 'm', '1332', '1361', ['burial_place' => 'بهشت زهرا، قطعه ۲۴', 'burial_lat' => 35.5316, 'burial_lng' => 51.3725, 'title' => 'شهید', 'education_level' => 'high_school'], $ali, $narges);
         $sara = $this->p('سارا', 'احمدی', 'f', '1335', null, [], $ali, $narges);
-        $mostafa = $this->p('مصطفی', 'موسوی', 'm', '1334', null, ['title' => 'سید', 'occupation' => 'استاد دانشگاه', 'education_level' => 'phd', 'education_field' => 'ادبیات فارسی', 'academic_rank' => 'professor', 'country' => 'IR', 'city' => 'شیراز'], $javad, $zahra);
+        $mostafa = $this->p('مصطفی', 'موسوی', 'm', '1334', null, ['title' => 'سید', 'occupation' => 'استاد دانشگاه', 'education_level' => 'phd', 'education_field' => 'ادبیات فارسی', 'education_field_group' => 'humanities', 'academic_rank' => 'professor', 'country' => 'IR', 'city' => 'شیراز'], $javad, $zahra);
         $zeynab = $this->p('زینب', 'موسوی', 'f', '1338', null, ['title' => 'سیده'], $javad, $zahra);
         $alireza = $this->p('علیرضا', 'احمدی', 'm', '1350', null, [], $reza, $leila);
-        $niloufar = $this->p('نیلوفر', 'احمدی', 'f', '1353-09-30', null, ['occupation' => 'معمار', 'education_level' => 'master', 'country' => 'DE', 'province' => 'برلین', 'city' => 'برلین', 'home_lat' => '52.5200', 'home_lng' => '13.4050', 'share_location' => true, 'languages' => 'فارسی، آلمانی، انگلیسی'], $reza, $leila);
+        $niloufar = $this->p('نیلوفر', 'احمدی', 'f', '1353-09-30', null, ['occupation' => 'معمار', 'education_level' => 'master', 'education_field' => 'معماری', 'education_field_group' => 'architecture', 'country' => 'DE', 'province' => 'برلین', 'city' => 'برلین', 'home_lat' => '52.5200', 'home_lng' => '13.4050', 'location_visibility' => 'all', 'languages' => 'فارسی، آلمانی، انگلیسی'], $reza, $leila);
         $this->p('کاوه', 'جعفری', 'm', '1345', null, [], $mahmoud, $maryam);
 
         // ازدواج فامیلی: حسین (پسرِ محمد) با سارا (دخترِ علی) — دخترعمو
@@ -92,11 +92,11 @@ class DemoSeeder extends Seeder
         $this->p('مریم', 'احمدی', 'f', '1363', null, [], $hossein, $sara);
         $mreza = $this->p('محمدرضا', 'احمدی', 'm', '1368-07-12', null, [
             'occupation' => 'برنامه‌نویس', 'residence' => 'نارمک', 'birth_order' => 1,
-            'education_level' => 'master', 'education_field' => 'مهندسی نرم‌افزار', 'education_institution' => 'دانشگاه صنعتی شریف',
+            'education_level' => 'master', 'education_field' => 'مهندسی نرم‌افزار', 'education_field_group' => 'engineering', 'education_institution' => 'دانشگاه صنعتی شریف',
             'workplace' => 'یک شرکت نرم‌افزاری', 'country' => 'IR', 'province' => 'تهران', 'city' => 'تهران',
-            'home_lat' => '35.7448', 'home_lng' => '51.5049', 'share_location' => true, 'blood_type' => 'O+',
+            'home_lat' => '35.7448', 'home_lng' => '51.5049', 'location_visibility' => 'all', 'blood_type' => 'O+',
             'languages' => 'فارسی، انگلیسی', 'interests' => 'کوهنوردی، تاریخ خانواده، عکاسی',
-            'social' => ['telegram' => '@mreza_demo', 'github' => 'mreza-demo'],
+            'social' => ['instagram' => 'mreza.demo', 'telegram' => 'mreza_demo', 'whatsapp' => '+989120000000', 'github' => 'mreza-demo'],
             'custom_fields' => [['label' => 'غذای محبوب', 'value' => 'قورمه‌سبزی'], ['label' => 'تیم محبوب', 'value' => 'ندارد!']],
         ], $amir, $pari);
         $this->p('زینب', 'احمدی', 'f', '1372', null, ['birth_order' => 2], $amir, $pari);

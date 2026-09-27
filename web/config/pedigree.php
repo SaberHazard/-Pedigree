@@ -257,6 +257,33 @@ return [
             'hawza_3' => 'حوزوی سطح ۳',
             'hawza_4' => 'حوزوی سطح ۴ (خارج / اجتهاد)',
         ],
+        // گروه رشته تحصیلی؛ «engineer» یعنی دارندگان لیسانس و فوق‌لیسانس این گروه «مهندس» خوانده می‌شوند
+        'education_field_groups' => [
+            'engineering' => ['label' => 'فنی و مهندسی (برق، مکانیک، عمران، کامپیوتر، صنایع، شیمی، مواد، معدن، نفت، هوافضا ...)', 'engineer' => true],
+            'architecture' => ['label' => 'معماری و شهرسازی', 'engineer' => true],
+            'agriculture' => ['label' => 'مهندسی کشاورزی، منابع طبیعی و محیط زیست', 'engineer' => true],
+            'medical' => ['label' => 'پزشکی، دندان‌پزشکی، داروسازی، دامپزشکی', 'engineer' => false],
+            'nursing' => ['label' => 'پرستاری، مامایی و پیراپزشکی', 'engineer' => false],
+            'science' => ['label' => 'علوم پایه (ریاضی، فیزیک، شیمی محض، زیست‌شناسی ...)', 'engineer' => false],
+            'humanities' => ['label' => 'علوم انسانی (حقوق، مدیریت، اقتصاد، روان‌شناسی، ادبیات ...)', 'engineer' => false],
+            'art' => ['label' => 'هنر', 'engineer' => false],
+            'seminary' => ['label' => 'علوم حوزوی و الهیات', 'engineer' => false],
+            'other' => ['label' => 'سایر', 'engineer' => false],
+        ],
+        // عنوان خودکار پیش از نام
+        'honorifics' => [
+            // دکترای حرفه‌ای (پزشکی ...) و بالاتر ← «دکتر»
+            'doctor_levels' => ['professional_doctorate', 'phd', 'specialist', 'subspecialist', 'fellowship', 'postdoc'],
+            // اعضای هیئت علمی از استادیار به بالا (دارای دکترا) ← «دکتر»
+            'doctor_ranks' => ['assistant_professor', 'associate_professor', 'professor', 'distinguished_professor', 'emeritus'],
+            // لیسانس و فوق‌لیسانس در رشته‌های فنی ← «مهندس»
+            'engineer_levels' => ['bachelor', 'master'],
+            // اگر گروه رشته انتخاب نشده باشد، فقط وقتی نام رشته صراحتاً یکی از این‌ها را داشته باشد
+            'engineer_keywords' => ['مهندسی', 'engineering', 'معماری', 'شهرسازی'],
+            // عنوان‌هایی که پیش از «دکتر/مهندس» می‌آیند: «حاج دکتر ...»، «شهید مهندس ...»
+            'before' => ['حاج', 'حاجیه', 'حاجی', 'کربلایی', 'مشهدی', 'شهید', 'آیت‌الله', 'حجت‌الاسلام'],
+        ],
+
         // مرتبه علمی (برای اعضای هیئت علمی)
         'academic_ranks' => [
             'instructor' => 'مربی',
@@ -267,12 +294,35 @@ return [
             'emeritus' => 'استاد بازنشسته (امریتوس)',
         ],
         'blood_types' => ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'],
-        // شبکه‌های اجتماعی قابل ثبت در پروفایل
+        // شبکه‌های اجتماعی قابل ثبت در پروفایل (به همین ترتیب نمایش داده می‌شوند؛ سه مورد اول همیشه در فرم پیداست)
+        //  kind: handle = شناسه، phone = شماره (مثل واتس‌اپ)، handle_or_phone = هر دو (تلگرام)
+        //  hosts: دامنه‌های مجاز برای وقتی کاربر لینک کامل را می‌چسباند (لینک دامنه دیگر پذیرفته نمی‌شود)
+        //  prefix: بخشی از مسیر لینک که پیش از شناسه می‌آید (مثلاً in/ در لینکدین)
+        //  fetch: عکس پروفایل عمومی قابل دریافت خودکار است
         'social_networks' => [
-            'instagram' => 'اینستاگرام', 'telegram' => 'تلگرام', 'whatsapp' => 'واتس‌اپ', 'linkedin' => 'لینکدین',
-            'x' => 'ایکس (توییتر)', 'youtube' => 'یوتیوب', 'aparat' => 'آپارات', 'facebook' => 'فیس‌بوک',
-            'github' => 'گیت‌هاب', 'eitaa' => 'ایتا', 'bale' => 'بله', 'rubika' => 'روبیکا',
+            'instagram' => ['label' => 'اینستاگرام', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._]{1,30}', 'url' => 'https://www.instagram.com/{h}/', 'hosts' => ['instagram.com', 'instagr.am'], 'fetch' => true],
+            'telegram' => ['label' => 'تلگرام', 'kind' => 'handle_or_phone', 'pattern' => '[A-Za-z][A-Za-z0-9_]{3,31}', 'url' => 'https://t.me/{h}', 'hosts' => ['t.me', 'telegram.me', 'telegram.dog'], 'fetch' => true],
+            'whatsapp' => ['label' => 'واتس‌اپ', 'kind' => 'phone', 'url' => 'https://wa.me/{h}', 'hosts' => ['wa.me', 'api.whatsapp.com', 'whatsapp.com']],
+            'eitaa' => ['label' => 'ایتا', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://eitaa.com/{h}', 'hosts' => ['eitaa.com']],
+            'bale' => ['label' => 'بله', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://ble.ir/{h}', 'hosts' => ['ble.ir', 'bale.ai']],
+            'rubika' => ['label' => 'روبیکا', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_.]{3,40}', 'url' => 'https://rubika.ir/{h}', 'hosts' => ['rubika.ir']],
+            'soroush' => ['label' => 'سروش پلاس', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://splus.ir/{h}', 'hosts' => ['splus.ir', 'sapp.ir']],
+            'linkedin' => ['label' => 'لینکدین', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_\-]{3,100}', 'url' => 'https://www.linkedin.com/in/{h}/', 'hosts' => ['linkedin.com'], 'prefix' => 'in'],
+            'x' => ['label' => 'ایکس (توییتر)', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{1,15}', 'url' => 'https://x.com/{h}', 'hosts' => ['x.com', 'twitter.com']],
+            'threads' => ['label' => 'تردز', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._]{1,30}', 'url' => 'https://www.threads.net/@{h}', 'hosts' => ['threads.net', 'threads.com']],
+            'tiktok' => ['label' => 'تیک‌تاک', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._]{2,24}', 'url' => 'https://www.tiktok.com/@{h}', 'hosts' => ['tiktok.com']],
+            'youtube' => ['label' => 'یوتیوب', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._\-]{3,100}', 'url' => 'https://www.youtube.com/@{h}', 'hosts' => ['youtube.com']],
+            'aparat' => ['label' => 'آپارات', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,60}', 'url' => 'https://www.aparat.com/{h}', 'hosts' => ['aparat.com']],
+            'facebook' => ['label' => 'فیس‌بوک', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9.]{3,80}', 'url' => 'https://www.facebook.com/{h}', 'hosts' => ['facebook.com', 'fb.com']],
+            'snapchat' => ['label' => 'اسنپ‌چت', 'kind' => 'handle', 'pattern' => '[A-Za-z][A-Za-z0-9._\-]{2,14}', 'url' => 'https://www.snapchat.com/add/{h}', 'hosts' => ['snapchat.com'], 'prefix' => 'add'],
+            'pinterest' => ['label' => 'پینترست', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,30}', 'url' => 'https://www.pinterest.com/{h}/', 'hosts' => ['pinterest.com']],
+            'github' => ['label' => 'گیت‌هاب', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9](?:[A-Za-z0-9\-]{0,38})', 'url' => 'https://github.com/{h}', 'hosts' => ['github.com'], 'fetch' => true],
+            'virasty' => ['label' => 'ویراستی', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://virasty.com/{h}', 'hosts' => ['virasty.com']],
+            'bluesky' => ['label' => 'بلواسکای', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9](?:[A-Za-z0-9.\-]{1,251})', 'url' => 'https://bsky.app/profile/{h}', 'hosts' => ['bsky.app'], 'prefix' => 'profile'],
         ],
+        // اگر شخص در سایت عکس پروفایل ندارد، عکس کدام شبکه به ترتیب جای آن نمایش داده شود
+        'social_avatar_priority' => ['instagram', 'whatsapp', 'telegram', 'github'],
+
         // سقف تعداد ویژگی‌های دلخواه (مثلاً «غذای محبوب: قورمه‌سبزی»)
         'max_attributes' => 40,
 
@@ -305,6 +355,36 @@ return [
     | کاشی‌های نقشه از سرویس دلخواه (پیش‌فرض OpenStreetMap). اگر آدرس را عوض
     | کنید، دامنه آن خودکار به CSP اضافه می‌شود.
     */
+    /*
+    |--------------------------------------------------------------------------
+    | دریافت عکس پروفایل از شبکه‌های اجتماعی
+    |--------------------------------------------------------------------------
+    | سرور فقط به دامنه‌های ثابت همین شبکه‌ها وصل می‌شود (نه هر آدرسی که کاربر بدهد)،
+    | بدون ریدایرکت آزاد، با سقف حجم و زمان، و هرگز به IP داخلی/خصوصی.
+    | اگر سرور در ایران است و تلگرام/اینستاگرام فیلتر است، یک پراکسی خروجی تعیین کنید.
+    | اینستاگرام صفحه عمومی را معمولاً فقط به کاربر واردشده نشان می‌دهد؛ روش رسمی
+    | «Business Discovery» (برای حساب‌های تجاری/تولیدکننده) با توکن زیر فعال می‌شود.
+    */
+    'social' => [
+        'fetch_enabled' => (bool) env('PEDIGREE_SOCIAL_FETCH', true),
+        'proxy' => env('PEDIGREE_SOCIAL_PROXY'), // مثلاً socks5h://127.0.0.1:1080 یا http://proxy:3128
+        'timeout' => 8,
+        'max_html_kb' => 768,
+        'max_image_kb' => 6144,
+        // مدت نگه‌داری نتیجه پیش‌نمایش (دقیقه)
+        'preview_cache_minutes' => 360,
+        'instagram' => [
+            'graph_token' => env('PEDIGREE_INSTAGRAM_TOKEN'),
+            'graph_user_id' => env('PEDIGREE_INSTAGRAM_USER_ID'),
+        ],
+        // دامنه‌هایی که عکس از آن‌ها دانلود می‌شود (دقیق یا زیردامنه)
+        'image_hosts' => [
+            'telegram' => ['telesco.pe', 'cdn-telegram.org', 't.me'],
+            'instagram' => ['cdninstagram.com', 'fbcdn.net'],
+            'github' => ['avatars.githubusercontent.com'],
+        ],
+    ],
+
     'map' => [
         'enabled' => (bool) env('PEDIGREE_MAP_ENABLED', true),
         'tiles' => env('PEDIGREE_MAP_TILES', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),

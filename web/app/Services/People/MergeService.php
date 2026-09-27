@@ -46,6 +46,11 @@ class MergeService
                     $keep->{$field} = $duplicate->{$field};
                 }
             }
+            if ($keep->avatar_media_id !== null && $keep->avatar_media_id === $duplicate->avatar_media_id) {
+                $keep->avatar_source = $duplicate->avatar_source;
+            }
+            // عکس‌های شبکه‌های اجتماعی (رسانه‌ها در ادامه به keep منتقل می‌شوند)
+            $keep->social_avatars = ((array) ($keep->social_avatars ?? [])) + ((array) ($duplicate->social_avatars ?? [])) ?: null;
 
             // اطلاعات حساس: ابتدا از duplicate پاک می‌شود تا ایندکس یکتا خطا ندهد
             $sensitive = [];

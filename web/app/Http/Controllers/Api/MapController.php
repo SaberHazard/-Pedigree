@@ -5,19 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
 use App\Models\Person;
-use App\Services\Kinship;
+use App\Services\KinshipDegrees;
 use App\Services\Tree\NodePresenter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * نقشه خاندان: محل زندگی اعضا (فقط کسانی که اجازه نمایش داده‌اند یا بستگان درجه یک بیننده)
+ * نقشه خاندان: محل زندگی اعضا (طبق تنظیم هر شخص: همه اعضا / بستگان تا درجه ... / فقط خودش)
  * و آرامگاه درگذشتگان.
  */
 class MapController extends Controller
 {
-    public function index(Request $request, Kinship $kinship): JsonResponse
+    public function index(Request $request, KinshipDegrees $degrees): JsonResponse
     {
         if (! config('pedigree.map.enabled', true)) {
             throw new DomainException('نقشه غیرفعال است.', 404);
@@ -25,24 +25,27 @@ class MapController extends Controller
         $user = $request->user();
         $limit = (int) config('pedigree.tree.max_nodes', 5000);
 
-        // کسانی که بیننده بدون اجازه عمومی هم می‌تواند خانه‌شان را ببیند: خودش و بستگان درجه یک
-        $close = [];
-        if ($user->person) {
-            $viewer = $user->person;
-            $close[] = $viewer->id;
-            foreach (['parents', 'children', 'siblings', 'spouses'] as $group) {
-                array_push($close, ...$kinship->group($viewer, $group)->pluck('id')->all());
-            }
-        }
+        // بستگان بیننده تا درجه ۴ (برای سطح‌های «فقط بستگان تا درجه ...»)
+        $kin = $user->person ? $degrees->from($user->person) : [];
 
         $points = [];
         $homes = Person::query()->with('avatar')
             ->whereNotNull('home_lat')
             ->where('is_deceased', false)
-            ->when(! $user->isAdmin(), fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('share_location', true)->orWhereIn('id', $close)))
+            ->when(! $user->isAdmin(), fn (Builder $q) => $q->where(fn (Builder $q) => $q
+                ->where('location_visibility', 'all')
+                ->orWhere('id', $user->person_id)
+                ->orWhereIn('id', array_keys($kin) ?: [''])))
             ->limit($limit)
             ->get();
         foreach ($homes as $person) {
+            if (! $user->isAdmin() && $person->id !== $user->person_id && $person->location_visibility !== 'all') {
+                $max = KinshipDegrees::levelMax($person->location_visibility ?: 'd1');
+                $degree = $kin[$person->id]['degree'] ?? null;
+                if ($max === 0 || $degree === null || ($max !== null && $degree > $max)) {
+                    continue;
+                }
+            }
             if ($location = $person->homeLocation()) {
                 $points[] = ['kind' => 'home', 'person' => NodePresenter::person($person), 'city' => $person->city, 'country' => $person->country] + $location;
             }
