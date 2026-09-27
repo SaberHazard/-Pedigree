@@ -208,7 +208,7 @@ export default async function treePage(container, { params, query }) {
           setTimeout(() => view.centerOn(focus, { zoom: 1 }), 300);
           drawer.open(query.focus, view.nodeOf(focus));
         } else {
-          view.fit(false);
+          view.initialView();
         }
       });
     }

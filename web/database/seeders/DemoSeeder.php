@@ -104,6 +104,7 @@ class DemoSeeder extends Seeder
         $mreza->save();
         $this->admin->person_id = $mreza->id;
         $this->admin->password = 'demo1234';
+        $this->admin->password_set_by = $this->admin->id;
         $this->admin->last_login_at = now();
         $this->admin->save();
 

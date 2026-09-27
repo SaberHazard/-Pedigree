@@ -37,7 +37,7 @@ class PersonService
             $person->save();
 
             if (! empty($data['password'])) {
-                $this->setPassword($person, $data['password']);
+                $this->setPassword($person, $data['password'], $actor);
             }
 
             $this->audit->log('person.created', $person, ['name' => $person->fullName()], $actor);
@@ -60,6 +60,11 @@ class PersonService
                 throw new DomainException('جنسیت شخصی که فرزند یا همسر ثبت‌شده دارد قابل تغییر نیست.');
             }
 
+            // ثبت درگذشتِ عضوی که حساب فعال دارد فقط توسط خودش یا مدیر (جلوگیری از قفل کردن حساب دیگران)
+            if ($person->isDirty('is_deceased') && $person->hasActiveAccount() && ! $this->access->canManageSensitive($actor, $person)) {
+                throw new DomainException('وضعیت درگذشتِ عضوی که حساب فعال دارد را فقط مدیر می‌تواند تغییر دهد.', 403);
+            }
+
             // اگر شخص فوت کرده، حسابش دیگر قابل ورود نیست
             if ($person->isDirty('is_deceased') && $person->is_deceased) {
                 $person->user?->tokens()->delete();
@@ -70,7 +75,7 @@ class PersonService
             $person->save();
 
             if (array_key_exists('password', $data) && $data['password'] && $this->access->canManageSensitive($actor, $person)) {
-                $this->setPassword($person, $data['password']);
+                $this->setPassword($person, $data['password'], $actor);
                 $changes['password'] = ['***', '***'];
             }
 
@@ -104,13 +109,19 @@ class PersonService
     }
 
     /** ساخت یا به‌روزرسانی حساب کاربری شخص با رمز عبور */
-    public function setPassword(Person $person, string $password): User
+    public function setPassword(Person $person, string $password, ?User $actor = null): User
     {
         $user = $person->user ?? new User(['person_id' => $person->id]);
         $user->person_id = $person->id;
         $user->password = $password;
         $user->password_changed_at = now();
+        // چه کسی رمز را تعیین کرده (مثلاً پدر یا مادر)؛ با اولین ورود پیامکی صاحب حساب، رمزِ دیگران پاک می‌شود
+        $user->password_set_by = $actor?->id;
         $user->save();
+        if ($actor === null || $actor->id === $user->id) {
+            $user->password_set_by = $user->id;
+            $user->save();
+        }
         $person->setRelation('user', $user);
 
         return $user;

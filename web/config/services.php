@@ -35,7 +35,6 @@ return [
         ],
     ],
 
-
     // Firebase Cloud Messaging برای پوش‌نوتیفیکیشن اپ‌های موبایل
     'fcm' => [
         'enabled' => (bool) env('FCM_ENABLED', false),

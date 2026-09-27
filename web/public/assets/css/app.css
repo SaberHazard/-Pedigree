@@ -1365,7 +1365,9 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
   background-position: var(--grid-x, 0) var(--grid-y, 0);
 }
 .tree-canvas.dragging { cursor: grabbing; }
-.tree-canvas svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.tree-canvas svg { width: 100%; height: 100%; display: block; overflow: visible; position: relative; }
+.tree-overview { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.tree-svg.overview .nodes, .tree-svg.overview .links, .tree-svg.overview .marks { display: none; }
 .tree-toolbar {
   position: absolute;
   z-index: 20;

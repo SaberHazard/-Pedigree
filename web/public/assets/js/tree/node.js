@@ -14,10 +14,21 @@ import { iconPaths, silhouetteMarkup } from '../core/icons.js';
 
 // ------------------------------------------------------------------ اندازه‌گیری متن
 let measureCtx = null;
+let measureFont = '';
+const widthCache = new Map();
 function textWidth(text, size, weight = 700) {
+  const key = `${weight}|${size}|${text}`;
+  if (widthCache.has(key)) return widthCache.get(key);
   measureCtx ??= document.createElement('canvas').getContext('2d');
-  measureCtx.font = `${weight} ${size}px Vazirmatn, Tahoma, sans-serif`;
-  return measureCtx.measureText(text).width;
+  const font = `${weight} ${size}px Vazirmatn, Tahoma, sans-serif`;
+  if (font !== measureFont) {
+    measureCtx.font = font;
+    measureFont = font;
+  }
+  const w = measureCtx.measureText(text).width;
+  if (widthCache.size > 20000) widthCache.clear();
+  widthCache.set(key, w);
+  return w;
 }
 
 /**
@@ -56,7 +67,7 @@ export function buildDefs(g, idPrefix = 't') {
     <radialGradient id="${idPrefix}-plate"><stop offset=".6" stop-color="var(--plate-1, #fff)" stop-opacity=".92"/><stop offset="1" stop-color="var(--plate-1, #fff)" stop-opacity=".55"/></radialGradient>
     <symbol id="${idPrefix}-sil-m" viewBox="0 0 100 100">${silhouetteMarkup('m')}</symbol>
     <symbol id="${idPrefix}-sil-f" viewBox="0 0 100 100">${silhouetteMarkup('f')}</symbol>
-    <filter id="${idPrefix}-shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#0b1a1d" flood-opacity=".22"/></filter>
+    <radialGradient id="${idPrefix}-shadow"><stop offset=".72" stop-color="#0b1a1d" stop-opacity=".28"/><stop offset="1" stop-color="#0b1a1d" stop-opacity="0"/></radialGradient>
   `;
   return defs;
 }
@@ -114,8 +125,12 @@ export function buildNode(node, g, opts = {}) {
   }
 
   // عکس یا سیلوئت
-  const photoGroup = s('g', { class: 't-photo-wrap', filter: opts.interactive === false ? null : `url(#${idp}-shadow)` });
-  photoGroup.append(s('circle', { r: g.R + g.ring, fill: 'var(--surface, #fff)' }));
+  // سایه نرم با گرادیان (به‌جای فیلتر SVG که روی هزاران گره بسیار کند است)
+  const photoGroup = s('g', { class: 't-photo-wrap' });
+  photoGroup.append(
+    s('circle', { class: 't-shadow', r: g.R + g.ring + 7, cy: 4, fill: `url(#${idp}-shadow)` }),
+    s('circle', { r: g.R + g.ring, fill: 'var(--surface, #fff)' }),
+  );
   const href = prefs.show_photos === false ? null : (opts.photoHref ? opts.photoHref(p) : p.avatar);
   if (href) {
     photoGroup.append(s('image', {

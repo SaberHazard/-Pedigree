@@ -73,8 +73,8 @@ class AuthTest extends TestCase
         ])->assertOk()->assertJsonStructure(['token']);
 
         $this->assertNotNull(Person::findByPhone('09350000000'));
-        // اولین کاربر سیستم مدیر کل می‌شود
-        $this->assertSame(User::ROLE_SUPER_ADMIN, User::first()->role);
+        // ثبت‌نام آزاد هرگز مدیر نمی‌سازد (مگر با تنظیم صریح)
+        $this->assertSame(User::ROLE_MEMBER, User::first()->role);
     }
 
     public function test_password_login_and_lockout(): void
@@ -88,6 +88,39 @@ class AuthTest extends TestCase
             $this->postJson('/api/auth/login', ['national_code' => '1234567891', 'password' => 'wrong-pass1'])->assertStatus(422);
         }
         $this->postJson('/api/auth/login', ['national_code' => '1234567891', 'password' => 'secret123'])->assertStatus(429);
+    }
+
+    public function test_password_set_by_others_is_cleared_when_owner_logs_in_with_otp(): void
+    {
+        // یکی از بستگان برای پروفایل من رمز گذاشته و وارد شده
+        $relative = User::factory()->withPerson(['gender' => 'm'])->create()->refresh();
+        $me = $this->makeMember('09127777777', '0499370899');
+        $me->forceFill(['password' => 'relative123', 'password_set_by' => $relative->id])->save();
+        $token = $me->createToken('relative-device')->plainTextToken;
+
+        // صاحب واقعی شماره با پیامک وارد می‌شود
+        $code = $this->postJson('/api/auth/otp', ['phone' => '09127777777'])->json('debug_code');
+        $this->postJson('/api/auth/otp/verify', ['phone' => '09127777777', 'code' => $code, 'device_name' => 'mine'])->assertOk();
+
+        $me->refresh();
+        $this->assertNull($me->password);
+        $this->assertSame(1, $me->tokens()->count());
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/auth/me')->assertUnauthorized();
+    }
+
+    public function test_relatives_cannot_mark_active_member_as_deceased(): void
+    {
+        $me = $this->makeMember();
+        $me->forceFill(['last_login_at' => now()])->save();
+        $father = Person::factory()->male()->create();
+        $me->person->forceFill(['father_id' => $father->id])->save();
+        $sibling = User::factory()->withPerson(['gender' => 'f'])->create()->refresh();
+        $sibling->person->forceFill(['father_id' => $father->id])->save();
+
+        $this->actingAs($sibling->refresh(), 'sanctum');
+        $this->patchJson("/api/persons/{$me->person_id}", ['is_deceased' => true])->assertForbidden();
+        $this->assertFalse($me->person->fresh()->is_deceased);
     }
 
     public function test_deceased_person_cannot_login(): void

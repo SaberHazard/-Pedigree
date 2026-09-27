@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -18,8 +19,8 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role
  * @property string $status
  * @property ?array $preferences
- * @property ?\Illuminate\Support\Carbon $last_login_at
- * @property ?\Illuminate\Support\Carbon $otp_verified_at
+ * @property ?Carbon $last_login_at
+ * @property ?Carbon $otp_verified_at
  * @property-read ?Person $person
  */
 class User extends Authenticatable

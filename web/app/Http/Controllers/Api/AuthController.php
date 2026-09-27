@@ -146,6 +146,7 @@ class AuthController extends Controller
         }
 
         $user->otp_verified_at = now();
+        $this->secureClaim($user);
 
         return $this->completeLogin($request, $user, 'otp');
     }
@@ -172,7 +173,9 @@ class AuthController extends Controller
         }
 
         $user = DB::transaction(function () use ($data, $phone, $persons) {
-            $user = User::create(['role' => User::count() === 0 ? User::ROLE_SUPER_ADMIN : User::ROLE_MEMBER]);
+            // اولین کاربر فقط در صورت فعال بودن تنظیم، مدیر کل می‌شود (پیشنهاد: از pedigree:install استفاده کنید)
+            $firstAdmin = config('pedigree.registration.first_user_is_admin') && User::count() === 0;
+            $user = User::create(['role' => $firstAdmin ? User::ROLE_SUPER_ADMIN : User::ROLE_MEMBER]);
             $person = $persons->create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -184,6 +187,7 @@ class AuthController extends Controller
             if (! empty($data['password'])) {
                 $user->password = $data['password'];
                 $user->password_changed_at = now();
+                $user->password_set_by = $user->id;
             }
             $user->otp_verified_at = now();
             $user->save();
@@ -270,6 +274,26 @@ class AuthController extends Controller
     public function me(Request $request): UserResource
     {
         return new UserResource($request->user()->load('person'));
+    }
+
+    /**
+     * صاحب واقعی شماره وارد شده است: اگر رمز عبور حساب را شخص دیگری تعیین کرده
+     * (مثلاً والدین یا کسی که پروفایل را ساخته)، آن رمز حذف و همه نشست‌های قبلی بسته می‌شوند
+     * تا هیچ‌کس جز صاحب شماره به حساب دسترسی نداشته باشد.
+     */
+    private function secureClaim(User $user): void
+    {
+        if ($user->password === null || $user->password_set_by === null || $user->password_set_by === $user->id) {
+            return;
+        }
+
+        $user->password = null;
+        $user->password_set_by = null;
+        $user->tokens()->delete();
+        if (config('session.driver') === 'database') {
+            DB::table(config('session.table', 'sessions'))->where('user_id', $user->id)->delete();
+        }
+        $this->audit->log('auth.claimed', $user->person, ['password_cleared' => true], $user);
     }
 
     /** ورود نهایی: سشن برای سایت، توکن برای اپ */

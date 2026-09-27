@@ -28,6 +28,8 @@ return [
     'registration' => [
         // اگر true باشد، شماره‌ای که در سیستم نیست می‌تواند بعد از تأیید پیامکی ثبت‌نام کند
         'enabled' => (bool) env('PEDIGREE_REGISTRATION', true),
+        // اولین کسی که ثبت‌نام کند مدیر کل شود؟ (امن‌تر: false و استفاده از php artisan pedigree:install)
+        'first_user_is_admin' => (bool) env('PEDIGREE_FIRST_USER_ADMIN', false),
     ],
 
     // روی هاست‌های بدون supervisor، صف پردازش (فشرده‌سازی ویدیو) هر دقیقه با cron اجرا شود

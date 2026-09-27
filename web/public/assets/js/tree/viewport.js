@@ -15,11 +15,21 @@ export class Viewport {
     this.x = 0;
     this.y = 0;
     this.k = 1;
-    this.min = 0.06;
+    this.min = 0.008; // درخت‌های خیلی بزرگ در نمای کلی (canvas) کامل دیده شوند
     this.max = 2.6;
     this.pointers = new Map();
     this.suppressClick = false;
     this.raf = null;
+    // اندازه ناحیه با ResizeObserver نگهداری می‌شود؛ خواندن clientWidth در هر فریم
+    // باعث محاسبه مجدد چیدمان کل SVG می‌شود و در درخت‌های بزرگ بسیار کند است
+    this.w = el.clientWidth;
+    this.h = el.clientHeight;
+    this.resizeObserver = new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      this.w = r.width;
+      this.h = r.height;
+    });
+    this.resizeObserver.observe(el);
 
     this.handlers = {
       down: (e) => this.onDown(e),
@@ -46,6 +56,7 @@ export class Viewport {
 
   destroy() {
     this.stop();
+    this.resizeObserver.disconnect();
     const el = this.el;
     el.removeEventListener('pointerdown', this.handlers.down);
     el.removeEventListener('pointermove', this.handlers.move);
@@ -57,7 +68,7 @@ export class Viewport {
   }
 
   get size() {
-    return { w: this.el.clientWidth, h: this.el.clientHeight };
+    return { w: this.w, h: this.h };
   }
 
   apply() {
@@ -150,8 +161,11 @@ export class Viewport {
 
   // ------------------------------------------------------------ رویدادها
   local(e) {
-    const r = this.el.getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+    // موقعیت ناحیه فقط هنگام شروع تعامل خوانده و کش می‌شود
+    if (!this.rect || e.type === 'pointerdown' || e.type === 'wheel' && !this.wheeling) {
+      this.rect = this.el.getBoundingClientRect();
+    }
+    return { x: e.clientX - this.rect.left, y: e.clientY - this.rect.top };
   }
 
   onDown(e) {
@@ -265,6 +279,9 @@ export class Viewport {
     e.preventDefault();
     this.stop();
     const p = this.local(e);
+    this.wheeling = true;
+    clearTimeout(this.wheelTimer);
+    this.wheelTimer = setTimeout(() => (this.wheeling = false), 200);
     const mouseLike = e.deltaMode === 1 || (e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && Number.isInteger(e.deltaY));
     if (e.ctrlKey || e.metaKey || mouseLike) {
       const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;

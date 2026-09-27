@@ -66,6 +66,7 @@ class InstallCommand extends Command
             if ($password) {
                 $user->password = $password;
                 $user->password_changed_at = now();
+                $user->password_set_by = $user->id;
             }
             $user->save();
         });

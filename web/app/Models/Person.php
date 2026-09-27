@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Crypt;
  * @property ?string $last_name
  * @property ?string $nickname
  * @property ?string $title
- * @property string $gender  m|f
+ * @property string $gender m|f
  * @property ?string $father_id
  * @property ?string $mother_id
  * @property ?int $birth_order

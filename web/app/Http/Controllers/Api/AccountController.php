@@ -70,6 +70,7 @@ class AccountController extends Controller
 
         $user->password = $data['password'];
         $user->password_changed_at = now();
+        $user->password_set_by = $user->id;
         $user->save();
 
         // خروج از سایر دستگاه‌ها پس از تغییر رمز

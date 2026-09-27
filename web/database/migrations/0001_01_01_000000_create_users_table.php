@@ -31,6 +31,8 @@ return new class extends Migration
             // آخرین زمانی که کاربر با کد پیامکی هویتش را تأیید کرده
             $table->timestamp('otp_verified_at')->nullable();
             $table->timestamp('password_changed_at')->nullable();
+            // چه کسی رمز را تعیین کرده (اگر کس دیگری بوده، با اولین ورود پیامکی صاحب حساب پاک می‌شود)
+            $table->unsignedBigInteger('password_set_by')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });
