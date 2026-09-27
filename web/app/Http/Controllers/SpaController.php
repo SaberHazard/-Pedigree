@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Contracts\View\View;
+use App\Http\Controllers\Api\MetaController;
+use App\Http\Resources\UserResource;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 /**
  * صفحه واحد (Single Page App) وب‌اپ.
@@ -10,12 +13,27 @@ use Illuminate\Contracts\View\View;
  */
 class SpaController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(Request $request): Response
     {
-        return view('app', [
-            'importMap' => $this->importMap(),
-            'assetVersion' => $this->version(public_path('assets/css/app.css')),
-        ]);
+        $user = $request->user();
+        if ($user && (! $user->isActive() || $user->person?->is_deceased)) {
+            $user = null;
+        }
+
+        $boot = [
+            'config' => app(MetaController::class)->bootstrap()->getData(true),
+            // کاربر واردشده همراه صفحه ارسال می‌شود تا درخواست اضافه لازم نباشد
+            'user' => $user ? (new UserResource($user->load('person')))->toArray($request) : null,
+        ];
+
+        return response()
+            ->view('app', [
+                'importMap' => $this->importMap(),
+                'assetVersion' => $this->version(public_path('assets/css/app.css')),
+                'boot' => $boot,
+            ])
+            // این صفحه اطلاعات کاربر را دارد؛ نباید کش شود
+            ->header('Cache-Control', 'no-store, private');
     }
 
     /**

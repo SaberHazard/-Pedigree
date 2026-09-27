@@ -86,8 +86,9 @@ class DashboardController extends Controller
 
     public function activity(Request $request): JsonResponse
     {
+        // فعالیت‌های عمومی (لاگ کامل برای مدیران در پنل مدیریت است)
         $logs = ActivityLog::with('user.person')
-            ->when(! $request->user()->isAdmin(), fn ($q) => $q->whereIn('action', self::PUBLIC_ACTIONS))
+            ->whereIn('action', self::PUBLIC_ACTIONS)
             ->latest('id')
             ->limit(25)
             ->get();

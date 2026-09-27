@@ -1,0 +1,107 @@
+/**
+ * نقطه شروع وب‌اپ شجره‌نامه.
+ *
+ * ساختار پوشه‌ها:
+ *   core/        ابزارهای پایه (DOM، API، مسیریاب، قالب‌بندی، رابط کاربری)
+ *   components/  اجزای قابل استفاده مجدد (هدر، جستجو، آواتار، فرم‌ها ...)
+ *   tree/        چیدمان، رسم، بزرگ‌نمایی و خروجی درخت
+ *   pages/       صفحات برنامه (هر صفحه یک ماژول)
+ */
+import { h, $ } from './core/dom.js';
+import { store, applyTheme } from './core/store.js';
+import { route, start, navigate } from './core/router.js';
+import { get } from './core/api.js';
+import { renderHeader, brand } from './components/header.js';
+
+// ------------------------------------------------------------------ داده اولیه از سرور
+const boot = JSON.parse($('#boot-data')?.textContent || '{}');
+store.config = boot.config || {};
+store.user = boot.user || null;
+applyTheme();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => applyTheme());
+
+// ------------------------------------------------------------------ مسیرها
+route('/login', () => import('./pages/login.js'), { public: true, guestOnly: true, layout: 'bare' });
+route('/', () => import('./pages/dashboard.js'));
+route('/tree', () => import('./pages/tree.js'), { layout: 'full' });
+route('/tree/:id', () => import('./pages/tree.js'), { layout: 'full', public: true });
+route('/search', () => import('./pages/search.js'));
+route('/new-person', () => import('./pages/person-edit.js'));
+route('/person/:id/edit', () => import('./pages/person-edit.js'));
+route('/person/:id', () => import('./pages/person.js'), { public: true });
+route('/person/:id/:tab', () => import('./pages/person.js'), { public: true });
+route('/approvals', () => import('./pages/approvals.js'));
+route('/notifications', () => import('./pages/notifications.js'));
+route('/account', () => import('./pages/account.js'));
+route('/admin', () => import('./pages/admin.js'));
+route('/admin/:tab', () => import('./pages/admin.js'));
+
+// ------------------------------------------------------------------ قالب صفحه
+const app = $('#app');
+let shell = null;
+
+function renderLayout(match) {
+  const container = h('div', { class: 'page-container' });
+
+  if (match.layout === 'bare') {
+    shell = null;
+    app.replaceChildren(container);
+    return container;
+  }
+
+  // حالت مهمان (PEDIGREE_GUEST_VIEW): هدر ساده با دکمه ورود
+  if (!store.user) {
+    shell = null;
+    const header = h('header', { class: 'app-header' }, brand(), h('span', { class: 'grow' }),
+      h('a', { class: 'btn primary sm', href: '#/login' }, 'ورود'));
+    app.replaceChildren(header, h('main', null, container));
+    return container;
+  }
+
+  if (!shell) {
+    const { header, bottom } = renderHeader();
+    const main = h('main', { id: 'main' });
+    shell = { header, main, bottom };
+    app.replaceChildren(header, main, bottom);
+  }
+  shell.main.replaceChildren(container);
+  return container;
+}
+
+// ------------------------------------------------------------------ رویدادهای سراسری
+store.on('unauthorized', () => {
+  if (!store.user) return;
+  store.setUser(null);
+  shell = null;
+  navigate('/login');
+});
+
+store.on('user', (user) => {
+  if (!user) shell = null;
+});
+
+/** به‌روزرسانی شمارنده‌ها (اعلان، رأی) هر دقیقه */
+async function refreshCounters() {
+  if (!store.user || document.hidden) return;
+  try {
+    const res = await get('/api/auth/me');
+    store.user = res.data;
+    store.emit('counters', res.data.counters);
+  } catch {
+    /* ignore */
+  }
+}
+setInterval(refreshCounters, 60000);
+document.addEventListener('visibilitychange', () => !document.hidden && refreshCounters());
+store.refreshCounters = refreshCounters;
+
+// ------------------------------------------------------------------ PWA
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register((document.querySelector('meta[name="base-url"]')?.content || '') + '/sw.js').catch(() => {}));
+}
+
+// شروع؛ صبر برای بارگذاری فونت تا اندازه‌گیری متن‌های دور دایره دقیق باشد
+const fontsReady = document.fonts
+  ? Promise.all(['400 14px Vazirmatn', '500 11px Vazirmatn', '700 13px Vazirmatn'].map((f) => document.fonts.load(f))).catch(() => {})
+  : Promise.resolve();
+Promise.race([fontsReady, new Promise((r) => setTimeout(r, 2500))]).then(() => start(renderLayout));
