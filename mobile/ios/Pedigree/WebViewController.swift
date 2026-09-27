@@ -195,6 +195,18 @@ extension WebViewController: WKUIDelegate {
         alert.addAction(UIAlertAction(title: "تأیید", style: .default) { _ in completionHandler(true) })
         present(alert, animated: true)
     }
+
+    /// دوربین/میکروفون برای ضبط استوری داخل صفحه (getUserMedia).
+    /// فقط سایت خود شجره‌نامه اجازه دارد؛ بقیه دامنه‌ها رد می‌شوند.
+    /// سیستم‌عامل خودش بار اول از کاربر اجازه می‌گیرد (متن‌ها در Info.plist).
+    @available(iOS 15.0, *)
+    func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+                 initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType,
+                 decisionHandler: @escaping (WKPermissionDecision) -> Void) {
+        let trusted = frame.isMainFrame
+            && origin.host.caseInsensitiveCompare(Config.baseURL.host ?? "") == .orderedSame
+        decisionHandler(trusted ? .prompt : .deny)
+    }
 }
 
 /// واسطه ضعیف برای جلوگیری از چرخه نگهداری (retain cycle) بین WKUserContentController و کنترلر

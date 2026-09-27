@@ -72,6 +72,11 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['last_name', 'first_name']);
+        });
+
+        // کلیدهای خارجی به خود جدول، جدا از ساخت جدول اضافه می‌شوند
+        // (در PostgreSQL باید کلید اصلی قبل از آن‌ها وجود داشته باشد)
+        Schema::table('persons', function (Blueprint $table) {
             $table->foreign('father_id')->references('id')->on('persons')->nullOnDelete();
             $table->foreign('mother_id')->references('id')->on('persons')->nullOnDelete();
         });

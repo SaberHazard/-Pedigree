@@ -4,9 +4,47 @@ on:
   push:
   pull_request:
 
+# فقط آخرین اجرا روی هر شاخه نگه داشته شود
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
+  # ---------------------------------------------------------------
+  # بک‌اند لاراول روی هر سه پایگاه‌داده پشتیبانی‌شده
+  # ---------------------------------------------------------------
   backend:
+    name: backend (${{ matrix.db }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mysql, pgsql]
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: pedigree_test
+          MARIADB_USER: pedigree
+          MARIADB_PASSWORD: secret
+          MARIADB_ROOT_PASSWORD: secret
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: pedigree_test
+          POSTGRES_USER: pedigree
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U pedigree"
+          --health-interval=5s --health-timeout=5s --health-retries=20
     defaults:
       run:
         working-directory: web
@@ -15,15 +53,31 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: gd, sqlite3, pdo_sqlite, mbstring, fileinfo, intl
+          extensions: gd, sqlite3, pdo_sqlite, pdo_mysql, pdo_pgsql, mbstring, fileinfo, intl
           coverage: none
+      - name: Install ffmpeg (video pipeline test)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Code style (Pint)
+        if: matrix.db == 'sqlite'
         run: ./vendor/bin/pint --test
       - name: Tests
+        env:
+          DB_CONNECTION: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.db == 'pgsql' && '5432' || '3306' }}
+          DB_DATABASE: ${{ matrix.db == 'sqlite' && ':memory:' || 'pedigree_test' }}
+          DB_USERNAME: pedigree
+          DB_PASSWORD: secret
         run: php artisan test
+      - name: Dependency audit
+        if: matrix.db == 'sqlite'
+        run: composer audit --no-interaction
 
+  # ---------------------------------------------------------------
+  # فرانت‌اند: بررسی نحوی ماژول‌ها + تست واقعی در مرورگر Chromium
+  # ---------------------------------------------------------------
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -33,3 +87,46 @@ jobs:
           node-version: '22'
       - name: Syntax check of ES modules
         run: for f in $(find web/public/assets/js -name '*.js'); do node --check "$f" || exit 1; done
+      - name: Unit tests of pure JS modules
+        run: node --test 'web/tests/js/**/*.test.mjs'
+
+  # ---------------------------------------------------------------
+  # اپ اندروید (Java)
+  # ---------------------------------------------------------------
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile/android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Build and lint
+        run: ./gradlew --no-daemon assembleDebug assembleRelease lintDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pedigree-android-debug
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+  # ---------------------------------------------------------------
+  # اپ iOS (Swift) - ساخت برای شبیه‌ساز بدون امضا
+  # ---------------------------------------------------------------
+  ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile/ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build for simulator
+        run: >-
+          xcodebuild -project Pedigree.xcodeproj -target Pedigree
+          -sdk iphonesimulator -configuration Debug
+          CODE_SIGNING_ALLOWED=NO build | tail -n 40

@@ -17,7 +17,14 @@
 ## ساخت
 
 1. پوشه `mobile/android` را در **Android Studio** (نسخه Ladybug یا جدیدتر) باز کنید.
-   اگر فایل `gradlew` وجود ندارد، Android Studio آن را خودکار می‌سازد (یا دستور `gradle wrapper` را اجرا کنید).
+   یا بدون Android Studio (فقط با JDK 17+ و Android SDK):
+   ```bash
+   cd mobile/android
+   export ANDROID_HOME=~/Android/Sdk      # مسیر SDK
+   ./gradlew assembleDebug lintDebug      # خروجی: app/build/outputs/apk/debug/app-debug.apk
+   ./gradlew assembleRelease              # نسخه انتشار (کوچک‌شده با R8، حدود ۶۰۰ کیلوبایت)
+   ```
+   همین بیلد در GitHub Actions روی هر push اجرا می‌شود و APK آن قابل دانلود است.
 2. در `app/build.gradle` مقدار `BASE_URL` را به آدرس سایت خود تغییر دهید (حتماً با HTTPS و `/` در انتها).
 3. در `AndroidManifest.xml` مقدار `android:host="example.com"` را به دامنه خود تغییر دهید.
 4. نسخه توسعه به آدرس `http://10.0.2.2:8000` (سرور محلی روی کامپیوتر) وصل می‌شود:

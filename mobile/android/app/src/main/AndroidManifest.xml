@@ -3,8 +3,11 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- برای عکس گرفتن مستقیم هنگام آپلود عکس پروفایل -->
-    <uses-permission android:name="android.permission.CAMERA" />
+    <!--
+      عکس و فیلم با اپ دوربین خود گوشی گرفته می‌شود (Intent)، پس مجوز CAMERA لازم نیست.
+      نکته مهم: اگر CAMERA در مانیفست اعلام شود ولی در زمان اجرا گرفته نشود،
+      اندروید اجرای ACTION_IMAGE_CAPTURE را با SecurityException رد می‌کند.
+    -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- ذخیره خروجی PDF در پوشه دانلود روی اندروید ۸ و ۹ -->
     <uses-permission
@@ -13,6 +16,8 @@
 
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"

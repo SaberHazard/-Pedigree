@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
 
     private ValueCallback<Uri[]> fileCallback;
     private Uri cameraUri;
+    private Uri videoUri;
 
     /** انتخاب فایل برای <input type="file"> صفحه (عکس و ویدیو) */
     private final ActivityResultLauncher<Intent> filePicker = registerForActivityResult(
@@ -191,34 +192,76 @@ public class MainActivity extends AppCompatActivity {
             }
             fileCallback = callback;
 
-            Intent pick = params.createIntent();
-            pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
+            String accept = String.join(",", params.getAcceptTypes()).toLowerCase(java.util.Locale.ROOT);
+            boolean wantsImage = accept.isEmpty() || accept.contains("image") || accept.contains("*");
+            boolean wantsVideo = accept.isEmpty() || accept.contains("video") || accept.contains("*");
 
-            // گزینه عکس گرفتن با دوربین
+            // گزینه‌های «عکس گرفتن» و «فیلم گرفتن» با دوربین گوشی
+            cameraUri = null;
+            videoUri = null;
             List<Intent> extra = new ArrayList<>();
-            try {
-                File dir = new File(getCacheDir(), "camera");
-                //noinspection ResultOfMethodCallIgnored
-                dir.mkdirs();
-                File photo = File.createTempFile("photo_", ".jpg", dir);
-                cameraUri = FileProvider.getUriForFile(MainActivity.this, getPackageName() + ".files", photo);
-                Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                camera.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
-                camera.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                extra.add(camera);
-            } catch (IOException e) {
-                cameraUri = null;
+            if (wantsImage) {
+                cameraUri = newCaptureUri("photo_", ".jpg");
+                if (cameraUri != null) {
+                    extra.add(captureIntent(MediaStore.ACTION_IMAGE_CAPTURE, cameraUri));
+                }
+            }
+            if (wantsVideo) {
+                videoUri = newCaptureUri("video_", ".mp4");
+                if (videoUri != null) {
+                    extra.add(captureIntent(MediaStore.ACTION_VIDEO_CAPTURE, videoUri));
+                }
             }
 
-            Intent chooser = Intent.createChooser(pick, getString(R.string.choose_file));
-            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, extra.toArray(new Intent[0]));
+            Intent launch;
+            if (params.isCaptureEnabled() && extra.size() == 1) {
+                // <input capture> : مستقیم دوربین باز شود (دکمه «ضبط استوری»)
+                launch = extra.get(0);
+            } else {
+                Intent pick = params.createIntent();
+                pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
+                launch = Intent.createChooser(pick, getString(R.string.choose_file));
+                launch.putExtra(Intent.EXTRA_INITIAL_INTENTS, extra.toArray(new Intent[0]));
+            }
             try {
-                filePicker.launch(chooser);
-            } catch (ActivityNotFoundException e) {
+                filePicker.launch(launch);
+            } catch (ActivityNotFoundException | SecurityException e) {
                 fileCallback = null;
                 return false;
             }
             return true;
+        }
+    }
+
+    /** ساخت فایل موقت در کش و آدرس امن FileProvider برای ذخیره خروجی دوربین */
+    private Uri newCaptureUri(String prefix, String suffix) {
+        try {
+            File dir = new File(getCacheDir(), "camera");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            File file = File.createTempFile(prefix, suffix, dir);
+            return FileProvider.getUriForFile(this, getPackageName() + ".files", file);
+        } catch (IOException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static Intent captureIntent(String action, Uri output) {
+        Intent intent = new Intent(action);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, output);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return intent;
+    }
+
+    /** آیا اپ دوربین چیزی در این فایل نوشته است؟ */
+    private boolean hasContent(Uri uri) {
+        if (uri == null) {
+            return false;
+        }
+        try (android.os.ParcelFileDescriptor fd = getContentResolver().openFileDescriptor(uri, "r")) {
+            return fd != null && fd.getStatSize() > 0;
+        } catch (IOException | RuntimeException e) {
+            return false;
         }
     }
 
@@ -237,7 +280,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else if (data != null && data.getData() != null) {
                 uris = new Uri[]{data.getData()};
-            } else if (cameraUri != null) {
+            } else if (hasContent(videoUri)) {
+                uris = new Uri[]{videoUri};
+            } else if (hasContent(cameraUri)) {
                 uris = new Uri[]{cameraUri};
             }
         }
