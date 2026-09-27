@@ -53,7 +53,7 @@ dependencies {
     // (بدون این خط، خطای Duplicate class kotlin.* در بیلد رخ می‌دهد)
     implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
 
-    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.8.0'
     implementation 'androidx.core:core:1.15.0'
     implementation 'androidx.activity:activity:1.9.3'
     implementation 'androidx.webkit:webkit:1.12.1'
