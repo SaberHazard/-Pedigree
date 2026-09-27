@@ -48,6 +48,22 @@ export default async function dashboard(container) {
     ));
   }
 
+  // دعوت به پرسش‌نامه تکمیل پروفایل (اگر پروفایل هنوز کامل نیست)
+  const interview = h('div');
+  page.append(interview);
+  get(`/api/persons/${me.id}`).then(({ data }) => {
+    const done = data.completeness;
+    if (!done || done.percent >= 100) return;
+    interview.replaceChildren(h('a', { class: 'card hover row mt interview-invite', href: `#/person/${me.id}/interview` },
+      h('div', { class: 'stat' }, h('div', { class: 's-icon', style: { background: 'var(--primary-soft)', color: 'var(--primary)' } }, icon('sparkles'))),
+      h('div', { class: 'grow' },
+        h('b', null, `پروفایل شما ${fa(done.percent)}٪ کامل است`),
+        h('div', { class: 'muted small' }, 'به چند سؤال کوتاه جواب دهید (اینستاگرام، تحصیلات، خاطره‌ها و ...) تا خانواده شما را بهتر بشناسد.'),
+      ),
+      h('span', { class: 'btn primary sm' }, 'شروع', icon('chevron-left')),
+    ));
+  }).catch(() => {});
+
   // ------------------------------------------------------------ آمار
   const stats = h('div', { class: 'stats' }, ...Array.from({ length: 4 }, () => h('div', { class: 'card skeleton', style: { height: '86px' } })));
   page.append(stats);

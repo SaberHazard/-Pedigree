@@ -28,6 +28,7 @@ route('/tree/:id', () => import('./pages/tree.js'), { layout: 'full', public: tr
 route('/search', () => import('./pages/search.js'));
 route('/new-person', () => import('./pages/person-edit.js'));
 route('/person/:id/edit', () => import('./pages/person-edit.js'));
+route('/person/:id/interview', () => import('./pages/interview.js'));
 route('/person/:id', () => import('./pages/person.js'), { public: true });
 route('/person/:id/:tab', () => import('./pages/person.js'), { public: true });
 route('/approvals', () => import('./pages/approvals.js'));

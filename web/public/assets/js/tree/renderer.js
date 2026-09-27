@@ -649,7 +649,7 @@ export class TreeView {
 function signature(n) {
   const p = n.person;
   return [
-    p.first_name, p.last_name, p.title, p.nickname, p.gender, p.is_deceased, p.birth_date, p.death_date,
+    p.first_name, p.last_name, p.title, p.display_title, p.nickname, p.gender, p.is_deceased, p.birth_date, p.death_date,
     p.avatar, p.birth_place, p.occupation, p.has_parents,
     n.kind, n.isRoot, n.childCount, n.collapsed, n.expandable, n.expandUp, n.canCollapseUp,
   ].join('|');

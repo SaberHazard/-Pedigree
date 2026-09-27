@@ -167,9 +167,20 @@ export function age(person) {
 // اشخاص
 // ------------------------------------------------------------------
 
+/**
+ * نام کامل با عنوان: «حاج دکتر محمد احمدی».
+ * display_title را سرور می‌سازد (عنوان دستی + «دکتر/مهندس» خودکار با ترتیب درست).
+ */
 export function fullName(p, withTitle = true) {
   if (!p) return '';
-  return [withTitle ? p.title : null, p.first_name, p.last_name].filter(Boolean).join(' ');
+  const title = withTitle ? (p.display_title !== undefined ? p.display_title : p.title) : null;
+  return [title, p.first_name, p.last_name].filter(Boolean).join(' ');
+}
+
+/** نام با عنوان علمی خودکار («دکتر علی احمدی»، «مهندس سارا رضایی») بدون عنوان‌های دیگر */
+export function academicName(p) {
+  if (!p) return '';
+  return [p.honorific, p.first_name, p.last_name].filter(Boolean).join(' ');
 }
 
 export function genderLabel(g) {

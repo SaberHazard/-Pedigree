@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Support\Countries;
+use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -46,7 +47,30 @@ class MetaController extends Controller
                 'education_levels' => config('pedigree.profile.education_levels'),
                 'academic_ranks' => config('pedigree.profile.academic_ranks'),
                 'blood_types' => config('pedigree.profile.blood_types'),
-                'social_networks' => config('pedigree.profile.social_networks'),
+                'education_field_groups' => array_map(fn ($g) => ['label' => $g['label'], 'engineer' => (bool) $g['engineer']], config('pedigree.profile.education_field_groups', [])),
+                'honorifics' => [
+                    'doctor_levels' => config('pedigree.profile.honorifics.doctor_levels', []),
+                    'doctor_ranks' => config('pedigree.profile.honorifics.doctor_ranks', []),
+                    'engineer_levels' => config('pedigree.profile.honorifics.engineer_levels', []),
+                    'engineer_keywords' => config('pedigree.profile.honorifics.engineer_keywords', []),
+                    'before' => config('pedigree.profile.honorifics.before', []),
+                ],
+                // شبکه‌های اجتماعی به ترتیب نمایش (بدون الگوها و دامنه‌ها)
+                'social_networks' => array_map(fn ($n) => [
+                    'label' => $n['label'],
+                    'kind' => $n['kind'] ?? 'handle',
+                    'url' => $n['url'],
+                    'fetch' => (bool) ($n['fetch'] ?? false),
+                ], SocialNetworks::all()),
+                'social_avatar_priority' => config('pedigree.profile.social_avatar_priority', []),
+                'visibility_levels' => [
+                    'all' => 'همه اعضای خاندان',
+                    'd4' => 'بستگان تا درجه ۴',
+                    'd3' => 'بستگان تا درجه ۳',
+                    'd2' => 'بستگان تا درجه ۲',
+                    'd1' => 'فقط بستگان درجه ۱',
+                    'self' => 'فقط خودم (و مدیر سایت)',
+                ],
                 'texts' => array_map(fn ($t) => ['label' => $t['label'], 'max' => $t['max']], config('pedigree.profile.texts', [])),
                 'resume_types' => config('pedigree.profile.resume_types'),
                 'max_attributes' => (int) config('pedigree.profile.max_attributes', 40),

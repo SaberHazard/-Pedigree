@@ -9,7 +9,7 @@
  * (مختصات مسیر در دستگاه مختصات خود گره تفسیر می‌شود) → DOM سبک برای هزاران گره.
  */
 import { s } from '../core/dom.js';
-import { fa, fullName, lifespan, yearOf } from '../core/format.js';
+import { academicName, fa, fullName, lifespan, yearOf } from '../core/format.js';
 import { iconPaths, silhouetteMarkup } from '../core/icons.js';
 
 // ------------------------------------------------------------------ اندازه‌گیری متن
@@ -85,7 +85,8 @@ export function arcTexts(person, prefs = {}) {
   const topMode = prefs.arc_top || 'name';
   const bottomMode = prefs.arc_bottom || 'dates';
   let top = '';
-  if (topMode === 'name') top = [person.first_name, person.last_name].filter(Boolean).join(' ');
+  // «دکتر» و «مهندس» خودکار همیشه همراه نام است (روی دایره و در چاپ)
+  if (topMode === 'name') top = academicName(person);
   else if (topMode === 'fullname') top = fullName(person);
   else if (topMode === 'nickname') top = person.nickname || person.first_name;
 

@@ -146,7 +146,7 @@ export default async function treePage(container, { params, query }) {
     const norm = (t) => (t || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').toLowerCase();
     const ids = new Set();
     for (const p of state.data.persons.values()) {
-      if (norm(`${p.title || ''} ${p.first_name} ${p.last_name || ''} ${p.nickname || ''}`).includes(norm(q))) ids.add(p.id);
+      if (norm(`${p.display_title || p.title || ''} ${p.first_name} ${p.last_name || ''} ${p.nickname || ''}`).includes(norm(q))) ids.add(p.id);
     }
     view.highlight(ids);
     matches = state.layout.nodes.filter((n) => ids.has(n.id));
@@ -300,8 +300,8 @@ export default async function treePage(container, { params, query }) {
     };
     const check = (on) => (on ? 'check' : null);
     dropdown(anchor, [
-      { label: 'بالای دایره: نام', icon: check(prefs.arc_top === 'name'), onClick: () => set('arc_top', 'name') },
-      { label: 'بالای دایره: نام با عنوان', icon: check(prefs.arc_top === 'fullname'), onClick: () => set('arc_top', 'fullname') },
+      { label: 'بالای دایره: نام (با دکتر/مهندس)', icon: check(prefs.arc_top === 'name'), onClick: () => set('arc_top', 'name') },
+      { label: 'بالای دایره: نام با همه عنوان‌ها', icon: check(prefs.arc_top === 'fullname'), onClick: () => set('arc_top', 'fullname') },
       { label: 'بالای دایره: شهرت', icon: check(prefs.arc_top === 'nickname'), onClick: () => set('arc_top', 'nickname') },
       'sep',
       { label: 'پایین دایره: سال تولد و وفات', icon: check(prefs.arc_bottom === 'dates'), onClick: () => set('arc_bottom', 'dates') },

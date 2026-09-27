@@ -22,6 +22,7 @@ import { resumeSection } from '../components/resume.js';
 import { opinionsTab } from '../components/opinions.js';
 import { storiesStrip } from '../components/stories.js';
 import { miniMap, directionsLinks, coordText } from '../components/map.js';
+import { socialProfiles } from '../components/social.js';
 
 const TABS = ['details', 'gallery', 'relatives', 'opinions', 'history'];
 
@@ -53,6 +54,7 @@ export default async function personPage(container, { params }) {
     legendBox.replaceChildren(legend(person.contributors) || '');
   };
   let colored = localPref('author_colors', true);
+  const reload = () => navigate(`/person/${person.id}`, { replace: true });
 
   page.replaceChildren(
     hero(),
@@ -134,6 +136,7 @@ export default async function personPage(container, { params }) {
         h('div', { class: 'ph-actions' },
           h('a', { class: 'btn soft', href: `#/tree/${person.id}?mode=hourglass` }, icon('tree'), 'درخت'),
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/edit` }, icon('edit'), 'ویرایش') : null,
+          perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/interview`, title: 'تکمیل پروفایل با جواب دادن به سؤال‌های کوتاه' }, icon('sparkles'), 'پرسش‌وپاسخ') : null,
           perms.edit ? h('button', { class: 'btn', type: 'button', onclick: () => openRelativeDialog(person, 'child', { onDone: () => show('relatives') }) }, icon('user-plus'), 'افزودن بستگان') : null,
           h('button', { class: 'btn ghost icon-only', type: 'button', title: 'اشتراک‌گذاری', onclick: share }, icon('share')),
         ),
@@ -144,7 +147,7 @@ export default async function personPage(container, { params }) {
   /** نوار «درصد تکمیل پروفایل» برای ویرایشگران */
   function completeness(done) {
     const missing = done.missing.map((k) => COMPLETENESS[k] || k);
-    return h('a', { class: 'completeness', href: `#/person/${person.id}/edit`, title: `بخش‌های خالی: ${missing.join('، ')}` },
+    return h('a', { class: 'completeness', href: `#/person/${person.id}/interview`, title: `بخش‌های خالی: ${missing.join('، ')}` },
       h('div', { class: 'row between small' }, h('span', null, `پروفایل ${fa(done.percent)}٪ کامل است`), h('span', { class: 'muted tiny' }, 'تکمیل ←')),
       h('div', { class: 'progress' }, h('i', { style: { width: `${done.percent}%` } })),
       missing.length ? h('div', { class: 'muted tiny ellipsis' }, 'خالی: ', missing.slice(0, 5).join('، '), missing.length > 5 ? ' ...' : '') : null,
@@ -223,16 +226,20 @@ export default async function personPage(container, { params }) {
       row('mail', 'نشانی', person.address, 'address'),
       row('file', 'کد پستی', person.postal_code ? fa(person.postal_code) : null, 'postal_code'),
     ], home ? h('div', { class: 'mt-sm' }, miniMap([{ ...home, person, label: fullName(person) }], { height: 200 }), h('div', { class: 'mt-sm' }, directionsLinks(home.lat, home.lng)))
-      : person.has_home_location && !person.address ? h('p', { class: 'muted small' }, icon('lock'), ' موقعیت خانه ثبت شده ولی فقط برای بستگان نزدیک نمایش داده می‌شود.') : null);
+      : person.location_hidden ? h('p', { class: 'muted small' }, icon('lock'), ` نشانی و موقعیت خانه فقط برای ${visibilityText(person.location_visibility)} نمایش داده می‌شود.`) : null);
 
-    const socials = Object.entries(person.social || {}).map(([k, v]) => socialLink(k, v)).filter(Boolean);
-    const contact = group('راه‌های ارتباطی', 'phone', [
+    const socials = socialProfiles(person, { canEdit: perms.upload, onChange: reload });
+    const privacyNote = [];
+    if (person.contact_hidden) privacyNote.push(h('p', { class: 'muted small' }, icon('lock'), ` شماره و راه‌های ارتباطی فقط برای ${visibilityText(person.contact_visibility)} نمایش داده می‌شود.`));
+    else if (perms.privacy && person.id === store.user?.person?.id) {
+      privacyNote.push(h('p', { class: 'muted tiny' }, icon('eye'), ` شماره شما را ${visibilityText(person.contact_visibility)} می‌بینند. `, h('a', { href: `#/person/${person.id}/edit` }, 'تغییر')));
+    }
+    const contact = group('شبکه‌های اجتماعی و راه‌های ارتباطی', 'phone', [
       row('phone', 'موبایل', person.phone ? h('a', { href: `tel:${person.phone}`, dir: 'ltr' }, fa(person.phone)) : null, 'phone'),
       row('phone', 'تلفن ثابت', person.landline ? h('a', { href: `tel:${person.landline.replace(/[^\d+]/g, '')}`, dir: 'ltr' }, fa(person.landline)) : null, 'landline'),
       row('mail', 'ایمیل', person.email ? h('a', { href: `mailto:${person.email}`, dir: 'ltr' }, person.email) : null, 'email'),
       row('link', 'وب‌سایت', safeUrl(person.website) ? h('a', { href: safeUrl(person.website), target: '_blank', rel: 'noopener nofollow', dir: 'ltr' }, person.website.replace(/^https?:\/\//, '')) : null, 'website'),
-      socials.length ? row('share', 'شبکه‌های اجتماعی', h('div', { class: 'row wrap', style: { gap: '6px' } }, ...socials), 'social') : null,
-    ]);
+    ], socials || privacyNote.length ? h('div', null, socials, ...privacyNote) : null);
 
     const other = group('ویژگی‌های دیگر', 'sparkles', [
       row('heart', 'گروه خونی', person.blood_type ? h('span', { dir: 'ltr' }, person.blood_type) : null, 'blood_type'),
@@ -352,9 +359,20 @@ function historyItem(log) {
     // برچسب‌هایی مثل «... برای» در داشبورد با نام شخص کامل می‌شوند؛ اینجا شخص همین پروفایل است
     h('div', null, h('b', null, log.user?.name || 'سیستم'), ' ', actionLabel(log.action).replace(/ برای$/, ''), detail.length ? ' ' : null, ...detail),
     Object.keys(changes).length ? h('ul', { class: 'small text-2', style: { margin: '4px 0', paddingInlineStart: '18px' } },
-      ...Object.entries(changes).map(([f, [from, to]]) => h('li', null, `${FIELDS[f] || f}: `, h('span', { class: 'muted' }, fa(fmtVal(from))), ' ← ', h('b', null, fa(fmtVal(to)))))) : null,
+      ...Object.entries(changes).map(([f, [from, to]]) => h('li', null, `${FIELDS[f] || f}: `, h('span', { class: 'muted' }, fa(fmtField(f, from))), ' ← ', h('b', null, fa(fmtField(f, to)))))) : null,
     h('div', { class: 'muted tiny' }, dateTime(log.created_at)),
   );
+}
+
+/** مقدار یک فیلد در تاریخچه (کلیدهای ثابت به برچسب فارسی) */
+function fmtField(field, v) {
+  const profile = store.config.profile || {};
+  if (field.endsWith('_visibility')) return profile.visibility_levels?.[v] || fmtVal(v);
+  if (field === 'education_level') return profile.education_levels?.[v] || fmtVal(v);
+  if (field === 'academic_rank') return profile.academic_ranks?.[v] || fmtVal(v);
+  if (field === 'education_field_group') return profile.education_field_groups?.[v]?.label || fmtVal(v);
+  if (field === 'honorific_mode') return v === 'none' ? 'خاموش' : v === 'auto' ? 'خودکار' : fmtVal(v);
+  return fmtVal(v);
 }
 
 function fmtVal(v) {
@@ -362,7 +380,7 @@ function fmtVal(v) {
   if (v === true) return 'بله';
   if (v === false) return 'خیر';
   if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? `${x.label}: ${x.value}` : String(x))).join('، ') || '—';
-  if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${store.config.profile?.social_networks?.[k] || k}: ${x}`).join('، ') || '—';
+  if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${store.config.profile?.social_networks?.[k]?.label || FIELDS[k] || k}: ${x}`).join('، ') || '—';
   return String(v);
 }
 
@@ -382,26 +400,12 @@ function safeUrl(value) {
   }
 }
 
-const SOCIAL_URLS = {
-  instagram: 'https://instagram.com/', telegram: 'https://t.me/', x: 'https://x.com/', youtube: 'https://youtube.com/@',
-  aparat: 'https://www.aparat.com/', facebook: 'https://facebook.com/', github: 'https://github.com/', linkedin: 'https://linkedin.com/in/',
-  eitaa: 'https://eitaa.com/', bale: 'https://ble.ir/', rubika: 'https://rubika.ir/',
-};
-
-function socialLink(network, value) {
-  if (!value) return null;
-  const label = store.config.profile?.social_networks?.[network] || network;
-  let href = safeUrl(value);
-  if (!href) {
-    const handle = String(value).trim().replace(/^@/, '');
-    if (network === 'whatsapp') {
-      const digits = handle.replace(/\D/g, '').replace(/^0/, '98');
-      href = digits ? `https://wa.me/${digits}` : null;
-    } else if (SOCIAL_URLS[network] && /^[\w.\-]+$/.test(handle)) {
-      href = SOCIAL_URLS[network] + encodeURIComponent(handle);
-    }
-  }
-  return href ? h('a', { class: 'chip', href, target: '_blank', rel: 'noopener nofollow' }, label) : h('span', { class: 'chip' }, `${label}: ${value}`);
+/** متن سطح نمایش: «بستگان تا درجه ۲» */
+function visibilityText(level) {
+  const levels = store.config.profile?.visibility_levels || {};
+  if (level === 'all') return 'همه اعضای خاندان';
+  if (level === 'self') return 'خود شخص';
+  return levels[level] || 'بستگان نزدیک';
 }
 
 function localPref(key, fallback) {

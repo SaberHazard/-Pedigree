@@ -83,7 +83,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('persons/{person}/relationship/{other}', [PersonController::class, 'relationship']);
     Route::get('persons/{person}/kin', [KinController::class, 'index'])->middleware('throttle:30,1');
 
-    // متن‌های رنگی پروفایل (چکیده، توضیحات، زندگی‌نامه، رزومه) و نسخه‌های آن‌ها
+    // متن‌های رنگی پروفایل (بیوگرافی، توضیحات، زندگی‌نامه، رزومه) و نسخه‌های آن‌ها
     Route::put('persons/{person}/texts/{field}', [ProfileTextController::class, 'update'])->middleware('throttle:writes');
     Route::get('persons/{person}/texts/{field}/revisions', [ProfileTextController::class, 'revisions']);
     Route::get('persons/{person}/texts/{field}/revisions/{revision}', [ProfileTextController::class, 'showRevision'])->whereNumber('revision');

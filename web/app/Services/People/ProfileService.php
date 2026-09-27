@@ -113,6 +113,7 @@ class ProfileService
             $checks['burial_place'] = (bool) ($person->burial_place || $person->burial_lat !== null);
         } else {
             $checks['contact'] = (bool) ($person->phone_hash || $person->email || $person->landline);
+            $checks['social'] = ! empty($person->social);
         }
 
         $done = count(array_filter($checks));

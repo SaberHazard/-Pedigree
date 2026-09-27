@@ -70,10 +70,10 @@ export const FIELDS = {
   education_level: 'مقطع تحصیلی', education_field: 'رشته تحصیلی', education_institution: 'دانشگاه / مدرسه',
   academic_rank: 'مرتبه علمی', workplace: 'محل کار', country: 'کشور', province: 'استان', city: 'شهر',
   address: 'نشانی', postal_code: 'کد پستی', home_lat: 'موقعیت خانه', home_lng: 'موقعیت خانه',
-  share_location: 'نمایش نشانی به همه', landline: 'تلفن ثابت', website: 'وب‌سایت', social: 'شبکه‌های اجتماعی',
-  share_contact: 'نمایش راه‌های ارتباطی به همه', blood_type: 'گروه خونی', languages: 'زبان‌ها', interests: 'علاقه‌مندی‌ها',
+  location_visibility: 'نمایش نشانی', landline: 'تلفن ثابت', website: 'وب‌سایت', social: 'شبکه‌های اجتماعی',
+  contact_visibility: 'نمایش شماره و راه‌های ارتباطی', education_field_group: 'گروه رشته', honorific_mode: 'عنوان خودکار دکتر/مهندس', blood_type: 'گروه خونی', languages: 'زبان‌ها', interests: 'علاقه‌مندی‌ها',
   custom_fields: 'ویژگی‌های دیگر', burial_lat: 'موقعیت مزار', burial_lng: 'موقعیت مزار',
-  summary: 'چکیده', description: 'توضیحات بستگان', resume: 'رزومه', title_resume: 'عنوان', organization: 'سازمان',
+  summary: 'بیوگرافی', description: 'توضیحات بستگان', resume: 'رزومه', title_resume: 'عنوان', organization: 'سازمان',
   body: 'متن نظر', start_date: 'تاریخ شروع', is_current: 'ادامه دارد',
 };
 
@@ -105,8 +105,9 @@ export const IRAN_PROVINCES = [
 /** بخش‌های «درصد تکمیل پروفایل» */
 export const COMPLETENESS = {
   avatar: 'عکس پروفایل', birth_date: 'تاریخ تولد', birth_place: 'محل تولد', education_level: 'تحصیلات',
-  occupation: 'شغل', location: 'محل زندگی', summary: 'چکیده', biography: 'زندگی‌نامه', resume: 'رزومه',
+  occupation: 'شغل', location: 'محل زندگی', summary: 'بیوگرافی', biography: 'زندگی‌نامه کامل', resume: 'رزومه',
   father: 'پدر', mother: 'مادر', death_date: 'تاریخ وفات', burial_place: 'آرامگاه', contact: 'راه ارتباطی',
+  social: 'شبکه‌های اجتماعی',
 };
 
 export const RELATIONS = {

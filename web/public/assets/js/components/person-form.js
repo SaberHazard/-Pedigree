@@ -13,6 +13,8 @@ import { fa, latin } from '../core/format.js';
 import { dateInput } from './date-input.js';
 import { TITLES, IRAN_PROVINCES, countryName } from './labels.js';
 import { pickLocation, coordText } from './map.js';
+import { socialEditor } from './social.js';
+import { visibilityField } from './kin.js';
 
 let listId = 0;
 
@@ -25,6 +27,23 @@ function select(name, options, value, placeholder = '— انتخاب کنید �
     h('option', { value: '' }, placeholder),
     ...options.map(([v, label]) => h('option', { value: v, selected: v === value }, label)),
   );
+}
+
+/** همان قانون سرور برای پیش‌نمایش عنوان خودکار در فرم (مقدار نهایی را سرور تعیین می‌کند) */
+export function honorificFor(p) {
+  const rules = store.config.profile?.honorifics || {};
+  const groups = store.config.profile?.education_field_groups || {};
+  if (p.honorific_mode === 'none' || (!p.education_level && !p.academic_rank)) return null;
+  let result = null;
+  if ((rules.doctor_levels || []).includes(p.education_level) || (rules.doctor_ranks || []).includes(p.academic_rank)) result = 'دکتر';
+  else if ((rules.engineer_levels || []).includes(p.education_level)) {
+    const engineering = p.education_field_group && groups[p.education_field_group]
+      ? !!groups[p.education_field_group].engineer
+      : (rules.engineer_keywords || []).some((k) => (p.education_field || '').toLowerCase().includes(k.toLowerCase()));
+    if (engineering) result = 'مهندس';
+  }
+  if (result && p.title && /دکتر|مهندس|پروفسور|\bdr\b|\beng\b/i.test(p.title)) return null;
+  return result;
 }
 
 /** انتخاب جنسیت */
@@ -98,6 +117,8 @@ function customFields(rows = []) {
 export function personFields(p = {}, opts = {}) {
   const { sensitive = false, gender = true, full = true } = opts;
   const profile = store.config.profile || {};
+  // تنظیم «چه کسانی ببینند» فقط برای خود شخص (یا مدیر، یا سازندهٔ پروفایلِ بدون حساب)
+  const canPrivacy = !p.id || !!p.permissions?.privacy;
   const titles = h('datalist', { id: `titles-${++listId}` }, ...TITLES.map((t) => h('option', { value: t })));
 
   const deathBox = h('div', { class: 'form-grid full', hidden: !p.is_deceased },
@@ -135,16 +156,48 @@ export function personFields(p = {}, opts = {}) {
   // ---------------------------------------------------------------- تحصیلات و شغل
   const levels = Object.entries(profile.education_levels || {});
   const ranks = Object.entries(profile.academic_ranks || {});
+  const groups = Object.entries(profile.education_field_groups || {}).map(([k, g]) => [k, g.label]);
+  const levelSel = select('education_level', levels, p.education_level);
+  const groupSel = select('education_field_group', groups, p.education_field_group, '— گروه رشته —');
+  const rankSel = select('academic_rank', ranks, p.academic_rank, '— ندارد —');
+  const fieldInput = text('education_field', p.education_field, { placeholder: 'مثلاً مهندسی برق، پرستاری، ادبیات فارسی' });
+  const preview = h('div', { class: 'honorific-preview' });
+  const form = () => preview.closest('form');
+  const titleInput = () => form()?.querySelector('[name=title]');
+  const autoTitle = h('input', { type: 'checkbox', name: 'honorific_on', checked: (p.honorific_mode || 'auto') !== 'none' });
+  const modeInput = h('input', { type: 'hidden', name: 'honorific_mode', value: p.honorific_mode || 'auto' });
+  const renderHonorific = () => {
+    modeInput.value = autoTitle.checked ? 'auto' : 'none';
+    const h1 = honorificFor({
+      education_level: levelSel.value, academic_rank: rankSel.value, education_field_group: groupSel.value,
+      education_field: fieldInput.value, title: titleInput()?.value || p.title, honorific_mode: modeInput.value,
+    });
+    preview.replaceChildren(h1
+      ? h('span', null, icon('crown'), ' روی دایره درخت، پروفایل و چاپ با عنوان «', h('b', null, h1), '» نمایش داده می‌شود.')
+      : h('span', { class: 'muted' }, icon('info'), ' «دکتر» برای دکترا و بالاتر و «مهندس» برای لیسانس و فوق‌لیسانس رشته‌های فنی و مهندسی خودکار اضافه می‌شود (نه برای پرستاری و رشته‌های غیرفنی).'));
+  };
+  for (const el of [levelSel, groupSel, rankSel, fieldInput, autoTitle]) {
+    el.addEventListener('change', renderHonorific);
+    el.addEventListener('input', renderHonorific);
+  }
+  setTimeout(() => {
+    titleInput()?.addEventListener('input', renderHonorific);
+    renderHonorific();
+  }, 0);
   parts.push(h('fieldset', null,
     h('legend', null, icon('graduation'), ' تحصیلات و شغل'),
     h('div', { class: 'form-grid' },
-      field('مقطع تحصیلی (بالاترین مدرک)', select('education_level', levels, p.education_level)),
-      field('رشته تحصیلی', text('education_field', p.education_field, { placeholder: 'مثلاً پزشکی، ادبیات فارسی' })),
+      field('مقطع تحصیلی (بالاترین مدرک)', levelSel),
+      field('گروه رشته تحصیلی', groupSel, { hint: 'برای تشخیص درست عنوان «مهندس»' }),
+      field('رشته تحصیلی', fieldInput),
       field('دانشگاه / مدرسه / حوزه', text('education_institution', p.education_institution)),
-      field('مرتبه علمی (برای اعضای هیئت علمی)', select('academic_rank', ranks, p.academic_rank, '— ندارد —')),
+      field('مرتبه علمی (برای اعضای هیئت علمی)', rankSel),
       field('شغل / سمت', text('occupation', p.occupation, { placeholder: 'مثلاً معلم، کشاورز، مهندس عمران' })),
       field('محل کار', text('workplace', p.workplace)),
       p.education ? field('توضیح تحصیلات (قدیمی)', text('education', p.education), { full: true }) : null,
+      h('div', { class: 'field full' },
+        h('label', { class: 'switch' }, autoTitle, h('span', { class: 'track' }), h('span', null, 'عنوان خودکار «دکتر» / «مهندس» پیش از نام')),
+        modeInput, preview),
     ),
   ));
 
@@ -165,23 +218,19 @@ export function personFields(p = {}, opts = {}) {
       field('نشانی دقیق', h('textarea', { class: 'input', name: 'address', rows: 2 }, p.address || ''), { full: true }),
       field('کد پستی', text('postal_code', p.postal_code ? fa(p.postal_code) : '', { class: 'input ltr-input', inputmode: 'numeric', maxlength: 20 })),
       locationField('موقعیت خانه روی نقشه', 'home_lat', 'home_lng', p.home_location),
-      h('div', { class: 'field full' }, switchInput('share_location', 'نشانی و موقعیت خانه برای همه اعضای خاندان نمایش داده شود', !!p.share_location),
-        h('div', { class: 'hint' }, 'در غیر این صورت فقط خود شخص و بستگان درجه یک (و مدیر) نشانی را می‌بینند. نشانی رمزنگاری‌شده ذخیره می‌شود.')),
+      canPrivacy ? visibilityField('location_visibility', p.location_visibility || 'd1', p, 'نشانی و موقعیت خانه') : null,
     ),
   ));
 
-  // ---------------------------------------------------------------- راه‌های ارتباطی
-  const networks = Object.entries(profile.social_networks || {});
+  // ---------------------------------------------------------------- شبکه‌های اجتماعی و راه‌های ارتباطی
   parts.push(h('fieldset', null,
-    h('legend', null, icon('phone'), ' راه‌های ارتباطی'),
-    h('div', { class: 'form-grid' },
-      field('تلفن ثابت', text('landline', p.landline ? fa(p.landline) : '', { class: 'input ltr-input', type: 'tel', inputmode: 'tel' })),
-      field('وب‌سایت', text('website', p.website, { class: 'input ltr-input', type: 'url', placeholder: 'https://' })),
-      h('details', { class: 'field full social-fields', open: Object.keys(p.social || {}).length > 0 },
-        h('summary', null, icon('share'), ' شبکه‌های اجتماعی', Object.keys(p.social || {}).length ? ` (${fa(Object.keys(p.social).length)})` : ''),
-        h('div', { class: 'form-grid mt-sm' }, ...networks.map(([key, label]) => field(label, text(`social.${key}`, p.social?.[key], { class: 'input ltr-input', placeholder: key === 'whatsapp' ? '+98912...' : '@username' })))),
-      ),
-      h('div', { class: 'field full' }, switchInput('share_contact', 'موبایل، ایمیل و تلفن برای همه اعضای خاندان نمایش داده شود', !!p.share_contact)),
+    h('legend', null, icon('share'), ' شبکه‌های اجتماعی و راه‌های ارتباطی'),
+    p.contact_hidden ? h('p', { class: 'muted small' }, icon('lock'), ' شماره‌ها و راه‌های ارتباطی این شخص فقط برای افرادی که خودش تعیین کرده نمایش داده می‌شود و شما نمی‌توانید آن‌ها را تغییر دهید.') : null,
+    socialEditor(p, { phone: p.phone }),
+    h('div', { class: 'form-grid mt-sm' },
+      field('تلفن ثابت', text('landline', p.landline ? fa(p.landline) : '', { class: 'input ltr-input', type: 'tel', inputmode: 'tel', placeholder: '۰۲۱۱۲۳۴۵۶۷۸' })),
+      field('وب‌سایت / وبلاگ', text('website', p.website, { class: 'input ltr-input', type: 'url', placeholder: 'https://' })),
+      canPrivacy ? visibilityField('contact_visibility', p.contact_visibility || 'all', p, 'شماره موبایل، واتس‌اپ، ایمیل و تلفن') : null,
     ),
   ));
 
@@ -194,7 +243,7 @@ export function personFields(p = {}, opts = {}) {
       field('علاقه‌مندی‌ها و سرگرمی‌ها', text('interests', p.interests), { full: true }),
       customFields(p.custom_fields || []),
     ),
-    h('p', { class: 'muted small', style: { margin: '4px 0 0' } }, icon('info'), ' چکیده، زندگی‌نامه، توضیحات و رزومه در صفحه پروفایل (بخش «درباره») نوشته می‌شوند تا نام نویسنده هر بخش ثبت شود.'),
+    h('p', { class: 'muted small', style: { margin: '4px 0 0' } }, icon('info'), ' بیوگرافی، زندگی‌نامه، توضیحات و رزومه در صفحه پروفایل (بخش «درباره») نوشته می‌شوند تا نام نویسنده هر بخش ثبت شود.'),
   ));
 
   if (sensitive) {
@@ -236,7 +285,8 @@ export function collectPerson(form) {
       delete data[key];
     }
   }
-  if ('share_contact' in data) data.social = social;
+  if (form.querySelector('.social-fields')) data.social = social;
+  delete data.honorific_on;
 
   // ویژگی‌های دلخواه
   const rows = form.querySelectorAll('.custom-field-row');

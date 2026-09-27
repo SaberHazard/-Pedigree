@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * یک متن بلند پروفایل (چکیده، توضیحات، زندگی‌نامه، رزومه) با نویسنده هر تکه.
+ * یک متن بلند پروفایل (بیوگرافی، توضیحات، زندگی‌نامه، رزومه) با نویسنده هر تکه.
  *
  * @property int $id
  * @property string $person_id
