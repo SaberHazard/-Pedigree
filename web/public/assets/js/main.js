@@ -10,7 +10,7 @@
 import { h, $ } from './core/dom.js';
 import { store, applyTheme } from './core/store.js';
 import { route, start, navigate } from './core/router.js';
-import { get } from './core/api.js';
+import { get, post } from './core/api.js';
 import { renderHeader, brand } from './components/header.js';
 
 // ------------------------------------------------------------------ داده اولیه از سرور
@@ -94,6 +94,27 @@ async function refreshCounters() {
 setInterval(refreshCounters, 60000);
 document.addEventListener('visibilitychange', () => !document.hidden && refreshCounters());
 store.refreshCounters = refreshCounters;
+
+// ------------------------------------------------------------------ اپ موبایل
+/**
+ * اپ‌های اندروید/iOS توکن پوش‌نوتیفیکیشن را با این تابع به وب‌اپ می‌دهند؛
+ * پس از ورود کاربر، توکن در سرور ثبت می‌شود (POST /api/account/devices).
+ */
+let pendingDevice = null;
+async function registerDevice() {
+  if (!store.user || !pendingDevice) return;
+  try {
+    await post('/api/account/devices', pendingDevice);
+    pendingDevice = null;
+  } catch {
+    /* بعداً دوباره تلاش می‌شود */
+  }
+}
+window.pedigreeRegisterDevice = (platform, token, appVersion = null) => {
+  pendingDevice = { platform, token, app_version: appVersion };
+  registerDevice();
+};
+store.on('user', registerDevice);
 
 // ------------------------------------------------------------------ PWA
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

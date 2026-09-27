@@ -93,14 +93,25 @@ class DashboardController extends Controller
             ->limit(25)
             ->get();
 
+        // برای رسانه‌ها، شخصِ صاحب عکس نمایش داده می‌شود
+        $mediaPerson = Media::withTrashed()
+            ->whereIn('id', $logs->where('subject_type', 'Media')->pluck('subject_id')->unique())
+            ->pluck('person_id', 'id');
+        $personOf = fn (ActivityLog $log) => $log->subject_type === 'Media' ? $mediaPerson->get($log->subject_id) : ($log->subject_type === 'Person' ? $log->subject_id : null);
+
         // نام اشخاص مرتبط برای نمایش
-        $personIds = $logs->where('subject_type', 'Person')->pluck('subject_id')->unique();
+        $personIds = $logs->map($personOf)->filter()->unique();
         $names = Person::withTrashed()->whereIn('id', $personIds)->get(['id', 'first_name', 'last_name', 'title'])->keyBy('id');
 
         return response()->json([
-            'data' => $logs->map(fn (ActivityLog $log) => (new ActivityResource($log))->toArray($request) + [
-                'subject_name' => $log->subject_type === 'Person' ? $names->get($log->subject_id)?->fullName() : null,
-            ]),
+            'data' => $logs->map(function (ActivityLog $log) use ($request, $personOf, $names) {
+                $personId = $personOf($log);
+
+                return array_merge((new ActivityResource($log))->toArray($request), [
+                    'subject_id' => $personId ?? $log->subject_id,
+                    'subject_name' => $personId ? $names->get($personId)?->fullName() : null,
+                ]);
+            }),
         ]);
     }
 

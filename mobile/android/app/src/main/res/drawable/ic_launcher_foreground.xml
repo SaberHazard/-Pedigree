@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- آیکن درخت (همان لوگوی سایت) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="24" android:translateY="24" android:scaleX="0.1172" android:scaleY="0.1172">
+        <path
+            android:pathData="M256,150v200M110,350v-44c0,-24 20,-44 44,-44h204c24,0 44,20 44,44v44"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="22"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <path android:fillColor="#FFFFFF" android:pathData="M256,112m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M110,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M256,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
+        <path android:fillColor="#FFFFFF" android:pathData="M402,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
+        <path android:fillColor="#0F766E" android:pathData="M256,112m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+    </group>
+</vector>

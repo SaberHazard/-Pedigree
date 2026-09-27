@@ -1,0 +1,8 @@
+build/
+DerivedData/
+*.xcodeproj/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+Pods/
+*.ipa
+GoogleService-Info.plist

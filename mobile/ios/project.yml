@@ -1,0 +1,50 @@
+# پروژه Xcode با XcodeGen ساخته می‌شود:
+#   brew install xcodegen && cd mobile/ios && xcodegen generate && open Pedigree.xcodeproj
+name: Pedigree
+options:
+  bundleIdPrefix: ir.pedigree
+  deploymentTarget:
+    iOS: "15.0"
+  developmentLanguage: fa
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Pedigree:
+    type: application
+    platform: iOS
+    sources:
+      - path: Pedigree
+    info:
+      path: Pedigree/Info.plist
+      properties:
+        CFBundleDisplayName: شجره‌نامه
+        CFBundleDevelopmentRegion: fa
+        UILaunchScreen:
+          UIColorName: AccentColor
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        NSCameraUsageDescription: برای گرفتن عکس پروفایل و عکس‌های خانوادگی
+        NSPhotoLibraryUsageDescription: برای انتخاب عکس و ویدیو از گالری
+        NSPhotoLibraryAddUsageDescription: برای ذخیره خروجی شجره‌نامه در گالری
+        NSMicrophoneUsageDescription: برای ضبط ویدیو از خاطرات خانوادگی
+        ITSAppUsesNonExemptEncryption: false
+        PedigreeBaseURL: $(PEDIGREE_BASE_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ir.pedigree.app
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # آدرس سایت (در Config.swift خوانده می‌شود)
+        PEDIGREE_BASE_URL: "https://example.com/"

@@ -1,10 +1,16 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "pedigree/web",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Family tree (Pedigree) web app and REST API for web, Android and iOS clients",
+    "keywords": [
+        "family-tree",
+        "genealogy",
+        "pedigree",
+        "laravel",
+        "persian"
+    ],
+    "license": "proprietary",
     "require": {
         "php": "^8.3",
         "intervention/image": "^4.3",

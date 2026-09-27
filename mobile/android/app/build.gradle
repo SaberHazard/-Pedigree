@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ir.pedigree.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ir.pedigree.app"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "1.0.0"
+
+        // ====> آدرس سایت شجره‌نامه خود را اینجا بگذارید (حتماً HTTPS) <====
+        buildConfigField "String", "BASE_URL", '"https://example.com/"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        debug {
+            // برای تست روی شبیه‌ساز با سرور محلی: php artisan serve --host=0.0.0.0
+            buildConfigField "String", "BASE_URL", '"http://10.0.2.2:8000/"'
+            applicationIdSuffix ".debug"
+        }
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.core:core:1.15.0'
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'androidx.webkit:webkit:1.12.1'
+
+    // پوش‌نوتیفیکیشن (اختیاری) - راهنما در README
+    // implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    // implementation 'com.google.firebase:firebase-messaging'
+}

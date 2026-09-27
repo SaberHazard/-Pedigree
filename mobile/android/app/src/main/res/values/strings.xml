@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">شجره‌نامه</string>
+    <string name="choose_file">انتخاب عکس یا ویدیو</string>
+    <string name="saved_to_downloads">فایل در پوشه Download/Pedigree ذخیره شد</string>
+    <string name="open_with">باز کردن با</string>
+    <string name="save_failed">ذخیره فایل ناموفق بود</string>
+    <string name="offline_title">اتصال برقرار نیست</string>
+    <string name="offline_body">اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
+    <string name="retry">تلاش دوباره</string>
+</resources>
