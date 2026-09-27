@@ -112,7 +112,7 @@ jobs:
           cache: gradle
       - name: Build and lint
         run: ./gradlew --no-daemon assembleDebug assembleRelease lintDebug
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pedigree-android-debug
           path: mobile/android/app/build/outputs/apk/debug/*.apk
