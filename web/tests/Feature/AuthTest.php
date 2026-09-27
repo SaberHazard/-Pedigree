@@ -69,8 +69,10 @@ class AuthTest extends TestCase
             'first_name' => 'مریم',
             'last_name' => 'کریمی',
             'gender' => 'f',
+            'national_code' => '۰۰۱۲۳۴۵۶۷۹',
             'device_name' => 'iPhone',
         ])->assertOk()->assertJsonStructure(['token']);
+        $this->assertSame('0012345679', Person::findByPhone('09350000000')->national_code);
 
         $this->assertNotNull(Person::findByPhone('09350000000'));
         // ثبت‌نام آزاد هرگز مدیر نمی‌سازد (مگر با تنظیم صریح)

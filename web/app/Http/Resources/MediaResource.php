@@ -29,6 +29,7 @@ class MediaResource extends JsonResource
             'person_id' => $media->person_id,
             'person_name' => $media->person?->fullName(),
             'type' => $media->type,
+            'category' => $media->category ?? Media::CATEGORY_GALLERY,
             'status' => $media->status,
             'approval_mode' => $media->approval_mode,
             'processing' => $media->processing,

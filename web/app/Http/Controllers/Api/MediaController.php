@@ -41,6 +41,7 @@ class MediaController extends Controller
             ->with(['uploader.person', 'votes.user.person', 'person'])
             ->where('person_id', $person->id)
             ->when($request->filled('type'), fn (Builder $q) => $q->where('type', $request->input('type')))
+            ->when($request->filled('category'), fn (Builder $q) => $q->where('category', $request->input('category')))
             ->where(function (Builder $q) use ($user) {
                 $q->where('status', Media::STATUS_APPROVED);
                 if ($user) {
@@ -199,6 +200,8 @@ class MediaController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'taken_at' => ['nullable', new PartialDateRule],
             'as_avatar' => ['nullable', 'boolean'],
+            // gallery = گالری ، story = استوری (عکس/فیلمی که همان لحظه با دوربین گرفته شده)
+            'category' => ['nullable', Rule::in([Media::CATEGORY_GALLERY, Media::CATEGORY_STORY])],
         ], [], ['file' => 'فایل']);
 
         // محدودیت حجم جداگانه برای عکس

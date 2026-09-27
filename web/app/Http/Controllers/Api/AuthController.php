@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PersonRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Person;
 use App\Models\User;
+use App\Rules\NationalCodeRule;
 use App\Rules\PartialDateRule;
 use App\Services\AuditLogger;
 use App\Services\Auth\CaptchaService;
@@ -32,9 +34,10 @@ use Laravel\Sanctum\PersonalAccessToken;
 /**
  * ورود و ثبت‌نام.
  *
- * دو روش ورود:
- *  ۱. موبایل + کد پیامکی (OTP)
- *  ۲. کد ملی + رمز عبور (برای کسی که به شماره‌اش دسترسی ندارد)
+ * روش‌های ورود:
+ *  ۱. موبایل + کد پیامکی (OTP) - بدون نیاز به نام کاربری و رمز
+ *  ۲. کد ملی یا نام کاربری یا موبایل + رمز عبور (برای کسی که به شماره‌اش دسترسی ندارد؛
+ *     مثلاً سالمندی که فقط نام کاربری و رمزی دارد که مدیر یا فرزندانش برایش تعیین کرده‌اند)
  *
  * خروجی ورود:
  *  - برای سایت (درخواست از همان دامنه): سشن امن کوکی‌محور (httpOnly)
@@ -154,15 +157,29 @@ class AuthController extends Controller
     /** تکمیل ثبت‌نام شماره جدید */
     public function register(Request $request, PersonService $persons): JsonResponse
     {
+        if (is_string($request->input('national_code'))) {
+            $request->merge(['national_code' => NationalCode::normalize($request->input('national_code')) ?? $request->input('national_code')]);
+        }
+        // کد ملی اجباری است مگر کسی که کد ملی ایرانی ندارد (در صورت فعال بودن این گزینه)
+        $withoutCode = $request->boolean('no_national_code') && config('pedigree.registration.allow_without_national_code', true);
+        $codeRequired = config('pedigree.registration.require_national_code', true) && ! $withoutCode;
         $data = $request->validate([
             'registration_token' => ['required', 'string'],
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'gender' => ['required', 'in:m,f'],
+            'national_code' => [$codeRequired ? 'required' : 'nullable', 'string', new NationalCodeRule],
+            'no_national_code' => ['sometimes', 'boolean'],
             'birth_date' => ['nullable', new PartialDateRule],
             'password' => ['nullable', 'string', 'max:100', Password::min((int) config('pedigree.password.min_length', 8))->letters()->numbers()],
             'device_name' => ['nullable', 'string', 'max:100'],
         ]);
+
+        $nationalCode = $withoutCode ? null : ($data['national_code'] ?? null);
+        if ($nationalCode && Person::withTrashed()->where('national_code_hash', BlindIndex::make($nationalCode, 'national_code'))->exists()) {
+            // ادعای پروفایل موجود فقط از راه ثبت موبایل توسط بستگان (کد ملی راز نیست و نباید برای تصاحب کافی باشد)
+            throw ValidationException::withMessages(['national_code' => 'پروفایلی با این کد ملی از قبل در شجره‌نامه هست. از یکی از بستگان (یا مدیر) بخواهید شماره موبایل شما را در همان پروفایل ثبت کند، سپس با پیامک وارد شوید.']);
+        }
 
         $phone = Cache::pull('register:'.hash('sha256', $data['registration_token']));
         if (! $phone) {
@@ -172,7 +189,7 @@ class AuthController extends Controller
             throw new DomainException('این شماره قبلاً ثبت شده است.');
         }
 
-        $user = DB::transaction(function () use ($data, $phone, $persons) {
+        $user = DB::transaction(function () use ($data, $phone, $persons, $nationalCode) {
             // اولین کاربر فقط در صورت فعال بودن تنظیم، مدیر کل می‌شود (پیشنهاد: از pedigree:install استفاده کنید)
             $firstAdmin = config('pedigree.registration.first_user_is_admin') && User::count() === 0;
             $user = User::create(['role' => $firstAdmin ? User::ROLE_SUPER_ADMIN : User::ROLE_MEMBER]);
@@ -182,6 +199,7 @@ class AuthController extends Controller
                 'gender' => $data['gender'],
                 'birth_date' => $data['birth_date'] ?? null,
                 'phone' => $phone,
+                'national_code' => $nationalCode,
             ], $user);
             $user->person_id = $person->id;
             if (! empty($data['password'])) {
@@ -200,43 +218,55 @@ class AuthController extends Controller
         return $this->completeLogin($request, $user, 'register');
     }
 
-    /** ورود با کد ملی و رمز عبور */
+    /**
+     * ورود با رمز عبور.
+     * شناسه ورود می‌تواند کد ملی، نام کاربری یا شماره موبایل باشد
+     * (فیلد قدیمی national_code هم برای سازگاری پذیرفته می‌شود).
+     */
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'national_code' => ['required', 'string', 'max:20'],
+            'identifier' => ['required_without_all:national_code,username', 'nullable', 'string', 'max:50'],
+            'national_code' => ['nullable', 'string', 'max:20'],
+            'username' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'max:100'],
             'device_name' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $code = NationalCode::normalize($data['national_code']) ?? '';
+        [$kind, $value] = $this->parseIdentifier((string) ($data['identifier'] ?? $data['national_code'] ?? $data['username'] ?? ''));
         $maxAttempts = (int) config('pedigree.password.max_attempts', 5);
         $lockout = (int) config('pedigree.password.lockout_seconds', 900);
-        // دو قفل: یکی برای (کد ملی + IP) و یکی سراسری برای کد ملی (حمله از چند IP)
+        // دو قفل: یکی برای (شناسه + IP) و یکی سراسری برای شناسه (حمله از چند IP)
+        $idHash = hash('sha256', $kind.':'.$value);
         $keys = [
-            'login:'.hash('sha256', $code).'|'.$request->ip() => $maxAttempts,
-            'login-code:'.hash('sha256', $code) => $maxAttempts * 4,
+            'login:'.$idHash.'|'.$request->ip() => $maxAttempts,
+            'login-code:'.$idHash => $maxAttempts * 4,
         ];
         foreach ($keys as $key => $limit) {
             if (RateLimiter::tooManyAttempts($key, $limit)) {
                 $minutes = (int) ceil(RateLimiter::availableIn($key) / 60);
-                throw new DomainException("به دلیل تلاش‌های ناموفق زیاد، ورود با این کد ملی تا {$minutes} دقیقه دیگر ممکن نیست.", 429);
+                throw new DomainException("به دلیل تلاش‌های ناموفق زیاد، ورود با این شناسه تا {$minutes} دقیقه دیگر ممکن نیست.", 429);
             }
         }
 
-        $person = NationalCode::isValid($code) ? Person::findByNationalCode($code) : null;
-        $user = $person?->user;
+        $user = match ($kind) {
+            'national_code' => Person::findByNationalCode($value)?->user,
+            'phone' => Person::findByPhone($value)?->user,
+            'username' => $value !== '' ? User::where('username', $value)->first() : null,
+            default => null,
+        };
+        $person = $user?->person;
 
         // در صورت نبود کاربر هم هش بررسی می‌شود تا زمان پاسخ یکسان باشد
         $hash = $user?->password ?? Cache::rememberForever('auth:dummy-hash', fn () => Hash::make(Str::random(32)));
-        $valid = Hash::check($data['password'], $hash) && $user?->password !== null;
+        $valid = Hash::check($data['password'], $hash) && $user?->password !== null && $person !== null;
 
         if (! $valid) {
             foreach (array_keys($keys) as $key) {
                 RateLimiter::hit($key, $lockout);
             }
-            $this->audit->log('auth.password_failed', $person, [], $user);
-            throw ValidationException::withMessages(['password' => 'کد ملی یا رمز عبور نادرست است.']);
+            $this->audit->log('auth.password_failed', $person, ['via' => $kind], $user);
+            throw ValidationException::withMessages(['password' => 'شناسه ورود (کد ملی / نام کاربری / موبایل) یا رمز عبور نادرست است.']);
         }
         if ($person->is_deceased) {
             throw new DomainException('این پروفایل متعلق به شخص درگذشته است.', 403);
@@ -249,7 +279,22 @@ class AuthController extends Controller
             RateLimiter::clear($key);
         }
 
-        return $this->completeLogin($request, $user, 'password');
+        return $this->completeLogin($request, $user, $kind === 'username' ? 'username' : 'password');
+    }
+
+    /** تشخیص نوع شناسه ورود: کد ملی (۱۰ رقم معتبر)، موبایل، یا نام کاربری */
+    private function parseIdentifier(string $raw): array
+    {
+        $raw = trim($raw);
+        $digits = preg_replace('/[\s\-]/', '', PersianText::toLatinDigits($raw)) ?? '';
+        if (ctype_digit($digits) && NationalCode::isValid(NationalCode::normalize($digits) ?? '')) {
+            return ['national_code', NationalCode::normalize($digits)];
+        }
+        if (preg_match('/^\+?\d{10,14}$/', $digits) && ($phone = Phone::normalize($digits))) {
+            return ['phone', $phone];
+        }
+
+        return ['username', PersonRequest::normalizeUsername($raw)];
     }
 
     public function logout(Request $request): JsonResponse

@@ -9,11 +9,14 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\LinkRequestController;
+use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\MarriageController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OpinionController;
 use App\Http\Controllers\Api\PersonController;
+use App\Http\Controllers\Api\ProfileTextController;
 use App\Http\Controllers\Api\RelativeController;
 use App\Http\Controllers\Api\TreeController;
 use Illuminate\Support\Facades\Route;
@@ -60,6 +63,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::prefix('account')->group(function () {
         Route::put('preferences', [AccountController::class, 'preferences']);
         Route::put('password', [AccountController::class, 'password']);
+        Route::put('username', [AccountController::class, 'username']);
         Route::post('phone/otp', [AccountController::class, 'requestPhoneChange'])->middleware('throttle:otp');
         Route::put('phone', [AccountController::class, 'confirmPhoneChange'])->middleware('throttle:otp-verify');
         Route::get('sessions', [AccountController::class, 'sessions']);
@@ -75,6 +79,29 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::delete('persons/{person}', [PersonController::class, 'destroy']);
     Route::get('persons/{person}/history', [PersonController::class, 'history']);
     Route::get('persons/{person}/relationship/{other}', [PersonController::class, 'relationship']);
+
+    // متن‌های رنگی پروفایل (چکیده، توضیحات، زندگی‌نامه، رزومه) و نسخه‌های آن‌ها
+    Route::put('persons/{person}/texts/{field}', [ProfileTextController::class, 'update'])->middleware('throttle:writes');
+    Route::get('persons/{person}/texts/{field}/revisions', [ProfileTextController::class, 'revisions']);
+    Route::get('persons/{person}/texts/{field}/revisions/{revision}', [ProfileTextController::class, 'showRevision'])->whereNumber('revision');
+    Route::post('persons/{person}/texts/{field}/revisions/{revision}/restore', [ProfileTextController::class, 'restore'])->whereNumber('revision');
+
+    // سوابق رزومه
+    Route::post('persons/{person}/resume', [ProfileTextController::class, 'storeResume'])->middleware('throttle:writes');
+    Route::match(['put', 'patch'], 'resume/{item}', [ProfileTextController::class, 'updateResume']);
+    Route::delete('resume/{item}', [ProfileTextController::class, 'destroyResume']);
+
+    // نظرها و امتیاز ویژگی‌ها
+    Route::get('persons/{person}/comments', [OpinionController::class, 'comments']);
+    Route::post('persons/{person}/comments', [OpinionController::class, 'storeComment'])->middleware('throttle:writes');
+    Route::match(['put', 'patch'], 'comments/{comment}', [OpinionController::class, 'updateComment'])->middleware('throttle:writes');
+    Route::delete('comments/{comment}', [OpinionController::class, 'destroyComment']);
+    Route::post('comments/{comment}/hide', [OpinionController::class, 'hideComment']);
+    Route::get('persons/{person}/ratings', [OpinionController::class, 'ratings']);
+    Route::put('persons/{person}/ratings', [OpinionController::class, 'rate'])->middleware('throttle:writes');
+
+    // نقشه خاندان
+    Route::get('map', [MapController::class, 'index']);
 
     // بستگان و اتصال درخت‌ها
     Route::post('persons/{person}/relatives', [RelativeController::class, 'store']);

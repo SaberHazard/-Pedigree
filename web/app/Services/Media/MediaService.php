@@ -91,7 +91,7 @@ class MediaService
 
         DB::transaction(function () use ($media, $actor, $person) {
             $media->save();
-            $this->audit->log('media.uploaded', $media, ['person' => $person->id, 'type' => $media->type], $actor);
+            $this->audit->log('media.uploaded', $media, ['person' => $person->id, 'type' => $media->type, 'category' => $media->category, 'caption' => $media->caption], $actor);
             $this->approvals->initiate($media, $actor);
         });
 
@@ -114,7 +114,10 @@ class MediaService
         DB::transaction(function () use ($media, $actor) {
             Person::where('avatar_media_id', $media->id)->update(['avatar_media_id' => null]);
             $media->delete();
-            $this->audit->log('media.deleted', $media, ['person' => $media->person_id], $actor);
+            $this->audit->log('media.deleted', $media, [
+                'person' => $media->person_id, 'type' => $media->type, 'category' => $media->category,
+                'caption' => $media->caption, 'uploaded_by' => $media->uploader?->displayName(),
+            ], $actor);
         });
         $this->deleteFiles($media);
     }
@@ -126,6 +129,9 @@ class MediaService
 
     private function cleanMeta(array $meta): array
     {
-        return array_intersect_key($meta, array_flip(['caption', 'description', 'taken_at']));
+        $meta = array_intersect_key($meta, array_flip(['caption', 'description', 'taken_at', 'category']));
+        $meta['category'] = ($meta['category'] ?? null) ?: Media::CATEGORY_GALLERY;
+
+        return $meta;
     }
 }

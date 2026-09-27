@@ -55,12 +55,28 @@ class Person extends Model
     protected $fillable = [
         'first_name', 'last_name', 'nickname', 'title', 'gender',
         'birth_order', 'birth_date', 'birth_place',
-        'is_deceased', 'death_date', 'death_place', 'burial_place',
-        'birth_cert_place', 'email', 'occupation', 'education', 'residence', 'biography',
+        'is_deceased', 'death_date', 'death_place', 'burial_place', 'burial_lat', 'burial_lng',
+        'birth_cert_place', 'email', 'occupation', 'education', 'residence',
+        // پروفایل کامل
+        'education_level', 'education_field', 'education_institution', 'academic_rank', 'workplace',
+        'country', 'province', 'city', 'address', 'postal_code', 'home_lat', 'home_lng', 'share_location',
+        'landline', 'website', 'social', 'share_contact',
+        'blood_type', 'languages', 'interests', 'custom_fields',
     ];
+
+    /** فیلدهای متنی یک‌خطی که قبل از ذخیره یکدست می‌شوند */
+    public const TEXT_FIELDS = [
+        'first_name', 'last_name', 'nickname', 'title', 'birth_place', 'death_place', 'burial_place',
+        'occupation', 'education', 'residence', 'birth_cert_place', 'education_field', 'education_institution',
+        'workplace', 'province', 'city', 'languages', 'interests',
+    ];
+
+    /** فیلدهای رمزنگاری‌شده غیرقابل‌جستجو (نشانی و موقعیت خانه، تلفن ثابت) */
+    public const ENCRYPTED_FIELDS = ['address', 'postal_code', 'home_lat', 'home_lng', 'landline'];
 
     protected $hidden = [
         'national_code', 'national_code_hash', 'birth_cert_no', 'phone', 'phone_hash', 'search_text',
+        'address', 'postal_code', 'home_lat', 'home_lng', 'landline',
     ];
 
     protected function casts(): array
@@ -69,6 +85,13 @@ class Person extends Model
             'is_deceased' => 'boolean',
             'is_locked' => 'boolean',
             'birth_order' => 'integer',
+            'share_location' => 'boolean',
+            'share_contact' => 'boolean',
+            'social' => 'array',
+            'custom_fields' => 'array',
+            'field_meta' => 'array',
+            'burial_lat' => 'float',
+            'burial_lng' => 'float',
         ];
     }
 
@@ -82,7 +105,7 @@ class Person extends Model
 
         static::saving(function (Person $person) {
             // یکدست‌سازی متن‌ها قبل از ذخیره
-            foreach (['first_name', 'last_name', 'nickname', 'title', 'birth_place', 'death_place', 'burial_place', 'occupation', 'education', 'residence', 'birth_cert_place'] as $field) {
+            foreach (self::TEXT_FIELDS as $field) {
                 if ($person->isDirty($field)) {
                     $value = PersianText::normalize($person->{$field});
                     $person->{$field} = $value === '' ? null : $value;
@@ -147,6 +170,49 @@ class Person extends Model
         );
     }
 
+    protected function address(): Attribute
+    {
+        return $this->encryptedText();
+    }
+
+    protected function postalCode(): Attribute
+    {
+        return $this->encryptedText();
+    }
+
+    protected function homeLat(): Attribute
+    {
+        return $this->encryptedText();
+    }
+
+    protected function homeLng(): Attribute
+    {
+        return $this->encryptedText();
+    }
+
+    protected function landline(): Attribute
+    {
+        return $this->encryptedText();
+    }
+
+    /** رمزنگاری ساده یک فیلد متنی؛ اگر کلید عوض شده باشد مقدار null خوانده می‌شود (نه خطا) */
+    private function encryptedText(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => self::decryptOrNull($value),
+            set: fn (?string $value) => $value === null || $value === '' ? null : Crypt::encryptString($value),
+        );
+    }
+
+    /** مختصات خانه به صورت عدد (یا null) */
+    public function homeLocation(): ?array
+    {
+        $lat = $this->home_lat;
+        $lng = $this->home_lng;
+
+        return is_numeric($lat) && is_numeric($lng) ? ['lat' => (float) $lat, 'lng' => (float) $lng] : null;
+    }
+
     private static function decryptOrNull(?string $value): ?string
     {
         if ($value === null) {
@@ -199,6 +265,30 @@ class Person extends Model
     public function media(): HasMany
     {
         return $this->hasMany(Media::class);
+    }
+
+    public function texts(): HasMany
+    {
+        return $this->hasMany(PersonText::class);
+    }
+
+    public function resumeItems(): HasMany
+    {
+        return $this->hasMany(ResumeItem::class)
+            ->orderByRaw('is_current DESC')
+            ->orderByRaw('COALESCE(end_date, start_date) IS NULL')
+            ->orderByDesc('start_date')
+            ->orderBy('sort_order');
+    }
+
+    public function comments(): HasMany
+    {
+        return $this->hasMany(PersonComment::class);
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(PersonRating::class);
     }
 
     public function creator(): BelongsTo

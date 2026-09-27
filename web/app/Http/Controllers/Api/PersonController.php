@@ -69,7 +69,7 @@ class PersonController extends Controller
     {
         Gate::authorize('view', $person);
 
-        return new PersonResource($person->load(['avatar', 'user', 'creator.person']));
+        return new PersonResource($person->load(['avatar', 'user', 'creator.person', 'texts', 'resumeItems']));
     }
 
     /** ساخت شخص مستقل (مثلاً جد اعلای یک خاندان جدید) */
@@ -127,10 +127,16 @@ class PersonController extends Controller
     {
         Gate::authorize('viewHistory', $person);
 
+        // شناسه‌ها به صورت رشته گرفته می‌شوند (در PostgreSQL مقایسه مستقیم uuid با varchar خطا است)
+        $mediaIds = $person->media()->withTrashed()->pluck('id')->map(fn ($id) => (string) $id)->all();
         $logs = ActivityLog::query()
             ->with('user.person')
-            ->where(fn (Builder $q) => $q->where('subject_type', 'Person')->where('subject_id', $person->id))
-            ->orWhere(fn (Builder $q) => $q->where('subject_type', 'Media')->whereIn('subject_id', $person->media()->withTrashed()->select('id')))
+            ->where(function (Builder $q) use ($person, $mediaIds) {
+                $q->where(fn (Builder $q) => $q->where('subject_type', 'Person')->where('subject_id', (string) $person->id));
+                if ($mediaIds) {
+                    $q->orWhere(fn (Builder $q) => $q->where('subject_type', 'Media')->whereIn('subject_id', $mediaIds));
+                }
+            })
             ->latest('id')
             ->paginate(30);
 

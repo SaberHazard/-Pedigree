@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PersonRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Device;
 use App\Models\Person;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -80,6 +82,27 @@ class AccountController extends Controller
         $this->audit->log('account.password_changed', $user->person, [], $user);
 
         return response()->json(['message' => 'رمز عبور با موفقیت ذخیره شد.']);
+    }
+
+    /** تعیین یا حذف نام کاربری (برای ورود با نام کاربری + رمز) */
+    public function username(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (is_string($request->input('username'))) {
+            $request->merge(['username' => PersonRequest::normalizeUsername($request->input('username'))]);
+        }
+        $data = $request->validate([
+            'username' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9._-]*$/', 'min:'.(int) config('pedigree.username.min', 3),
+                'max:'.(int) config('pedigree.username.max', 30), Rule::notIn(config('pedigree.username.reserved', [])),
+                Rule::unique('users', 'username')->ignore($user->id)],
+        ], ['username.regex' => 'نام کاربری فقط شامل حروف کوچک انگلیسی، عدد، نقطه، خط تیره و زیرخط باشد و با حرف شروع شود.'], ['username' => 'نام کاربری']);
+
+        $old = $user->username;
+        $user->username = $data['username'] ?: null;
+        $user->save();
+        $this->audit->log('account.username_changed', $user->person, ['changes' => ['username' => [$old, $user->username]]], $user);
+
+        return response()->json(['message' => $user->username ? 'نام کاربری ذخیره شد.' : 'نام کاربری حذف شد.', 'username' => $user->username]);
     }
 
     /** ارسال کد تأیید به شماره جدید */

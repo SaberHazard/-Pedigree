@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Countries;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -16,6 +17,10 @@ class MetaController extends Controller
             'site_name' => config('pedigree.site_name'),
             'version' => config('app.version', '1.0.0'),
             'registration_enabled' => (bool) config('pedigree.registration.enabled'),
+            'registration' => [
+                'require_national_code' => (bool) config('pedigree.registration.require_national_code', true),
+                'allow_without_national_code' => (bool) config('pedigree.registration.allow_without_national_code', true),
+            ],
             'guest_view' => (bool) config('pedigree.guest_view'),
             'otp' => [
                 'length' => (int) config('pedigree.otp.length'),
@@ -35,6 +40,33 @@ class MetaController extends Controller
                 'max_depth' => (int) config('pedigree.tree.max_depth'),
             ],
             'dev_sms' => config('pedigree.sms.driver') === 'log',
+
+            // گزینه‌های فرم پروفایل کامل
+            'profile' => [
+                'education_levels' => config('pedigree.profile.education_levels'),
+                'academic_ranks' => config('pedigree.profile.academic_ranks'),
+                'blood_types' => config('pedigree.profile.blood_types'),
+                'social_networks' => config('pedigree.profile.social_networks'),
+                'texts' => array_map(fn ($t) => ['label' => $t['label'], 'max' => $t['max']], config('pedigree.profile.texts', [])),
+                'resume_types' => config('pedigree.profile.resume_types'),
+                'max_attributes' => (int) config('pedigree.profile.max_attributes', 40),
+                'countries' => Countries::CODES,
+            ],
+            'map' => [
+                'enabled' => (bool) config('pedigree.map.enabled', true),
+                'tiles' => config('pedigree.map.tiles'),
+                'attribution' => config('pedigree.map.attribution'),
+                'max_zoom' => (int) config('pedigree.map.max_zoom', 19),
+                'center' => config('pedigree.map.center'),
+                'zoom' => (int) config('pedigree.map.zoom', 5),
+            ],
+            'comments_enabled' => (bool) config('pedigree.comments.enabled', true),
+            'comment_max' => (int) config('pedigree.comments.max_length', 3000),
+            'ratings' => [
+                'enabled' => (bool) config('pedigree.ratings.enabled', true),
+                'traits' => config('pedigree.ratings.traits'),
+            ],
+            'history_public' => (bool) config('pedigree.permissions.history_public', true),
         ]);
     }
 }

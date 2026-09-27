@@ -40,7 +40,7 @@ class PersonPolicy
 
     public function viewHistory(User $user, Person $person): bool
     {
-        return $user->isAdmin() || $user->person_id === $person->id || $this->access->canEdit($user, $person);
+        return $this->access->canViewHistory($user, $person);
     }
 
     public function delete(User $user, Person $person): bool

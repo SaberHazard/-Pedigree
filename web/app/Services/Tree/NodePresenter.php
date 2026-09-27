@@ -33,6 +33,8 @@ class NodePresenter
             'is_deceased' => $p->is_deceased,
             'death_date' => $p->death_date,
             'occupation' => $p->occupation,
+            'education_level' => $p->education_level,
+            'city' => $p->city,
             'avatar' => $avatar && $avatar->isApproved() ? $avatar->url('thumb') : null,
             'has_parents' => $p->father_id !== null || $p->mother_id !== null,
         ];

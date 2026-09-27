@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $mime
  * @property int $size
  * @property bool $set_as_avatar
+ * @property string $category gallery|story
  */
 class Media extends Model
 {
@@ -40,7 +41,11 @@ class Media extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
-    protected $fillable = ['caption', 'description', 'taken_at'];
+    public const CATEGORY_GALLERY = 'gallery';
+
+    public const CATEGORY_STORY = 'story';
+
+    protected $fillable = ['caption', 'description', 'taken_at', 'category'];
 
     protected function casts(): array
     {

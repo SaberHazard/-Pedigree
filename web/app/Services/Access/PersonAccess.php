@@ -16,8 +16,9 @@ use Illuminate\Support\Collection;
  *  ۳. اگر پروفایل «قفل» باشد، فقط خود شخص و مدیر.
  *  ۴. بستگان درجه یک (پدر/مادر، فرزند، خواهر/برادر، همسر) حق ویرایش دارند.
  *  ۵. اگر شخص درگذشته باشد، نوادگانش (نوه، نتیجه ...) هم حق ویرایش دارند.
- *  ۶. سازنده یک پروفایل تا وقتی صاحبش وارد سیستم نشده، حق ویرایش دارد.
+ *  ۶. سازنده یک پروفایل تا وقتی صاحبش وارد سیستم نشده (و حداکثر چند ساعت پس از ساخت)، حق ویرایش دارد.
  *  ۷. اطلاعات حساس (موبایل، کد ملی، رمز) شخصی که حساب فعال دارد فقط دست خودش است.
+ *  ۸. نشانی و موقعیت خانه / راه‌های ارتباطی فقط برای ویرایشگران، مگر خود شخص اجازه نمایش عمومی بدهد.
  */
 class PersonAccess
 {
@@ -78,9 +79,18 @@ class PersonAccess
             }
         }
 
-        return config('pedigree.permissions.creator_can_edit_unclaimed')
-            && $target->created_by === $user->id
-            && ! $target->hasActiveAccount();
+        return $this->creatorMayEdit($user->id, $target);
+    }
+
+    /** سازنده پروفایلِ ادعانشده، در بازه مجاز پس از ساخت */
+    private function creatorMayEdit(int $userId, Person $target): bool
+    {
+        if (! config('pedigree.permissions.creator_can_edit_unclaimed') || $target->created_by !== $userId || $target->hasActiveAccount()) {
+            return false;
+        }
+        $hours = (int) config('pedigree.permissions.creator_edit_hours', 72);
+
+        return $hours <= 0 || ($target->created_at !== null && $target->created_at->gt(now()->subHours($hours)));
     }
 
     /**
@@ -105,6 +115,37 @@ class PersonAccess
     public function canViewSensitive(?User $user, Person $target): bool
     {
         return $this->canManageSensitive($user, $target);
+    }
+
+    /** نشانی دقیق، کد پستی و موقعیت خانه روی نقشه */
+    public function canViewLocation(?User $user, Person $target): bool
+    {
+        if ($user === null || ! $user->isActive()) {
+            return false;
+        }
+
+        return $target->share_location || $user->isAdmin() || $this->canEdit($user, $target);
+    }
+
+    /** موبایل، ایمیل و تلفن ثابت */
+    public function canViewContact(?User $user, Person $target): bool
+    {
+        if ($user === null || ! $user->isActive()) {
+            return false;
+        }
+
+        return $target->share_contact || $this->canViewSensitive($user, $target);
+    }
+
+    /** تاریخچه تغییرات پروفایل (چه کسی چه چیزی را اضافه/حذف/ویرایش کرد) */
+    public function canViewHistory(?User $user, Person $target): bool
+    {
+        if ($user === null || ! $user->isActive()) {
+            return false;
+        }
+
+        return config('pedigree.permissions.history_public', true)
+            || $user->isAdmin() || $user->person_id === $target->id || $this->canEdit($user, $target);
     }
 
     /** آپلود عکس و ویدیو برای یک شخص */
@@ -164,7 +205,7 @@ class PersonAccess
             ->where('status', User::STATUS_ACTIVE)
             ->get();
 
-        if (! $target->is_locked && $target->created_by && config('pedigree.permissions.creator_can_edit_unclaimed') && ! $target->hasActiveAccount()) {
+        if (! $target->is_locked && $target->created_by && $this->creatorMayEdit($target->created_by, $target)) {
             $creator = User::query()->with('person')->find($target->created_by);
             if ($creator && $creator->isActive()) {
                 $users->push($creator);
@@ -183,6 +224,9 @@ class PersonAccess
             'upload' => $this->canUploadMedia($user, $target),
             'delete' => $this->canDelete($user, $target),
             'admin' => (bool) $user?->isAdmin(),
+            'history' => $this->canViewHistory($user, $target),
+            'comment' => $user !== null && $user->isActive() && (bool) config('pedigree.comments.enabled', true),
+            'rate' => $user !== null && $user->isActive() && $user->person_id !== $target->id && (bool) config('pedigree.ratings.enabled', true),
         ];
     }
 }

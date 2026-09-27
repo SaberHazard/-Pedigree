@@ -19,11 +19,12 @@ use Illuminate\Support\Facades\DB;
 class PersonService
 {
     /** فیلدهای حساس که فقط با دسترسی ویژه تغییر می‌کنند */
-    public const SENSITIVE_FIELDS = ['national_code', 'phone', 'birth_cert_no', 'is_locked', 'password'];
+    public const SENSITIVE_FIELDS = ['national_code', 'phone', 'birth_cert_no', 'is_locked', 'password', 'username'];
 
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly PersonAccess $access,
+        private readonly PersonTextService $texts,
     ) {}
 
     public function create(array $data, User $actor): Person
@@ -34,10 +35,17 @@ class PersonService
             $person->created_by = $actor->id;
             $person->updated_by = $actor->id;
             $this->applySensitive($person, $data);
+            $this->trackEditors($person, $actor);
             $person->save();
 
             if (! empty($data['password'])) {
                 $this->setPassword($person, $data['password'], $actor);
+            }
+            if (! empty($data['username'])) {
+                $this->setUsername($person, $data['username']);
+            }
+            if (! empty($data['biography'])) {
+                $this->texts->save($person, 'biography', $data['biography'], $actor);
             }
 
             $this->audit->log('person.created', $person, ['name' => $person->fullName()], $actor);
@@ -71,12 +79,22 @@ class PersonService
             }
 
             $changes = $this->audit->diff($person);
+            $this->trackEditors($person, $actor);
             $person->updated_by = $actor->id;
             $person->save();
 
-            if (array_key_exists('password', $data) && $data['password'] && $this->access->canManageSensitive($actor, $person)) {
+            $sensitive = $this->access->canManageSensitive($actor, $person);
+            if (array_key_exists('password', $data) && $data['password'] && $sensitive) {
                 $this->setPassword($person, $data['password'], $actor);
                 $changes['password'] = ['***', '***'];
+            }
+            if (array_key_exists('username', $data) && $sensitive && ($data['username'] ?? null) !== $person->user?->username) {
+                $this->setUsername($person, $data['username'] ?: null);
+                $changes['username'] = [null, $data['username'] ?: null];
+            }
+            // سازگاری با نسخه‌های قبلی API: زندگی‌نامه از مسیر متن‌های رنگی ذخیره می‌شود
+            if (array_key_exists('biography', $data)) {
+                $this->texts->save($person, 'biography', $data['biography'], $actor);
             }
 
             if ($changes) {
@@ -125,6 +143,47 @@ class PersonService
         $person->setRelation('user', $user);
 
         return $user;
+    }
+
+    /**
+     * نام کاربری برای ورود بدون موبایل/کد ملی (سالمندان). null = حذف نام کاربری.
+     * اگر حساب کاربری نباشد ساخته می‌شود ولی تا رمز تعیین نشود قابل ورود نیست.
+     */
+    public function setUsername(Person $person, ?string $username): ?User
+    {
+        $user = $person->user;
+        if ($username === null) {
+            if ($user) {
+                $user->username = null;
+                $user->save();
+            }
+
+            return $user;
+        }
+        $user ??= new User(['person_id' => $person->id]);
+        $user->person_id = $person->id;
+        $user->username = $username;
+        $user->save();
+        $person->setRelation('user', $user);
+
+        return $user;
+    }
+
+    /** ثبت آخرین ویرایشگر هر فیلد تغییرکرده (برای نمایش رنگ نویسنده کنار هر مشخصه) */
+    private function trackEditors(Person $person, User $actor): void
+    {
+        $meta = $person->field_meta ?? [];
+        $tracked = array_merge($person->getFillable(), ['national_code', 'phone', 'birth_cert_no']);
+        foreach (array_keys($person->getDirty()) as $field) {
+            $key = match ($field) {
+                'national_code_hash', 'phone_hash' => null,
+                default => in_array($field, $tracked, true) ? $field : null,
+            };
+            if ($key !== null) {
+                $meta[$key] = ['u' => $actor->id, 't' => now()->getTimestamp()];
+            }
+        }
+        $person->field_meta = $meta ?: null;
     }
 
     private function applySensitive(Person $person, array $data): void

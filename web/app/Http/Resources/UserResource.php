@@ -45,6 +45,7 @@ class UserResource extends JsonResource
             'is_admin' => $user->isAdmin(),
             'preferences' => $user->preferences ?? (object) [],
             'has_password' => $user->password !== null,
+            'username' => $user->username,
             'last_login_at' => $user->last_login_at?->toIso8601String(),
             'person' => $person ? NodePresenter::person($person) : null,
             'counters' => [

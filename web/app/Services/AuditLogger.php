@@ -19,6 +19,8 @@ class AuditLogger
     private const SENSITIVE = [
         'national_code', 'national_code_hash', 'phone', 'phone_hash', 'birth_cert_no',
         'password', 'remember_token', 'search_text', 'updated_at', 'created_at',
+        // نشانی و موقعیت خانه و تلفن ثابت (رمزنگاری‌شده)
+        'address', 'postal_code', 'home_lat', 'home_lng', 'landline',
     ];
 
     public function log(string $action, ?Model $subject = null, array $properties = [], ?User $user = null): ActivityLog
@@ -44,8 +46,8 @@ class AuditLogger
     public function diff(Model $model): array
     {
         $changes = [];
-        foreach ($model->getDirty() as $field => $new) {
-            if (in_array($field, ['national_code_hash', 'phone_hash', 'search_text', 'updated_at', 'created_at'], true)) {
+        foreach (array_keys($model->getDirty()) as $field) {
+            if (in_array($field, ['national_code_hash', 'phone_hash', 'search_text', 'updated_at', 'created_at', 'field_meta', 'updated_by'], true)) {
                 continue;
             }
             if (in_array($field, self::SENSITIVE, true)) {
@@ -53,7 +55,13 @@ class AuditLogger
 
                 continue;
             }
-            $changes[$field] = [$model->getOriginal($field), $new];
+            // مقدار «تبدیل‌شده» (بولین، آرایه ...) نه مقدار خام پایگاه‌داده
+            $old = $model->getOriginal($field);
+            $new = $model->getAttribute($field);
+            if ($old == $new && gettype($old) === gettype($new)) {
+                continue;
+            }
+            $changes[$field] = [$old, $new];
         }
 
         return $changes;

@@ -42,5 +42,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('login', fn (Request $request) => Limit::perMinute(10)->by('login:'.$request->ip()));
 
         RateLimiter::for('uploads', fn (Request $request) => Limit::perHour(120)->by('up:'.($request->user()?->id ?: $request->ip())));
+
+        // نوشتن نظر و ذخیره متن‌ها (جلوگیری از اسپم)
+        RateLimiter::for('writes', fn (Request $request) => [
+            Limit::perMinute(20)->by('w-m:'.($request->user()?->id ?: $request->ip())),
+            Limit::perHour(300)->by('w-h:'.($request->user()?->id ?: $request->ip())),
+        ]);
     }
 }

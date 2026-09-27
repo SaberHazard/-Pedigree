@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureUserIsActive;
+use App\Http\Middleware\ResetScopedServices;
 use App\Http\Middleware\ResolveViewer;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\AuthenticationException;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // سشن کوکی‌محور برای وب‌اپ روی همان دامنه (Sanctum SPA) + توکن برای اپ موبایل
         $middleware->statefulApi();
+        $middleware->prepend(ResetScopedServices::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([
             'active' => EnsureUserIsActive::class,

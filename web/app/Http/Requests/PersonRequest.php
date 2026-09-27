@@ -3,15 +3,18 @@
 namespace App\Http\Requests;
 
 use App\Models\Person;
+use App\Models\User;
 use App\Rules\NationalCodeRule;
 use App\Rules\PartialDateRule;
 use App\Rules\PhoneRule;
 use App\Support\BlindIndex;
+use App\Support\Countries;
 use App\Support\NationalCode;
 use App\Support\PartialDate;
 use App\Support\PersianText;
 use App\Support\Phone;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Validator;
 
@@ -72,6 +75,36 @@ class PersonRequest extends FormRequest
         if (isset($input['birth_order']) && is_string($input['birth_order'])) {
             $out['birth_order'] = PersianText::toLatinDigits($input['birth_order']);
         }
+        // اعداد (مختصات، کد پستی، تلفن ثابت) با ارقام لاتین ذخیره می‌شوند
+        foreach (['home_lat', 'home_lng', 'burial_lat', 'burial_lng', 'postal_code', 'landline'] as $field) {
+            if (isset($input[$field]) && is_string($input[$field])) {
+                $out[$field] = trim(PersianText::toLatinDigits($input[$field]));
+            }
+        }
+        if (isset($input['country']) && is_string($input['country'])) {
+            $out['country'] = strtoupper(trim($input['country']));
+        }
+        if (isset($input['username']) && is_string($input['username'])) {
+            $out['username'] = self::normalizeUsername($input['username']);
+        }
+        if (isset($input['website']) && is_string($input['website']) && trim($input['website']) !== '' && ! preg_match('#^https?://#i', trim($input['website']))) {
+            $out['website'] = 'https://'.trim($input['website']);
+        }
+        if (isset($input['social']) && is_array($input['social'])) {
+            $out['social'] = array_filter(
+                array_map(fn ($v) => is_string($v) ? trim($v) : $v, $input['social']),
+                fn ($v) => $v !== null && $v !== '',
+            ) ?: null;
+        }
+        if (isset($input['custom_fields']) && is_array($input['custom_fields'])) {
+            $rows = [];
+            foreach ($input['custom_fields'] as $row) {
+                if (is_array($row) && trim((string) ($row['label'] ?? '')) !== '' && trim((string) ($row['value'] ?? '')) !== '') {
+                    $rows[] = ['label' => trim((string) $row['label']), 'value' => trim((string) $row['value'])];
+                }
+            }
+            $out['custom_fields'] = $rows ?: null;
+        }
         // رشته خالی = null
         foreach ($input as $key => $value) {
             if ($value === '' && ! array_key_exists($key, $out)) {
@@ -108,10 +141,51 @@ class PersonRequest extends FormRequest
             'occupation' => ['nullable', 'string', 'max:150'],
             'education' => ['nullable', 'string', 'max:150'],
             'residence' => ['nullable', 'string', 'max:200'],
-            'biography' => ['nullable', 'string', 'max:20000'],
+            'biography' => ['nullable', 'string', 'max:'.(int) config('pedigree.profile.texts.biography.max', 60000)],
             'is_locked' => ['sometimes', 'boolean'],
             'password' => ['nullable', 'string', 'max:100', Password::min((int) config('pedigree.password.min_length', 8))->letters()->numbers()],
+            'username' => ['nullable', 'string', 'regex:/^[a-z][a-z0-9._-]*$/', 'min:'.(int) config('pedigree.username.min', 3), 'max:'.(int) config('pedigree.username.max', 30), Rule::notIn(config('pedigree.username.reserved', []))],
+
+            // تحصیلات و شغل
+            'education_level' => ['nullable', Rule::in(array_keys(config('pedigree.profile.education_levels', [])))],
+            'education_field' => ['nullable', 'string', 'max:150'],
+            'education_institution' => ['nullable', 'string', 'max:150'],
+            'academic_rank' => ['nullable', Rule::in(array_keys(config('pedigree.profile.academic_ranks', [])))],
+            'workplace' => ['nullable', 'string', 'max:150'],
+
+            // محل سکونت
+            'country' => ['nullable', 'string', 'size:2', fn ($attr, $value, $fail) => Countries::isValid($value) ? null : $fail('کشور انتخاب‌شده معتبر نیست.')],
+            'province' => ['nullable', 'string', 'max:100'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'postal_code' => ['nullable', 'string', 'max:20', 'regex:/^[0-9A-Za-z \-]+$/'],
+            'home_lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:home_lng'],
+            'home_lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:home_lat'],
+            'share_location' => ['sometimes', 'boolean'],
+            'burial_lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:burial_lng'],
+            'burial_lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:burial_lat'],
+
+            // راه‌های ارتباطی
+            'landline' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-() ]+$/'],
+            'website' => ['nullable', 'string', 'max:191', 'url:http,https'],
+            'social' => ['nullable', 'array:'.implode(',', array_keys(config('pedigree.profile.social_networks', [])))],
+            'social.*' => ['nullable', 'string', 'max:191'],
+            'share_contact' => ['sometimes', 'boolean'],
+
+            // ویژگی‌های دیگر
+            'blood_type' => ['nullable', Rule::in(config('pedigree.profile.blood_types', []))],
+            'languages' => ['nullable', 'string', 'max:200'],
+            'interests' => ['nullable', 'string', 'max:500'],
+            'custom_fields' => ['nullable', 'array', 'max:'.(int) config('pedigree.profile.max_attributes', 40)],
+            'custom_fields.*.label' => ['required', 'string', 'max:60'],
+            'custom_fields.*.value' => ['required', 'string', 'max:300'],
         ];
+    }
+
+    /** نام کاربری: حروف کوچک لاتین، بدون فاصله */
+    public static function normalizeUsername(string $value): string
+    {
+        return strtolower(trim(PersianText::toLatinDigits($value)));
     }
 
     /** بررسی‌های ترکیبی: یکتایی کد ملی/موبایل و ترتیب تاریخ‌ها */
@@ -132,6 +206,20 @@ class PersonRequest extends FormRequest
             }
         }
 
+        if (! empty($data['username'])) {
+            $taken = User::where('username', $data['username'])
+                ->when($currentId, fn ($q) => $q->where(fn ($q) => $q->whereNull('person_id')->orWhere('person_id', '!=', $currentId)))
+                ->exists();
+            if ($taken) {
+                $v->errors()->add('username', 'این نام کاربری قبلاً انتخاب شده است.');
+            }
+        }
+
+        // کد پستی ایران ۱۰ رقم است
+        if (($data['country'] ?? null) === 'IR' && ! empty($data['postal_code']) && ! preg_match('/^\d{10}$/', str_replace([' ', '-'], '', $data['postal_code']))) {
+            $v->errors()->add('postal_code', 'کد پستی ایران باید ۱۰ رقم باشد.');
+        }
+
         $birth = PartialDate::normalize($data['birth_date'] ?? null);
         $death = PartialDate::normalize($data['death_date'] ?? null);
         // فقط بخش مشترک دو تاریخ مقایسه می‌شود (مثلاً وقتی فقط سال فوت معلوم است)
@@ -149,7 +237,14 @@ class PersonRequest extends FormRequest
             'death_date' => 'فوت', 'death_place' => 'محل فوت', 'burial_place' => 'محل دفن',
             'national_code' => 'کد ملی', 'phone' => 'موبایل', 'birth_cert_no' => 'شماره شناسنامه',
             'birth_cert_place' => 'محل صدور', 'email' => 'ایمیل', 'occupation' => 'شغل', 'education' => 'تحصیلات',
-            'residence' => 'محل سکونت', 'biography' => 'زندگی‌نامه', 'password' => 'رمز عبور',
+            'residence' => 'محله / منطقه', 'biography' => 'زندگی‌نامه', 'password' => 'رمز عبور', 'username' => 'نام کاربری',
+            'education_level' => 'مقطع تحصیلی', 'education_field' => 'رشته تحصیلی', 'education_institution' => 'دانشگاه / مدرسه',
+            'academic_rank' => 'مرتبه علمی', 'workplace' => 'محل کار', 'country' => 'کشور', 'province' => 'استان',
+            'city' => 'شهر', 'address' => 'نشانی', 'postal_code' => 'کد پستی', 'home_lat' => 'عرض جغرافیایی',
+            'home_lng' => 'طول جغرافیایی', 'burial_lat' => 'عرض جغرافیایی مزار', 'burial_lng' => 'طول جغرافیایی مزار',
+            'landline' => 'تلفن ثابت', 'website' => 'وب‌سایت', 'social' => 'شبکه‌های اجتماعی', 'blood_type' => 'گروه خونی',
+            'languages' => 'زبان‌ها', 'interests' => 'علاقه‌مندی‌ها', 'custom_fields' => 'ویژگی‌های دیگر',
+            'custom_fields.*.label' => 'عنوان ویژگی', 'custom_fields.*.value' => 'مقدار ویژگی',
         ];
     }
 }

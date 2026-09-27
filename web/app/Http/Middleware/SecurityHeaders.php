@@ -27,7 +27,8 @@ class SecurityHeaders
         $headers->set('X-Content-Type-Options', 'nosniff');
         $headers->set('X-Frame-Options', 'SAMEORIGIN');
         $headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
-        $headers->set('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()');
+        // دوربین و میکروفون برای ضبط استوری، موقعیت مکانی برای «موقعیت من» روی نقشه
+        $headers->set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
         if ($request->isSecure()) {
@@ -41,7 +42,7 @@ class SecurityHeaders
                     "default-src 'self'",
                     "script-src 'self' 'nonce-{$nonce}'",
                     "style-src 'self' 'unsafe-inline'",
-                    "img-src 'self' data: blob:",
+                    "img-src 'self' data: blob:".self::tileOrigin(),
                     "media-src 'self' blob:",
                     "font-src 'self' data:",
                     "connect-src 'self'",
@@ -56,5 +57,22 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /** دامنه سرویس کاشی نقشه (مثلاً https://tile.openstreetmap.org) برای مجاز شدن تصاویر نقشه */
+    private static function tileOrigin(): string
+    {
+        $url = (string) config('pedigree.map.tiles');
+        if (! config('pedigree.map.enabled', true) || $url === '') {
+            return '';
+        }
+        $parts = parse_url(str_replace(['{s}', '{z}', '{x}', '{y}', '{r}'], ['a', '0', '0', '0', ''], $url));
+        if (! isset($parts['scheme'], $parts['host']) || ! in_array($parts['scheme'], ['https', 'http'], true)) {
+            return '';
+        }
+        $host = str_starts_with((string) parse_url($url, PHP_URL_HOST), '{s}.') ? '*.'.substr($parts['host'], 2) : $parts['host'];
+        $port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+        return ' '.$parts['scheme'].'://'.$host.$port;
     }
 }

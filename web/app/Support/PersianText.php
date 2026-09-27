@@ -51,6 +51,20 @@ final class PersianText
     }
 
     /**
+     * یکدست‌سازی متن چندخطی (زندگی‌نامه، توضیحات): مثل normalize ولی خط‌ها حفظ می‌شوند.
+     * بیش از دو خط خالی پشت‌سرهم به دو خط کاهش می‌یابد.
+     */
+    public static function normalizeMultiline(?string $value): string
+    {
+        $value = str_replace(["\r\n", "\r"], "\n", (string) $value);
+        $lines = array_map(fn (string $line) => self::normalize($line) ?? '', explode("\n", $value));
+        $value = implode("\n", $lines);
+        $value = preg_replace("/\n{3,}/u", "\n\n", $value) ?? $value;
+
+        return trim($value);
+    }
+
+    /**
      * متن مخصوص جستجو: یکدست‌سازی + حذف نیم‌فاصله و حرکه‌ها + حروف کوچک
      * تا «محمدعلی»، «محمد‌علی» و «محمد علی» همدیگر را پیدا کنند.
      */
