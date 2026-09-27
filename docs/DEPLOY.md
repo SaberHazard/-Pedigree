@@ -104,40 +104,112 @@ memory_limit = 512M
 max_execution_time = 300
 ```
 
-## ۸. نمونه تنظیم Nginx
+## ۸. نمونه تنظیم Nginx (سخت‌شده)
 
 ```nginx
+# محدودیت نرخ درخواست به ازای هر IP (جلوی حمله‌های پرتکرار و ربات‌ها)
+limit_req_zone  $binary_remote_addr zone=pedigree_api:20m rate=10r/s;
+limit_req_zone  $binary_remote_addr zone=pedigree_auth:10m rate=10r/m;
+limit_conn_zone $binary_remote_addr zone=pedigree_conn:10m;
+
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$host$request_uri;
+}
+
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
     root /path/to/pedigree/web/public;
     index index.php;
 
-    client_max_body_size 520M;
+    ssl_certificate     /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+
+    server_tokens off;
+    limit_conn pedigree_conn 40;
+    # جلوی حمله «اتصال کند» (Slowloris)
+    client_header_timeout 15s;
+    client_body_timeout 60s;
+    send_timeout 60s;
+    keepalive_timeout 30s;
+    client_max_body_size 2m;
+
     gzip on;
     gzip_types application/json application/javascript text/css image/svg+xml;
+
+    # آپلود عکس و ویدیو (فقط این مسیرها فایل بزرگ می‌پذیرند)
+    location ~ ^/api/persons/[^/]+/(media|avatar)$ {
+        client_max_body_size 520m;
+        client_body_timeout 300s;
+        limit_req zone=pedigree_api burst=10 nodelay;
+        try_files $uri /index.php?$query_string;
+    }
+
+    # ورود و درخواست پیامک
+    location ~ ^/api/auth/ {
+        limit_req zone=pedigree_auth burst=10 nodelay;
+        try_files $uri /index.php?$query_string;
+    }
+
+    location /api/ {
+        limit_req zone=pedigree_api burst=40 nodelay;
+        try_files $uri /index.php?$query_string;
+    }
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
-    location ~ \.php$ {
+    # فقط index.php اجرا شود (هیچ فایل PHP دیگری در public اجرا نمی‌شود)
+    location = /index.php {
         include fastcgi_params;
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         fastcgi_read_timeout 300;
+        fastcgi_hide_header X-Powered-By;
     }
+    location ~ \.php$ { return 404; }
 
     location /assets/ {
         expires 30d;
         add_header Cache-Control "public, immutable";
+        try_files $uri =404;
     }
 
     location ~ /\.(?!well-known) { deny all; }
+    limit_req_status 429;
 }
 ```
 
-روی هاست اشتراکی (cPanel/DirectAdmin) فایل `public/.htaccess` از قبل آماده است؛ فقط Document Root را روی `web/public` بگذارید.
+روی هاست اشتراکی (cPanel/DirectAdmin) فایل `public/.htaccess` از قبل آماده و سخت‌شده است؛ Document Root را روی `web/public` بگذارید.
+اگر اشتباهاً روی `web` گذاشته شود، فایل `web/.htaccess` دسترسی به `.env` و پوشه‌های داخلی را می‌بندد.
+
+## ۸-۱. چک‌لیست امنیت و پایداری (پیش از انتشار عمومی)
+
+| مورد | کار |
+|---|---|
+| HTTPS | گواهی Let's Encrypt (`certbot --nginx`) و `SESSION_SECURE_COOKIE=true` |
+| حالت تولید | `APP_ENV=production`، `APP_DEBUG=false`، `LOG_LEVEL=warning` |
+| کلیدها | `APP_KEY` و `PEDIGREE_BLIND_INDEX_KEY` را جای امن (خارج از سرور) پشتیبان بگیرید؛ بدون آن‌ها کد ملی، موبایل و نشانی‌ها قابل بازیابی نیستند |
+| محافظ حمله DDoS | سایت را پشت CDN با محافظ (ابرآروان، Cloudflare) بگذارید و `TRUSTED_PROXIES` را تنظیم کنید تا IP واقعی کاربران دیده شود |
+| دیوار آتش | فقط پورت‌های ۲۲، ۸۰ و ۴۴۳ باز باشد (`ufw allow 22,80,443/tcp`)؛ پایگاه‌داده فقط روی `127.0.0.1` |
+| SSH | ورود فقط با کلید، غیرفعال کردن ورود root با رمز |
+| fail2ban | مسدود کردن IPهایی که مدام خطای 429/401 می‌گیرند (فیلتر nginx-limit-req) |
+| به‌روزرسانی سیستم | `unattended-upgrades` برای وصله‌های امنیتی خودکار سیستم‌عامل، PHP و ffmpeg |
+| به‌روزرسانی برنامه | هشدارهای Dependabot گیت‌هاب را دنبال کنید؛ `composer audit` ماهانه |
+| PHP | `expose_php=Off`، OPcache روشن، `php artisan optimize` پس از هر به‌روزرسانی |
+| پشتیبان | پشتیبان روزانه رمزنگاری‌شده پایگاه‌داده و پوشه رسانه در جای دیگر؛ هر چند ماه یک بار بازیابی را امتحان کنید |
+| پایش | سرویس پایش (UptimeRobot و ...) روی آدرس `https://your-domain.com/up`؛ هشدار پر شدن دیسک |
+| صف | `queue:work` با supervisor (یا cron طبق بخش ۶) تا تبدیل ویدیو سایت را کند نکند |
+| پیامک | سقف روزانه کل پیامک‌ها `PEDIGREE_OTP_GLOBAL_DAILY` را متناسب با تعداد اعضا تنظیم کنید |
+
+محدودیت‌هایی که خود برنامه اعمال می‌کند: محدودیت نرخ برای هر API، قفل ورود پس از رمز اشتباه، کپچا و سقف پیامک،
+سقف ابعاد عکس (جلوگیری از «بمب فشرده‌سازی»)، اجرای ffmpeg بدون دسترسی شبکه و فقط برای قالب‌های ویدیویی،
+سقف تعداد گره درخت و عمق، سقف زمان پردازش متن‌ها، و CSP سخت‌گیرانه. گزارش آسیب‌پذیری: [SECURITY.md](../SECURITY.md).
 
 ## ۹. پشتیبان‌گیری
 

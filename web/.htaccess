@@ -1,0 +1,13 @@
+# محافظ: اگر در هاست اشتراکی Document Root به اشتباه روی پوشه web (به‌جای web/public) تنظیم شود،
+# هیچ فایل حساسی (.env، vendor، storage، database ...) قابل دانلود نباشد و درخواست‌ها به public بروند.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.|\.(env|sqlite|log|sql|md|lock|json|xml|yml|yaml|dist)$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|bootstrap|config|database|resources|routes|storage|tests|vendor)(/|$) - [F,L]
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>
+Options -Indexes

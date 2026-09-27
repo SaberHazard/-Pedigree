@@ -33,8 +33,9 @@ class ImageProcessor
      */
     public function process(string $sourcePath): array
     {
-        @ini_set('memory_limit', '768M');
         $config = config('pedigree.media.image');
+        $this->assertSafeDimensions($sourcePath, (int) ($config['max_megapixels'] ?? 60));
+        @ini_set('memory_limit', '768M');
 
         try {
             $image = $this->manager->decodePath($sourcePath);
@@ -65,9 +66,38 @@ class ImageProcessor
         return ['main' => $main, 'variants' => $variants, 'width' => $width, 'height' => $height];
     }
 
+    /**
+     * بررسی ابعاد تصویر پیش از باز کردن کامل آن («بمب فشرده‌سازی»: یک فایل کوچک با ابعاد
+     * بسیار بزرگ که هنگام باز شدن چند گیگابایت حافظه می‌گیرد و سرور را از کار می‌اندازد).
+     */
+    public function assertSafeDimensions(string $path, int $maxMegapixels): void
+    {
+        $size = @getimagesize($path);
+        $width = $size[0] ?? 0;
+        $height = $size[1] ?? 0;
+        if ((! $width || ! $height) && extension_loaded('imagick')) {
+            try {
+                $probe = new \Imagick;
+                $probe->pingImage($path);
+                $width = $probe->getImageWidth();
+                $height = $probe->getImageHeight();
+                $probe->clear();
+            } catch (Throwable) {
+                $width = $height = 0;
+            }
+        }
+        if (! $width || ! $height) {
+            throw new DomainException('این فایل تصویری قابل خواندن نیست یا فرمت آن پشتیبانی نمی‌شود (JPG، PNG، WebP).');
+        }
+        if ($width > 30000 || $height > 30000 || $width * $height > $maxMegapixels * 1_000_000) {
+            throw new DomainException('ابعاد تصویر بیش از حد بزرگ است (حداکثر '.$maxMegapixels.' مگاپیکسل).');
+        }
+    }
+
     /** ساخت پوستر/تصویر کوچک از یک فریم ویدیو */
     public function poster(string $framePath): array
     {
+        $this->assertSafeDimensions($framePath, 60);
         $image = $this->manager->decodePath($framePath);
         $image->scaleDown(1280, 1280);
         $poster = (string) $image->encode(new WebpEncoder(quality: 80, strip: true));

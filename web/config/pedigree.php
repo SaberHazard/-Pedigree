@@ -64,6 +64,8 @@ return [
         'captcha_after' => (int) env('PEDIGREE_OTP_CAPTCHA_AFTER', 3),
         // سقف کل درخواست‌های یک IP در یک ساعت
         'hourly_limit_per_ip' => (int) env('PEDIGREE_OTP_IP_LIMIT', 20),
+        // سقف کل پیامک‌های سایت در ۲۴ ساعت (محافظت از شارژ پنل در برابر حمله؛ ۰ = بدون سقف)
+        'global_daily_limit' => (int) env('PEDIGREE_OTP_GLOBAL_DAILY', 2000),
     ],
 
     'password' => [
@@ -165,6 +167,8 @@ return [
 
         'image' => [
             'max_upload_kb' => (int) env('PEDIGREE_IMAGE_MAX_KB', 20480),
+            // سقف تعداد پیکسل (مگاپیکسل) پیش از باز کردن تصویر؛ جلوی «بمب فشرده‌سازی» را می‌گیرد
+            'max_megapixels' => (int) env('PEDIGREE_IMAGE_MAX_MP', 60),
             'mimes' => ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
             // حداکثر ابعاد نسخه اصلی ذخیره‌شده (بزرگ‌تر از این کوچک می‌شود)
             'max_dimension' => 2560,
@@ -184,6 +188,10 @@ return [
             'ffmpeg' => env('FFMPEG_PATH', 'ffmpeg'),
             'ffprobe' => env('FFPROBE_PATH', 'ffprobe'),
             'max_height' => 720,
+            // سقف مدت ویدیو (ثانیه)؛ بیشتر از این بریده می‌شود
+            'max_duration' => (int) env('PEDIGREE_VIDEO_MAX_SECONDS', 3600),
+            // تعداد هسته پردازنده برای فشرده‌سازی (تا سایت هنگام تبدیل ویدیو کند نشود)
+            'threads' => (int) env('PEDIGREE_VIDEO_THREADS', 2),
             // CRF پایین‌تر = کیفیت بیشتر و حجم بیشتر (۲۳ تا ۲۸ مناسب است)
             'crf' => 25,
             'timeout' => 1800,

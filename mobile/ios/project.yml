@@ -37,6 +37,7 @@ targets:
         NSPhotoLibraryUsageDescription: برای انتخاب عکس و ویدیو از گالری
         NSPhotoLibraryAddUsageDescription: برای ذخیره خروجی شجره‌نامه در گالری
         NSMicrophoneUsageDescription: برای ضبط ویدیو از خاطرات خانوادگی
+        NSLocationWhenInUseUsageDescription: برای علامت زدن محل خانه یا مزار روی نقشه با دکمه «موقعیت من»
         ITSAppUsesNonExemptEncryption: false
         PedigreeBaseURL: $(PEDIGREE_BASE_URL)
         NSAppTransportSecurity:

@@ -176,12 +176,18 @@ class AuthController extends Controller
         ]);
 
         $nationalCode = $withoutCode ? null : ($data['national_code'] ?? null);
+        $tokenKey = 'register:'.hash('sha256', $data['registration_token']);
         if ($nationalCode && Person::withTrashed()->where('national_code_hash', BlindIndex::make($nationalCode, 'national_code'))->exists()) {
+            // جلوگیری از استفاده از یک توکن ثبت‌نام برای «امتحان کردن» کدهای ملی دیگران
+            $tries = Cache::increment($tokenKey.':conflicts');
+            if ($tries >= 3) {
+                Cache::forget($tokenKey);
+            }
             // ادعای پروفایل موجود فقط از راه ثبت موبایل توسط بستگان (کد ملی راز نیست و نباید برای تصاحب کافی باشد)
             throw ValidationException::withMessages(['national_code' => 'پروفایلی با این کد ملی از قبل در شجره‌نامه هست. از یکی از بستگان (یا مدیر) بخواهید شماره موبایل شما را در همان پروفایل ثبت کند، سپس با پیامک وارد شوید.']);
         }
 
-        $phone = Cache::pull('register:'.hash('sha256', $data['registration_token']));
+        $phone = Cache::pull($tokenKey);
         if (! $phone) {
             throw new DomainException('مهلت ثبت‌نام به پایان رسیده است؛ لطفاً دوباره کد دریافت کنید.');
         }

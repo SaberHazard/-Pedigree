@@ -74,8 +74,8 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
     // اشخاص
     Route::get('persons', [PersonController::class, 'index']);
-    Route::post('persons', [PersonController::class, 'store']);
-    Route::match(['put', 'patch'], 'persons/{person}', [PersonController::class, 'update']);
+    Route::post('persons', [PersonController::class, 'store'])->middleware('throttle:writes');
+    Route::match(['put', 'patch'], 'persons/{person}', [PersonController::class, 'update'])->middleware('throttle:writes');
     Route::delete('persons/{person}', [PersonController::class, 'destroy']);
     Route::get('persons/{person}/history', [PersonController::class, 'history']);
     Route::get('persons/{person}/relationship/{other}', [PersonController::class, 'relationship']);
@@ -88,7 +88,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
     // سوابق رزومه
     Route::post('persons/{person}/resume', [ProfileTextController::class, 'storeResume'])->middleware('throttle:writes');
-    Route::match(['put', 'patch'], 'resume/{item}', [ProfileTextController::class, 'updateResume']);
+    Route::match(['put', 'patch'], 'resume/{item}', [ProfileTextController::class, 'updateResume'])->middleware('throttle:writes');
     Route::delete('resume/{item}', [ProfileTextController::class, 'destroyResume']);
 
     // نظرها و امتیاز ویژگی‌ها
@@ -104,8 +104,8 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('map', [MapController::class, 'index']);
 
     // بستگان و اتصال درخت‌ها
-    Route::post('persons/{person}/relatives', [RelativeController::class, 'store']);
-    Route::post('persons/{person}/link', [RelativeController::class, 'link']);
+    Route::post('persons/{person}/relatives', [RelativeController::class, 'store'])->middleware('throttle:writes');
+    Route::post('persons/{person}/link', [RelativeController::class, 'link'])->middleware('throttle:writes');
     Route::delete('persons/{person}/parents/{role}', [RelativeController::class, 'unlinkParent']);
     Route::match(['put', 'patch'], 'marriages/{marriage}', [MarriageController::class, 'update']);
     Route::delete('marriages/{marriage}', [MarriageController::class, 'destroy']);
@@ -121,12 +121,12 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('media/{media}', [MediaController::class, 'show']);
     Route::match(['put', 'patch'], 'media/{media}', [MediaController::class, 'update']);
     Route::delete('media/{media}', [MediaController::class, 'destroy']);
-    Route::post('media/{media}/vote', [MediaController::class, 'vote']);
+    Route::post('media/{media}/vote', [MediaController::class, 'vote'])->middleware('throttle:writes');
     Route::post('media/{media}/decide', [MediaController::class, 'decide'])->middleware('admin');
     Route::get('approvals', [MediaController::class, 'approvals']);
 
     // خاندان‌ها
-    Route::post('families', [FamilyController::class, 'store']);
+    Route::post('families', [FamilyController::class, 'store'])->middleware('throttle:writes');
     Route::match(['put', 'patch'], 'families/{family}', [FamilyController::class, 'update']);
     Route::delete('families/{family}', [FamilyController::class, 'destroy']);
 

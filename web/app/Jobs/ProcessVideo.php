@@ -72,7 +72,10 @@ class ProcessVideo implements ShouldQueue
             $output = $workDir.'/out.mp4';
             $maxHeight = (int) $config['max_height'];
             $this->run([
-                $config['ffmpeg'], '-y', '-i', $source,
+                $config['ffmpeg'], '-y', '-nostdin', ...self::inputGuard(), '-i', $source,
+                '-t', (string) max(1, (int) ($config['max_duration'] ?? 3600)),
+                '-threads', (string) max(1, (int) ($config['threads'] ?? 2)),
+                '-map', '0:v:0', '-map', '0:a:0?', '-sn', '-dn', '-map_metadata', '-1',
                 '-vf', "scale=-2:'min({$maxHeight},ih)'",
                 '-c:v', 'libx264', '-preset', 'medium', '-crf', (string) $config['crf'],
                 '-pix_fmt', 'yuv420p', '-profile:v', 'high',
@@ -92,9 +95,9 @@ class ProcessVideo implements ShouldQueue
             $variants = $media->variants ?? [];
             $frame = $workDir.'/frame.jpg';
             try {
-                $this->run([$config['ffmpeg'], '-y', '-ss', '1', '-i', $output, '-frames:v', '1', $frame]);
+                $this->run([$config['ffmpeg'], '-y', '-nostdin', ...self::inputGuard(), '-ss', '1', '-i', $output, '-frames:v', '1', $frame]);
                 if (! is_file($frame)) {
-                    $this->run([$config['ffmpeg'], '-y', '-i', $output, '-frames:v', '1', $frame]);
+                    $this->run([$config['ffmpeg'], '-y', '-nostdin', ...self::inputGuard(), '-i', $output, '-frames:v', '1', $frame]);
                 }
                 $posters = $images->poster($frame);
                 foreach ($posters as $name => $binary) {
@@ -126,6 +129,19 @@ class ProcessVideo implements ShouldQueue
         Log::error('Video processing failed', ['media' => $this->mediaId, 'error' => $e?->getMessage()]);
     }
 
+    /**
+     * محدودیت‌های ورودی ffmpeg/ffprobe برای فایل‌های کاربر:
+     * فقط خواندن از فایل محلی (بدون شبکه) و فقط قالب‌های ویدیویی رایج؛ فایل دست‌کاری‌شده‌ای که
+     * داخلش فهرست پخش HLS یا concat گذاشته شده نمی‌تواند فایل‌های سرور را بخواند یا به شبکه وصل شود.
+     */
+    public static function inputGuard(): array
+    {
+        return [
+            '-protocol_whitelist', 'file',
+            '-format_whitelist', 'mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi',
+        ];
+    }
+
     private function ffmpegAvailable(string $binary): bool
     {
         try {
@@ -142,7 +158,7 @@ class ProcessVideo implements ShouldQueue
     private function probe(string $ffprobe, string $file): array
     {
         try {
-            $process = new Process([$ffprobe, '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+            $process = new Process([$ffprobe, '-v', 'error', ...self::inputGuard(), '-select_streams', 'v:0', '-show_entries',
                 'stream=width,height:format=duration', '-of', 'json', $file]);
             $process->setTimeout(60);
             $process->run();

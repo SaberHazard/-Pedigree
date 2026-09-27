@@ -296,9 +296,10 @@ export function printSvg(built, { paper = 'A3', orientation = 'auto' } = {}) {
   const landscape = orientation === 'landscape' || (orientation !== 'portrait' && built.width > built.height);
   const root = document.getElementById('print-root');
   root.innerHTML = '';
-  const holder = document.createElement('div');
-  holder.innerHTML = built.svg;
-  const svg = holder.firstElementChild;
+  // تجزیه به عنوان سند SVG (نه HTML) و انتقال به صفحه؛ داده کاربر فقط به صورت متن است
+  const parsed = new DOMParser().parseFromString(built.svg, 'image/svg+xml').documentElement;
+  if (parsed.nodeName !== 'svg') return;
+  const svg = document.importNode(parsed, true);
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', '100%');
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');

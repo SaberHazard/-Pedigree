@@ -30,6 +30,16 @@ class SecurityHeaders
         // دوربین و میکروفون برای ضبط استوری، موقعیت مکانی برای «موقعیت من» روی نقشه
         $headers->set('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self), payment=(), usb=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+        $headers->set('Origin-Agent-Cluster', '?1');
+
+        // پاسخ‌های API اطلاعات شخصی دارند: در هیچ کش مرورگر/پروکسی ذخیره نشوند
+        // و سایت‌های دیگر نتوانند آن‌ها را به عنوان منبع (script/img) بارگذاری کنند
+        if ($request->is('api/*')) {
+            $headers->set('Cache-Control', 'no-store, private');
+            $headers->set('Pragma', 'no-cache');
+            $headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        }
 
         if ($request->isSecure()) {
             $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

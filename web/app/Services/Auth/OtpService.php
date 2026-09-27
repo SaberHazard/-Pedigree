@@ -7,6 +7,7 @@ use App\Models\OtpCode;
 use App\Services\Sms\SmsException;
 use App\Services\Sms\SmsManager;
 use App\Support\BlindIndex;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Log;
  *  - هر کد فقط چند بار قابل امتحان است و بعد باطل می‌شود
  *  - بین دو ارسال فاصله اجباری و در روز سقف ارسال وجود دارد
  *  - با ارسال کد جدید، کدهای قبلی باطل می‌شوند
+ *  - شمارش تلاش‌ها اتمی است (درخواست‌های هم‌زمان نمی‌توانند سقف تلاش را دور بزنند)
+ *  - سقف کل پیامک‌های روزانه سایت از خالی شدن شارژ پنل با حمله توزیع‌شده جلوگیری می‌کند
  */
 class OtpService
 {
@@ -31,6 +34,21 @@ class OtpService
     {
         $phoneHash = BlindIndex::make($phone, 'phone');
 
+        // قفل کوتاه برای هر شماره: دو درخواست هم‌زمان باعث ارسال دو پیامک نشود
+        $lock = Cache::lock('otp-send:'.$phoneHash, 15);
+        if (! $lock->get()) {
+            throw new DomainException('درخواست قبلی در حال انجام است؛ چند لحظه دیگر تلاش کنید.', 429, 'otp_busy');
+        }
+
+        try {
+            return $this->sendLocked($phone, $phoneHash, $purpose, $ip);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function sendLocked(string $phone, string $phoneHash, string $purpose, ?string $ip): string
+    {
         $wait = $this->secondsUntilResend($phone, $purpose);
         if ($wait > 0) {
             throw new DomainException("لطفاً {$wait} ثانیه دیگر دوباره تلاش کنید.", 429, 'otp_cooldown');
@@ -39,6 +57,12 @@ class OtpService
         $today = OtpCode::where('phone_hash', $phoneHash)->where('created_at', '>=', now()->subDay())->count();
         if ($today >= (int) config('pedigree.otp.daily_limit_per_phone', 10)) {
             throw new DomainException('تعداد درخواست کد برای این شماره در ۲۴ ساعت گذشته بیش از حد مجاز است.', 429, 'otp_daily_limit');
+        }
+
+        $global = (int) config('pedigree.otp.global_daily_limit', 2000);
+        if ($global > 0 && OtpCode::where('created_at', '>=', now()->subDay())->count() >= $global) {
+            Log::critical('Global daily OTP limit reached; SMS sending paused', ['limit' => $global]);
+            throw new DomainException('ارسال پیامک موقتاً متوقف است. لطفاً با رمز عبور وارد شوید یا کمی بعد تلاش کنید.', 503, 'otp_global_limit');
         }
 
         // باطل کردن کدهای قبلی
@@ -81,21 +105,21 @@ class OtpService
             return false;
         }
 
-        if ($record->attempts >= (int) config('pedigree.otp.max_attempts', 5)) {
+        // ابتدا شمارنده به صورت اتمی بالا می‌رود؛ اگر سقف پر شده باشد هیچ مقایسه‌ای انجام نمی‌شود
+        $max = (int) config('pedigree.otp.max_attempts', 5);
+        $reserved = OtpCode::whereKey($record->id)->whereNull('consumed_at')->where('attempts', '<', $max)->increment('attempts');
+        if ($reserved === 0) {
             $record->update(['consumed_at' => now()]);
 
             return false;
         }
 
         if (! hash_equals($record->code_hash, $this->hash($phone, $purpose, $code))) {
-            $record->increment('attempts');
-
             return false;
         }
 
-        $record->update(['consumed_at' => now()]);
-
-        return true;
+        // مصرف اتمی: فقط یک درخواست می‌تواند کد را مصرف کند
+        return OtpCode::whereKey($record->id)->whereNull('consumed_at')->update(['consumed_at' => now()]) === 1;
     }
 
     public function secondsUntilResend(string $phone, string $purpose): int

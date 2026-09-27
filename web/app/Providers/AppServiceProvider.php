@@ -45,8 +45,8 @@ class AppServiceProvider extends ServiceProvider
 
         // نوشتن نظر و ذخیره متن‌ها (جلوگیری از اسپم)
         RateLimiter::for('writes', fn (Request $request) => [
-            Limit::perMinute(20)->by('w-m:'.($request->user()?->id ?: $request->ip())),
-            Limit::perHour(300)->by('w-h:'.($request->user()?->id ?: $request->ip())),
+            Limit::perMinute(60)->by('w-m:'.($request->user()?->id ?: $request->ip())),
+            Limit::perHour(600)->by('w-h:'.($request->user()?->id ?: $request->ip())),
         ]);
     }
 }

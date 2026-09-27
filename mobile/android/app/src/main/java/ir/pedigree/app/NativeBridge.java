@@ -28,6 +28,21 @@ import java.io.OutputStream;
  */
 public class NativeBridge {
 
+    /** نوع فایل مجاز ← پسوند */
+    private static final java.util.Map<String, String> ALLOWED_TYPES = new java.util.HashMap<>();
+    /** سقف حجم فایل (حدود ۱۰۰ مگابایت) */
+    private static final int MAX_BASE64 = 140 * 1024 * 1024;
+
+    static {
+        ALLOWED_TYPES.put("application/pdf", "pdf");
+        ALLOWED_TYPES.put("image/png", "png");
+        ALLOWED_TYPES.put("image/jpeg", "jpg");
+        ALLOWED_TYPES.put("image/svg+xml", "svg");
+        ALLOWED_TYPES.put("text/plain", "ged");
+        ALLOWED_TYPES.put("application/x-gedcom", "ged");
+        ALLOWED_TYPES.put("text/vnd.familysearch.gedcom", "ged");
+    }
+
     private final Context context;
     private final WebView webView;
 
@@ -71,14 +86,29 @@ public class NativeBridge {
         if (!trusted()) {
             return;
         }
+        // فقط نوع فایل‌هایی که سایت واقعاً می‌سازد (مثلاً نصب فایل APK ممکن نباشد)
+        // «text/plain; charset=utf-8» ← «text/plain»
+        final String cleanMime = mime == null ? "" : mime.split(";")[0].trim().toLowerCase(java.util.Locale.ROOT);
+        String type = ALLOWED_TYPES.get(cleanMime);
+        if (type == null || base64 == null || base64.length() > MAX_BASE64) {
+            webView.post(() -> Toast.makeText(context, R.string.save_failed, Toast.LENGTH_LONG).show());
+            return;
+        }
         try {
             byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
-            String safeName = filename.replaceAll("[\\\\/:*?\"<>|]", "_");
+            String base = filename == null ? "pedigree" : filename.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_").replaceAll("\\.[A-Za-z0-9]{1,8}$", "");
+            if (base.isEmpty() || base.startsWith(".")) {
+                base = "pedigree" + base;
+            }
+            if (base.length() > 80) {
+                base = base.substring(0, 80);
+            }
+            String safeName = base + "." + type;
             Uri uri;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Downloads.DISPLAY_NAME, safeName);
-                values.put(MediaStore.Downloads.MIME_TYPE, mime);
+                values.put(MediaStore.Downloads.MIME_TYPE, cleanMime);
                 values.put(MediaStore.Downloads.RELATIVE_PATH, "Download/Pedigree");
                 uri = context.getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values);
                 if (uri == null) {
@@ -105,7 +135,7 @@ public class NativeBridge {
             webView.post(() -> {
                 Toast.makeText(context, context.getString(R.string.saved_to_downloads), Toast.LENGTH_SHORT).show();
                 Intent view = new Intent(Intent.ACTION_VIEW);
-                view.setDataAndType(shareUri, mime);
+                view.setDataAndType(shareUri, cleanMime);
                 view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
                 try {
                     context.startActivity(Intent.createChooser(view, context.getString(R.string.open_with))

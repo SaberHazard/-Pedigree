@@ -9,6 +9,10 @@
       اندروید اجرای ACTION_IMAGE_CAPTURE را با SecurityException رد می‌کند.
     -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- دکمه «موقعیت من» روی نقشه (فقط هنگام استفاده، با اجازه کاربر) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
     <!-- ذخیره خروجی PDF در پوشه دانلود روی اندروید ۸ و ۹ -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"

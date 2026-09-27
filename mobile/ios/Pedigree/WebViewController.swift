@@ -196,6 +196,20 @@ extension WebViewController: WKUIDelegate {
         present(alert, animated: true)
     }
 
+    /// لینک‌هایی که در پنجره جدید باز می‌شوند (target=_blank، مثل اینستاگرام و مسیریابی):
+    /// صفحات بیرونی در Safari/اپ مربوطه باز می‌شوند و هیچ پنجره WebView جدیدی ساخته نمی‌شود.
+    func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                 for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+        if let url = navigationAction.request.url {
+            if Config.isOwn(url) {
+                webView.load(URLRequest(url: url))
+            } else if ["http", "https", "tel", "mailto", "sms"].contains(url.scheme ?? "") {
+                UIApplication.shared.open(url)
+            }
+        }
+        return nil
+    }
+
     /// دوربین/میکروفون برای ضبط استوری داخل صفحه (getUserMedia).
     /// فقط سایت خود شجره‌نامه اجازه دارد؛ بقیه دامنه‌ها رد می‌شوند.
     /// سیستم‌عامل خودش بار اول از کاربر اجازه می‌گیرد (متن‌ها در Info.plist).

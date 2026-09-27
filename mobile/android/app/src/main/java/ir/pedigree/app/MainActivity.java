@@ -1,13 +1,18 @@
 package ir.pedigree.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.GeolocationPermissions;
+import android.webkit.PermissionRequest;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -17,12 +22,17 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,6 +55,9 @@ public class MainActivity extends AppCompatActivity {
     private View offlineView;
 
     private ValueCallback<Uri[]> fileCallback;
+    /** درخواست موقعیت مکانی صفحه که منتظر اجازه کاربر است */
+    private String geoOrigin;
+    private GeolocationPermissions.Callback geoCallback;
     private Uri cameraUri;
     private Uri videoUri;
 
@@ -52,11 +65,36 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> filePicker = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), this::onFilePicked);
 
+    /** اجازه موقعیت مکانی (برای دکمه «موقعیت من» روی نقشه) */
+    private final ActivityResultLauncher<String[]> locationPermission = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                boolean granted = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))
+                        || Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
+                if (geoCallback != null) {
+                    geoCallback.invoke(geoOrigin, granted, false);
+                }
+                geoCallback = null;
+                geoOrigin = null;
+            });
+
     @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // نمایش لبه‌به‌لبه در همه نسخه‌ها (در اندروید ۱۵ اجباری است)؛ فاصله‌ها با insets تنظیم می‌شوند
+        EdgeToEdge.enable(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // فاصله از نوار وضعیت، نوار ناوبری، بریدگی صفحه و صفحه‌کلید
+        // (با لبه‌به‌لبه، adjustResize دیگر کار نمی‌کند و صفحه‌کلید روی فرم‌ها می‌افتاد)
+        View root = findViewById(R.id.root);
+        ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()
+                    | WindowInsetsCompat.Type.displayCutout()
+                    | WindowInsetsCompat.Type.ime());
+            v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            return WindowInsetsCompat.CONSUMED;
+        });
 
         webView = findViewById(R.id.webview);
         progress = findViewById(R.id.progress);
@@ -74,7 +112,11 @@ public class MainActivity extends AppCompatActivity {
         // امنیت: دسترسی صفحه به فایل‌های گوشی بسته است
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        s.setAllowFileAccessFromFileURLs(false);
+        s.setAllowUniversalAccessFromFileURLs(false);
         s.setSupportMultipleWindows(false);
+        s.setGeolocationEnabled(true);
+        s.setSafeBrowsingEnabled(true);
         s.setUserAgentString(s.getUserAgentString() + " PedigreeApp/Android/" + BuildConfig.VERSION_NAME);
 
         CookieManager cookies = CookieManager.getInstance();
@@ -130,10 +172,23 @@ public class MainActivity extends AppCompatActivity {
         return data != null && isOwnUrl(data) ? data.toString() : BuildConfig.BASE_URL;
     }
 
-    /** آیا آدرس متعلق به سایت خودمان است؟ */
+    /** آیا آدرس متعلق به سایت خودمان است؟ (پروتکل، دامنه و پورت یکسان) */
     static boolean isOwnUrl(Uri uri) {
+        if (uri == null) {
+            return false;
+        }
         Uri base = Uri.parse(BuildConfig.BASE_URL);
-        return uri.getHost() != null && uri.getHost().equalsIgnoreCase(base.getHost());
+        return uri.getHost() != null
+                && uri.getHost().equalsIgnoreCase(base.getHost())
+                && base.getScheme() != null && base.getScheme().equalsIgnoreCase(uri.getScheme())
+                && effectivePort(uri) == effectivePort(base);
+    }
+
+    private static int effectivePort(Uri uri) {
+        if (uri.getPort() != -1) {
+            return uri.getPort();
+        }
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
     }
 
     private void reload() {
@@ -176,6 +231,15 @@ public class MainActivity extends AppCompatActivity {
         public void onPageFinished(WebView view, String url) {
             progress.setVisibility(View.GONE);
         }
+
+        /** اگر موتور مرورگر گوشی از کار افتاد (کمبود حافظه و ...)، به‌جای بسته شدن اپ صفحه از نو ساخته شود */
+        @Override
+        public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+            ((android.view.ViewGroup) view.getParent()).removeView(view);
+            view.destroy();
+            recreate();
+            return true;
+        }
     }
 
     private class ChromeClient extends WebChromeClient {
@@ -183,6 +247,30 @@ public class MainActivity extends AppCompatActivity {
         public void onProgressChanged(WebView view, int newProgress) {
             progress.setVisibility(newProgress < 100 ? View.VISIBLE : View.GONE);
             progress.setProgress(newProgress);
+        }
+
+        /** موقعیت مکانی فقط برای سایت خودمان و با اجازه کاربر */
+        @Override
+        public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+            if (!isOwnUrl(Uri.parse(origin))) {
+                callback.invoke(origin, false, false);
+                return;
+            }
+            boolean has = ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    || ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+            if (has) {
+                callback.invoke(origin, true, false);
+                return;
+            }
+            geoOrigin = origin;
+            geoCallback = callback;
+            locationPermission.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
+        }
+
+        /** دوربین/میکروفون داخل صفحه لازم نیست (عکس و فیلم با اپ دوربین گوشی گرفته می‌شود) */
+        @Override
+        public void onPermissionRequest(PermissionRequest request) {
+            request.deny();
         }
 
         @Override

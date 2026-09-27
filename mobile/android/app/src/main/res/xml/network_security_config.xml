@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- فقط HTTPS مجاز است؛ به جز آدرس شبیه‌ساز برای توسعه محلی -->
+<!-- نسخه انتشار: فقط HTTPS و فقط گواهی‌های سیستمی (بدون گواهی نصب‌شده توسط کاربر) -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
 </network-security-config>
