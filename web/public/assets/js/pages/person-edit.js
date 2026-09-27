@@ -58,7 +58,7 @@ export default async function personEdit(container, { params }) {
     clearFormErrors(form);
     const data = collectPerson(form);
     if (!sensitive) {
-      ['national_code', 'phone', 'birth_cert_no', 'email', 'password', 'is_locked'].forEach((k) => delete data[k]);
+      ['national_code', 'phone', 'birth_cert_no', 'email', 'password', 'username', 'is_locked'].forEach((k) => delete data[k]);
     }
     await withLoading(saveBtn, async () => {
       try {

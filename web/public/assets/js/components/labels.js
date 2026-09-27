@@ -1,6 +1,8 @@
 /**
  * برچسب‌های فارسی مقادیر ثابت (برای یکدستی در همه صفحات)
  */
+import { store } from '../core/store.js';
+
 export const ACTIONS = {
   'person.created': 'شخص جدیدی ثبت کرد',
   'person.updated': 'اطلاعات را ویرایش کرد',
@@ -40,6 +42,19 @@ export const ACTIONS = {
   'account.session_revoked': 'یک نشست را بست',
   'admin.user_updated': 'نقش/وضعیت کاربر را تغییر داد',
   'export.gedcom': 'خروجی GEDCOM گرفت',
+  'text.updated': 'متن را ویرایش کرد',
+  'text.restored': 'نسخه قبلی متن را بازگرداند',
+  'resume.created': 'سابقه‌ای به رزومه افزود',
+  'resume.updated': 'سابقه رزومه را ویرایش کرد',
+  'resume.deleted': 'سابقه‌ای از رزومه حذف کرد',
+  'comment.created': 'نظر نوشت',
+  'comment.updated': 'نظرش را ویرایش کرد',
+  'comment.deleted': 'نظری را حذف کرد',
+  'comment.hidden': 'نظری را مخفی کرد',
+  'comment.unhidden': 'نظری را آشکار کرد',
+  'rating.updated': 'به ویژگی‌ها امتیاز داد',
+  'account.username_changed': 'نام کاربری را تغییر داد',
+  'auth.claimed': 'حساب خود را با پیامک تأیید کرد',
 };
 
 export const actionLabel = (a) => ACTIONS[a] || a;
@@ -51,7 +66,47 @@ export const FIELDS = {
   phone: 'موبایل', birth_cert_no: 'شماره شناسنامه', birth_cert_place: 'محل صدور', email: 'ایمیل',
   occupation: 'شغل', education: 'تحصیلات', residence: 'محل سکونت', biography: 'زندگی‌نامه', is_locked: 'قفل پروفایل',
   password: 'رمز عبور', father_id: 'پدر', mother_id: 'مادر', avatar_media_id: 'عکس پروفایل',
-  status: 'وضعیت', marriage_date: 'تاریخ ازدواج', end_date: 'تاریخ پایان',
+  status: 'وضعیت', marriage_date: 'تاریخ ازدواج', end_date: 'تاریخ پایان', username: 'نام کاربری',
+  education_level: 'مقطع تحصیلی', education_field: 'رشته تحصیلی', education_institution: 'دانشگاه / مدرسه',
+  academic_rank: 'مرتبه علمی', workplace: 'محل کار', country: 'کشور', province: 'استان', city: 'شهر',
+  address: 'نشانی', postal_code: 'کد پستی', home_lat: 'موقعیت خانه', home_lng: 'موقعیت خانه',
+  share_location: 'نمایش نشانی به همه', landline: 'تلفن ثابت', website: 'وب‌سایت', social: 'شبکه‌های اجتماعی',
+  share_contact: 'نمایش راه‌های ارتباطی به همه', blood_type: 'گروه خونی', languages: 'زبان‌ها', interests: 'علاقه‌مندی‌ها',
+  custom_fields: 'ویژگی‌های دیگر', burial_lat: 'موقعیت مزار', burial_lng: 'موقعیت مزار',
+  summary: 'چکیده', description: 'توضیحات بستگان', resume: 'رزومه', title_resume: 'عنوان', organization: 'سازمان',
+  body: 'متن نظر', start_date: 'تاریخ شروع', is_current: 'ادامه دارد',
+};
+
+/** برچسب یکی از گزینه‌های پروفایل (مقطع تحصیلی، مرتبه علمی ...) از تنظیمات سرور */
+export function profileOption(group, key) {
+  return (key && store.config.profile?.[group]?.[key]) || key || '';
+}
+
+/** نام فارسی کشور از کد ISO (با Intl؛ اگر مرورگر پشتیبانی نکند خود کد) */
+let regionNames;
+export function countryName(code) {
+  if (!code) return '';
+  try {
+    regionNames ??= new Intl.DisplayNames(['fa'], { type: 'region' });
+    return regionNames.of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
+/** استان‌های ایران (پیشنهاد در فرم وقتی کشور ایران است) */
+export const IRAN_PROVINCES = [
+  'آذربایجان شرقی', 'آذربایجان غربی', 'اردبیل', 'اصفهان', 'البرز', 'ایلام', 'بوشهر', 'تهران', 'چهارمحال و بختیاری',
+  'خراسان جنوبی', 'خراسان رضوی', 'خراسان شمالی', 'خوزستان', 'زنجان', 'سمنان', 'سیستان و بلوچستان', 'فارس', 'قزوین',
+  'قم', 'کردستان', 'کرمان', 'کرمانشاه', 'کهگیلویه و بویراحمد', 'گلستان', 'گیلان', 'لرستان', 'مازندران', 'مرکزی',
+  'هرمزگان', 'همدان', 'یزد',
+];
+
+/** بخش‌های «درصد تکمیل پروفایل» */
+export const COMPLETENESS = {
+  avatar: 'عکس پروفایل', birth_date: 'تاریخ تولد', birth_place: 'محل تولد', education_level: 'تحصیلات',
+  occupation: 'شغل', location: 'محل زندگی', summary: 'چکیده', biography: 'زندگی‌نامه', resume: 'رزومه',
+  father: 'پدر', mother: 'مادر', death_date: 'تاریخ وفات', burial_place: 'آرامگاه', contact: 'راه ارتباطی',
 };
 
 export const RELATIONS = {

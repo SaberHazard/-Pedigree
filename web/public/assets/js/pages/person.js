@@ -1,21 +1,29 @@
 /**
- * صفحه پروفایل شخص: مشخصات، گالری، بستگان، تاریخچه تغییرات
+ * صفحه پروفایل شخص: درباره (مشخصات کامل + متن‌های رنگی + رزومه)، استوری‌ها، گالری،
+ * بستگان، نظرها و امتیازها، تاریخچه تغییرات
  */
 import { h, s } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { get, upload } from '../core/api.js';
-import { store } from '../core/store.js';
+import { store, saveLocalPrefs } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { fa, fullName, lifespan, formatDate, age, timeAgo, dateTime } from '../core/format.js';
-import { tabs, toast, toastError, emptyState, loader } from '../core/ui.js';
+import { tabs, toast, toastError, emptyState, loader, switchInput } from '../core/ui.js';
 import { shareLink } from '../core/native.js';
 import { avatar } from '../components/avatar.js';
 import { gallery } from '../components/gallery.js';
 import { openRelativeDialog } from '../components/relative-dialog.js';
 import { cropImage } from '../components/cropper.js';
-import { actionLabel, FIELDS, MARRIAGE_STATUS } from '../components/labels.js';
+import { actionLabel, FIELDS, MARRIAGE_STATUS, COMPLETENESS, profileOption, countryName } from '../components/labels.js';
 import { buildDefs, buildNode } from '../tree/node.js';
 import { geometry } from '../tree/layout.js';
+import { textSection, legend, authorColor, contributorLabel } from '../components/attributed-text.js';
+import { resumeSection } from '../components/resume.js';
+import { opinionsTab } from '../components/opinions.js';
+import { storiesStrip } from '../components/stories.js';
+import { miniMap, directionsLinks, coordText } from '../components/map.js';
+
+const TABS = ['details', 'gallery', 'relatives', 'opinions', 'history'];
 
 export default async function personPage(container, { params }) {
   const page = h('div', { class: 'page' }, loader());
@@ -32,15 +40,29 @@ export default async function personPage(container, { params }) {
 
   const perms = person.permissions || {};
   const tabBody = h('div');
-  const active = ['details', 'gallery', 'relatives', 'history'].includes(params.tab) ? params.tab : 'details';
+  const active = TABS.includes(params.tab) ? params.tab : 'details';
+  const loggedIn = !!store.user;
+
+  // نویسندگان پروفایل (برای رنگ‌بندی)؛ با هر ذخیره به‌روز می‌شود
+  const byId = new Map((person.contributors || []).map((c) => [c.id, c]));
+  const legendBox = h('div');
+  const setContributors = (list) => {
+    byId.clear();
+    for (const c of list || []) byId.set(c.id, c);
+    person.contributors = list || [];
+    legendBox.replaceChildren(legend(person.contributors) || '');
+  };
+  let colored = localPref('author_colors', true);
 
   page.replaceChildren(
     hero(),
+    loggedIn ? storiesStrip(person) : null,
     tabs([
-      { value: 'details', label: 'مشخصات', icon: 'id-card' },
+      { value: 'details', label: 'درباره', icon: 'id-card' },
       { value: 'gallery', label: 'عکس‌ها و ویدیوها', icon: 'image' },
       { value: 'relatives', label: 'بستگان', icon: 'users' },
-      perms.edit || store.user?.person?.id === person.id ? { value: 'history', label: 'تاریخچه', icon: 'history' } : null,
+      loggedIn && (store.config.ratings?.enabled !== false || store.config.comments_enabled !== false) ? { value: 'opinions', label: 'نظرها و امتیازها', icon: 'star' } : null,
+      perms.history ? { value: 'history', label: 'تاریخچه', icon: 'history' } : null,
     ].filter(Boolean), active, (tab) => {
       history.replaceState(null, '', `#/person/${person.id}${tab === 'details' ? '' : '/' + tab}`);
       show(tab);
@@ -87,6 +109,7 @@ export default async function personPage(container, { params }) {
     }
 
     const a = age(person);
+    const done = person.completeness;
     return h('div', { class: `profile-hero ${person.gender === 'f' ? 'female' : ''} ${person.is_deceased ? 'dead' : ''}` },
       h('div', { class: 'cover' }, pattern()),
       h('div', { class: 'ph-body' },
@@ -99,10 +122,14 @@ export default async function personPage(container, { params }) {
             person.is_deceased ? h('span', { class: 'chip' }, icon('ribbon'), 'شادروان') : null,
             lifespan(person) ? h('span', { class: 'chip primary' }, lifespan(person, { full: true })) : null,
             a !== null ? h('span', { class: 'chip' }, person.is_deceased ? `${fa(a)} سال عمر` : `${fa(a)} ساله`) : null,
+            person.city || person.country ? h('span', { class: 'chip' }, icon('pin'), [person.city, person.country && person.country !== 'IR' ? countryName(person.country) : null].filter(Boolean).join('، ') || countryName(person.country)) : null,
             person.is_locked ? h('span', { class: 'chip warning' }, icon('lock'), 'قفل') : null,
             person.account?.active ? h('span', { class: 'chip success' }, icon('check'), 'عضو فعال') : null,
             h('span', { class: 'chip', title: 'کد شناسه یکتا' }, `کد: ${person.code}`),
           ),
+          person.education_level || person.occupation ? h('div', { class: 'ph-sub text-2' },
+            icon('briefcase'), ' ', [person.occupation, profileOption('education_levels', person.education_level)].filter(Boolean).join(' • ')) : null,
+          done && done.percent < 100 ? completeness(done) : null,
         ),
         h('div', { class: 'ph-actions' },
           h('a', { class: 'btn soft', href: `#/tree/${person.id}?mode=hourglass` }, icon('tree'), 'درخت'),
@@ -111,6 +138,16 @@ export default async function personPage(container, { params }) {
           h('button', { class: 'btn ghost icon-only', type: 'button', title: 'اشتراک‌گذاری', onclick: share }, icon('share')),
         ),
       ),
+    );
+  }
+
+  /** نوار «درصد تکمیل پروفایل» برای ویرایشگران */
+  function completeness(done) {
+    const missing = done.missing.map((k) => COMPLETENESS[k] || k);
+    return h('a', { class: 'completeness', href: `#/person/${person.id}/edit`, title: `بخش‌های خالی: ${missing.join('، ')}` },
+      h('div', { class: 'row between small' }, h('span', null, `پروفایل ${fa(done.percent)}٪ کامل است`), h('span', { class: 'muted tiny' }, 'تکمیل ←')),
+      h('div', { class: 'progress' }, h('i', { style: { width: `${done.percent}%` } })),
+      missing.length ? h('div', { class: 'muted tiny ellipsis' }, 'خالی: ', missing.slice(0, 5).join('، '), missing.length > 5 ? ' ...' : '') : null,
     );
   }
 
@@ -132,31 +169,102 @@ export default async function personPage(container, { params }) {
     if (tab === 'details') tabBody.replaceChildren(details());
     else if (tab === 'gallery') tabBody.replaceChildren(gallery(person, { onChange: () => navigate(`/person/${person.id}/gallery`, { replace: true }) }));
     else if (tab === 'relatives') tabBody.replaceChildren(await relatives());
+    else if (tab === 'opinions') tabBody.replaceChildren(opinionsTab(person));
     else if (tab === 'history') tabBody.replaceChildren(await historyTab());
   }
 
+  // ------------------------------------------------------------ درباره
   function details() {
-    const rows = [
-      ['calendar', 'تاریخ تولد', formatDate(person.birth_date)],
-      ['pin', 'محل تولد', person.birth_place],
-      person.is_deceased ? ['flame', 'تاریخ وفات', formatDate(person.death_date)] : null,
-      person.is_deceased ? ['pin', 'محل وفات', person.death_place] : null,
-      person.is_deceased ? ['star', 'آرامگاه', person.burial_place] : null,
-      ['briefcase', 'شغل', person.occupation],
-      ['graduation', 'تحصیلات', person.education],
-      ['home', 'محل سکونت', person.residence],
-      ['users', 'ترتیب تولد', person.birth_order ? `فرزند ${fa(person.birth_order)}` : null],
-      person.national_code ? ['id-card', 'کد ملی', fa(person.national_code)] : null,
-      person.birth_cert_no ? ['file', 'شماره شناسنامه', fa(person.birth_cert_no) + (person.birth_cert_place ? ` (صادره از ${person.birth_cert_place})` : '')] : null,
-      person.phone ? ['phone', 'موبایل', fa(person.phone)] : null,
-      person.email ? ['mail', 'ایمیل', person.email] : null,
-    ].filter((r) => r && r[2]);
+    const ctx = { person, byId, colored: () => colored, onContributors: setContributors };
+    const meta = person.field_meta || {};
 
-    return h('div', null,
-      rows.length
-        ? h('dl', { class: 'kv' }, ...rows.map(([ic, k, v]) => h('div', null, h('dt', null, icon(ic), k), h('dd', null, v))))
+    /** یک ردیف مشخصه با رنگ آخرین ویرایشگر آن فیلد */
+    const row = (ic, label, value, fieldKey) => {
+      if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) return null;
+      const author = fieldKey ? byId.get(meta[fieldKey]?.u) : null;
+      return h('div', { class: colored && author ? 'authored' : '', style: colored && author ? { '--c': authorColor(author) } : null, title: author ? `ثبت: ${contributorLabel(author)}` : null },
+        h('dt', null, icon(ic), label), h('dd', null, value));
+    };
+    const group = (title, ic, rows, extra) => {
+      const items = rows.filter(Boolean);
+      if (!items.length && !extra) return null;
+      return h('section', { class: 'card info-group' }, h('h3', null, icon(ic), ' ', title), items.length ? h('dl', { class: 'kv' }, ...items) : null, extra || null);
+    };
+
+    const home = person.home_location;
+    const grave = person.burial_location;
+    const basics = group('مشخصات', 'id-card', [
+      row('calendar', 'تاریخ تولد', formatDate(person.birth_date), 'birth_date'),
+      row('pin', 'محل تولد', person.birth_place, 'birth_place'),
+      person.is_deceased ? row('flame', 'تاریخ وفات', formatDate(person.death_date), 'death_date') : null,
+      person.is_deceased ? row('pin', 'محل وفات', person.death_place, 'death_place') : null,
+      person.is_deceased ? row('star', 'آرامگاه', person.burial_place, 'burial_place') : null,
+      row('users', 'ترتیب تولد', person.birth_order ? `فرزند ${fa(person.birth_order)}` : null, 'birth_order'),
+      row('id-card', 'کد ملی', person.national_code ? fa(person.national_code) : null, 'national_code'),
+      row('file', 'شماره شناسنامه', person.birth_cert_no ? fa(person.birth_cert_no) + (person.birth_cert_place ? ` (صادره از ${person.birth_cert_place})` : '') : null, 'birth_cert_no'),
+    ], grave ? h('div', { class: 'mt-sm' }, h('div', { class: 'muted small mb-sm' }, icon('pin'), ' موقعیت مزار: ', coordText(grave)),
+      miniMap([{ ...grave, label: person.burial_place || 'آرامگاه' }], { height: 180 }), h('div', { class: 'mt-sm' }, directionsLinks(grave.lat, grave.lng))) : null);
+
+    const study = group('تحصیلات و شغل', 'graduation', [
+      row('graduation', 'مقطع تحصیلی', profileOption('education_levels', person.education_level), 'education_level'),
+      row('book', 'رشته', person.education_field, 'education_field'),
+      row('home', 'دانشگاه / مدرسه', person.education_institution, 'education_institution'),
+      row('crown', 'مرتبه علمی', profileOption('academic_ranks', person.academic_rank), 'academic_rank'),
+      row('graduation', 'توضیح تحصیلات', person.education, 'education'),
+      row('briefcase', 'شغل', person.occupation, 'occupation'),
+      row('home', 'محل کار', person.workplace, 'workplace'),
+    ]);
+
+    const place = group('محل زندگی', 'home', [
+      row('compass', 'کشور', person.country ? `${flag(person.country)} ${countryName(person.country)}` : null, 'country'),
+      row('pin', 'استان', person.province, 'province'),
+      row('pin', 'شهر', person.city, 'city'),
+      row('pin', 'محله / منطقه', person.residence, 'residence'),
+      row('mail', 'نشانی', person.address, 'address'),
+      row('file', 'کد پستی', person.postal_code ? fa(person.postal_code) : null, 'postal_code'),
+    ], home ? h('div', { class: 'mt-sm' }, miniMap([{ ...home, person, label: fullName(person) }], { height: 200 }), h('div', { class: 'mt-sm' }, directionsLinks(home.lat, home.lng)))
+      : person.has_home_location && !person.address ? h('p', { class: 'muted small' }, icon('lock'), ' موقعیت خانه ثبت شده ولی فقط برای بستگان نزدیک نمایش داده می‌شود.') : null);
+
+    const socials = Object.entries(person.social || {}).map(([k, v]) => socialLink(k, v)).filter(Boolean);
+    const contact = group('راه‌های ارتباطی', 'phone', [
+      row('phone', 'موبایل', person.phone ? h('a', { href: `tel:${person.phone}`, dir: 'ltr' }, fa(person.phone)) : null, 'phone'),
+      row('phone', 'تلفن ثابت', person.landline ? h('a', { href: `tel:${person.landline.replace(/[^\d+]/g, '')}`, dir: 'ltr' }, fa(person.landline)) : null, 'landline'),
+      row('mail', 'ایمیل', person.email ? h('a', { href: `mailto:${person.email}`, dir: 'ltr' }, person.email) : null, 'email'),
+      row('link', 'وب‌سایت', safeUrl(person.website) ? h('a', { href: safeUrl(person.website), target: '_blank', rel: 'noopener nofollow', dir: 'ltr' }, person.website.replace(/^https?:\/\//, '')) : null, 'website'),
+      socials.length ? row('share', 'شبکه‌های اجتماعی', h('div', { class: 'row wrap', style: { gap: '6px' } }, ...socials), 'social') : null,
+    ]);
+
+    const other = group('ویژگی‌های دیگر', 'sparkles', [
+      row('heart', 'گروه خونی', person.blood_type ? h('span', { dir: 'ltr' }, person.blood_type) : null, 'blood_type'),
+      row('book', 'زبان‌ها', person.languages, 'languages'),
+      row('star', 'علاقه‌مندی‌ها', person.interests, 'interests'),
+      ...(person.custom_fields || []).map((f) => row('info', f.label, f.value, 'custom_fields')),
+    ]);
+
+    const texts = ['summary', 'description', 'biography', 'resume']
+      .filter((f) => store.config.profile?.texts?.[f])
+      .filter((f) => perms.edit || person.texts?.[f]?.segments?.length)
+      .map((f) => textSection(f, ctx));
+    const summary = texts.find((t) => t.classList.contains('text-summary'));
+
+    const colorToggle = h('div', { class: 'row between wrap mt' },
+      switchInput('author_colors', 'نمایش رنگ نویسندگان', colored, (v) => {
+        colored = v;
+        saveLocalPref('author_colors', v);
+        tabBody.replaceChildren(details());
+      }),
+      legendBox,
+    );
+    setContributors(person.contributors);
+
+    const infoGroups = [basics, study, place, contact, other].filter(Boolean);
+    return h('div', { class: 'about' },
+      summary || null,
+      infoGroups.length ? h('div', { class: 'info-groups' }, ...infoGroups)
         : emptyState('info', 'هنوز مشخصاتی ثبت نشده است.', perms.edit ? h('a', { class: 'btn soft', href: `#/person/${person.id}/edit` }, 'تکمیل مشخصات') : null),
-      person.biography ? h('div', { class: 'card mt' }, h('h3', null, icon('book'), ' زندگی‌نامه و خاطرات'), h('p', { style: { whiteSpace: 'pre-line', margin: 0 } }, person.biography)) : null,
+      ...texts.filter((t) => t !== summary),
+      (person.resume?.length || perms.edit) ? resumeSection(ctx) : null,
+      colorToggle,
       h('p', { class: 'muted tiny mt' }, [person.created_by ? `ثبت توسط ${person.created_by}` : null, person.updated_at ? `آخرین به‌روزرسانی ${timeAgo(person.updated_at)}` : null].filter(Boolean).join(' • ')),
     );
   }
@@ -177,15 +285,16 @@ export default async function personPage(container, { params }) {
     );
     const addCard = (type, label) => (perms.edit ? h('div', { class: 'person-card add', onclick: () => openRelativeDialog(person, type, { onDone: () => show('relatives') }) }, icon('plus'), label) : null);
     const group = (title, ic, items) => h('div', { class: 'relatives-group' }, h('h3', null, icon(ic), title), h('div', { class: 'person-cards' }, ...items.filter(Boolean)));
+    const ordinal = ['اول', 'دوم', 'سوم', 'چهارم', 'پنجم', 'ششم'];
 
     return h('div', null,
       group('پدر و مادر', 'ancestors', [
         r.father ? card(r.father, 'پدر') : addCard('father', 'افزودن پدر'),
         r.mother ? card(r.mother, 'مادر') : addCard('mother', 'افزودن مادر'),
       ]),
-      group('همسر', 'heart', [
-        ...r.spouses.map((s) => card(s.person, [MARRIAGE_STATUS[s.marriage.status], s.marriage.marriage_date ? `ازدواج ${formatDate(s.marriage.marriage_date)}` : null].filter(Boolean).join(' - '))),
-        addCard('spouse', 'افزودن همسر'),
+      group(r.spouses.length > 1 ? `همسران (${fa(r.spouses.length)})` : 'همسر', 'heart', [
+        ...r.spouses.map((sp, i) => card(sp.person, [r.spouses.length > 1 ? `همسر ${ordinal[i] || fa(i + 1)}` : null, MARRIAGE_STATUS[sp.marriage.status], sp.marriage.marriage_date ? `ازدواج ${formatDate(sp.marriage.marriage_date)}` : null].filter(Boolean).join(' - '))),
+        addCard('spouse', r.spouses.length ? 'افزودن همسر دیگر' : 'افزودن همسر'),
       ]),
       group(`فرزندان${r.children.length ? ` (${fa(r.children.length)})` : ''}`, 'baby', [
         ...r.children.map((c) => card(c, c.gender === 'f' ? 'دختر' : 'پسر')),
@@ -198,29 +307,108 @@ export default async function personPage(container, { params }) {
     );
   }
 
-  async function historyTab() {
+  async function historyTab(pageNo = 1, box = null) {
     let res;
     try {
-      res = await get(`/api/persons/${person.id}/history`);
+      res = await get(`/api/persons/${person.id}/history`, { page: pageNo });
     } catch (e) {
       return emptyState('lock', e.message);
     }
-    if (!res.data.length) return emptyState('history', 'تغییری ثبت نشده است.');
-    return h('div', { class: 'card' }, h('div', { class: 'timeline' }, ...res.data.map((log) => {
-      const changes = log.properties?.changes || {};
-      return h('div', { class: 't-item' },
-        h('div', null, h('b', null, log.user?.name || 'سیستم'), ' ', actionLabel(log.action)),
-        Object.keys(changes).length ? h('ul', { class: 'small text-2', style: { margin: '4px 0', paddingInlineStart: '18px' } },
-          ...Object.entries(changes).map(([f, [from, to]]) => h('li', null, `${FIELDS[f] || f}: `, h('span', { class: 'muted' }, fa(fmtVal(from))), ' ← ', h('b', null, fa(fmtVal(to)))))) : null,
-        h('div', { class: 'muted tiny' }, dateTime(log.created_at)),
-      );
-    })));
+    if (!res.data.length && pageNo === 1) return emptyState('history', 'تغییری ثبت نشده است.');
+    const timeline = box || h('div', { class: 'timeline' });
+    timeline.append(...res.data.map(historyItem));
+    const more = res.meta && res.meta.current_page < res.meta.last_page
+      ? h('button', { class: 'btn ghost block mt-sm', type: 'button', onclick: async (e) => { e.currentTarget.remove(); await historyTab(pageNo + 1, timeline); } }, 'موارد قدیمی‌تر')
+      : null;
+    if (box) {
+      if (more) box.after(more);
+      return box;
+    }
+    return h('div', { class: 'card' },
+      h('p', { class: 'muted small', style: { marginTop: 0 } }, icon('info'), ' هر افزودن، حذف یا ویرایشی در این پروفایل با نام انجام‌دهنده اینجا ثبت می‌شود.'),
+      timeline, more);
   }
+}
+
+/** یک رویداد تاریخچه با جزئیات خوانا */
+function historyItem(log) {
+  const p = log.properties || {};
+  const changes = p.changes || {};
+  const detail = [];
+  if (log.action.startsWith('text.')) {
+    const label = store.config.profile?.texts?.[p.field]?.label || FIELDS[p.field] || p.field;
+    detail.push(h('span', null, `«${label}» `, log.action === 'text.restored' ? `(نسخه ${fa(p.restored_from)})` : h('span', null, h('span', { class: 'added' }, `+${fa(p.added ?? 0)}`), ' ', h('span', { class: 'removed' }, `−${fa(p.removed ?? 0)}`), ' کلمه')));
+  } else if (log.action.startsWith('resume.')) {
+    detail.push(h('span', null, `«${p.title || ''}»`));
+  } else if (log.action.startsWith('comment.') && p.excerpt) {
+    detail.push(h('span', { class: 'muted' }, `«${p.excerpt}»`));
+  } else if (log.action === 'rating.updated' && p.scores) {
+    const traits = store.config.ratings?.traits || {};
+    detail.push(h('span', { class: 'muted' }, Object.entries(p.scores).map(([k, v]) => `${traits[k] || k}: ${v ? fa(v) : 'حذف'}`).join('، ')));
+  } else if (log.action.startsWith('media.')) {
+    detail.push(h('span', { class: 'muted' }, [p.category === 'story' ? 'استوری' : p.type === 'video' ? 'ویدیو' : p.type ? 'عکس' : null, p.caption ? `«${p.caption}»` : null, p.uploaded_by ? `آپلود: ${p.uploaded_by}` : null].filter(Boolean).join(' • ')));
+  }
+  return h('div', { class: 't-item' },
+    // برچسب‌هایی مثل «... برای» در داشبورد با نام شخص کامل می‌شوند؛ اینجا شخص همین پروفایل است
+    h('div', null, h('b', null, log.user?.name || 'سیستم'), ' ', actionLabel(log.action).replace(/ برای$/, ''), detail.length ? ' ' : null, ...detail),
+    Object.keys(changes).length ? h('ul', { class: 'small text-2', style: { margin: '4px 0', paddingInlineStart: '18px' } },
+      ...Object.entries(changes).map(([f, [from, to]]) => h('li', null, `${FIELDS[f] || f}: `, h('span', { class: 'muted' }, fa(fmtVal(from))), ' ← ', h('b', null, fa(fmtVal(to)))))) : null,
+    h('div', { class: 'muted tiny' }, dateTime(log.created_at)),
+  );
 }
 
 function fmtVal(v) {
   if (v === null || v === undefined || v === '') return '—';
   if (v === true) return 'بله';
   if (v === false) return 'خیر';
+  if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? `${x.label}: ${x.value}` : String(x))).join('، ') || '—';
+  if (typeof v === 'object') return Object.entries(v).map(([k, x]) => `${store.config.profile?.social_networks?.[k] || k}: ${x}`).join('، ') || '—';
   return String(v);
+}
+
+/** پرچم کشور از کد ISO (ایموجی) */
+function flag(code) {
+  return /^[A-Z]{2}$/.test(code || '') ? String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65)) : '';
+}
+
+/** فقط لینک‌های http/https (جلوگیری از javascript: و ...) */
+function safeUrl(value) {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+const SOCIAL_URLS = {
+  instagram: 'https://instagram.com/', telegram: 'https://t.me/', x: 'https://x.com/', youtube: 'https://youtube.com/@',
+  aparat: 'https://www.aparat.com/', facebook: 'https://facebook.com/', github: 'https://github.com/', linkedin: 'https://linkedin.com/in/',
+  eitaa: 'https://eitaa.com/', bale: 'https://ble.ir/', rubika: 'https://rubika.ir/',
+};
+
+function socialLink(network, value) {
+  if (!value) return null;
+  const label = store.config.profile?.social_networks?.[network] || network;
+  let href = safeUrl(value);
+  if (!href) {
+    const handle = String(value).trim().replace(/^@/, '');
+    if (network === 'whatsapp') {
+      const digits = handle.replace(/\D/g, '').replace(/^0/, '98');
+      href = digits ? `https://wa.me/${digits}` : null;
+    } else if (SOCIAL_URLS[network] && /^[\w.\-]+$/.test(handle)) {
+      href = SOCIAL_URLS[network] + encodeURIComponent(handle);
+    }
+  }
+  return href ? h('a', { class: 'chip', href, target: '_blank', rel: 'noopener nofollow' }, label) : h('span', { class: 'chip' }, `${label}: ${value}`);
+}
+
+function localPref(key, fallback) {
+  const v = store.prefs[key];
+  return v === undefined ? fallback : v;
+}
+
+function saveLocalPref(key, value) {
+  saveLocalPrefs({ [key]: value });
 }

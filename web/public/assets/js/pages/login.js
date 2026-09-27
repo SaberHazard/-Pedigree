@@ -11,7 +11,7 @@ import { post, get } from '../core/api.js';
 import { store } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { fa, latin } from '../core/format.js';
-import { toast, showFormErrors, clearFormErrors, withLoading, segmented, field } from '../core/ui.js';
+import { toast, showFormErrors, clearFormErrors, withLoading, segmented, field, switchInput } from '../core/ui.js';
 import { brand } from '../components/header.js';
 import { dateInput } from '../components/date-input.js';
 
@@ -32,7 +32,7 @@ export default function loginPage(container, { query }) {
     clearInterval(timer);
     const switcher = segmented([
       { value: 'otp', label: 'ورود با موبایل', icon: 'phone' },
-      { value: 'password', label: 'کد ملی و رمز', icon: 'id-card' },
+      { value: 'password', label: 'ورود با رمز', icon: 'key' },
     ], method, (v) => {
       method = v;
       showMethod();
@@ -205,6 +205,10 @@ export default function loginPage(container, { query }) {
     );
     renderGender();
     const birth = dateInput('birth_date');
+    const reg = store.config.registration || {};
+    const codeField = field(reg.require_national_code === false ? 'کد ملی (اختیاری)' : 'کد ملی',
+      h('input', { class: 'input ltr-input', name: 'national_code', inputmode: 'numeric', maxlength: 12, autocomplete: 'off' }),
+      { hint: 'برای جلوگیری از ثبت تکراری و پیدا کردن شما در درخت؛ رمزنگاری‌شده ذخیره می‌شود.' });
     const btn = h('button', { class: 'btn primary lg block', type: 'submit' }, 'ساخت حساب و ورود');
     const form = h('form', { novalidate: true },
       h('div', { class: 'chip success mb' }, icon('check'), 'شماره تأیید شد'),
@@ -215,7 +219,11 @@ export default function loginPage(container, { query }) {
       ),
       h('div', { class: 'field' }, h('label', null, 'جنسیت'), gender),
       h('div', { class: 'field' }, h('label', null, 'تاریخ تولد (اختیاری)'), birth),
-      field('رمز عبور برای ورود با کد ملی (اختیاری)', h('input', { class: 'input ltr-input', name: 'password', type: 'password', autocomplete: 'new-password' }), { hint: 'حداقل ۸ کاراکتر شامل حرف و عدد' }),
+      codeField,
+      reg.allow_without_national_code ? h('div', { class: 'field' }, switchInput('no_national_code', 'کد ملی ایرانی ندارم (ساکن خارج یا تبعه کشور دیگر)', false, (v) => {
+        codeField.hidden = v;
+      })) : null,
+      field('رمز عبور برای ورود بدون پیامک (اختیاری)', h('input', { class: 'input ltr-input', name: 'password', type: 'password', autocomplete: 'new-password' }), { hint: 'حداقل ۸ کاراکتر شامل حرف و عدد' }),
       btn,
     );
     form.addEventListener('submit', async (e) => {
@@ -229,6 +237,8 @@ export default function loginPage(container, { query }) {
             last_name: form.last_name.value.trim(),
             gender: g,
             birth_date: birth.value || null,
+            national_code: form.no_national_code?.checked ? null : (latin(form.national_code.value).trim() || null),
+            no_national_code: !!form.no_national_code?.checked,
             password: form.password.value || null,
           });
           toast('به شجره‌نامه خوش آمدید!');
@@ -250,7 +260,8 @@ export default function loginPage(container, { query }) {
     } }, icon('eye'));
     const btn = h('button', { class: 'btn primary lg block', type: 'submit' }, 'ورود');
     const form = h('form', { novalidate: true },
-      field('کد ملی', h('input', { class: 'input ltr-input', name: 'national_code', inputmode: 'numeric', autocomplete: 'username', maxlength: 12, required: true })),
+      field('کد ملی، نام کاربری یا موبایل', h('input', { class: 'input ltr-input', name: 'identifier', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: 50, required: true }),
+        { hint: 'سالمندانی که موبایل یا کد ملی ندارند با نام کاربری‌ای که مدیر یا فرزندانشان تعیین کرده وارد شوند.' }),
       h('div', { class: 'field' }, h('label', null, 'رمز عبور'), h('div', { class: 'input-group' }, pass, h('span', { class: 'addon' }, eye))),
       btn,
       h('p', { class: 'muted small mt' }, 'رمز را فراموش کرده‌اید؟ با موبایل وارد شوید و از تنظیمات حساب، رمز جدید بسازید. اگر پروفایل شما را بستگانتان ساخته‌اند، رمز را از آن‌ها بپرسید.'),
@@ -260,7 +271,7 @@ export default function loginPage(container, { query }) {
       clearFormErrors(form);
       await withLoading(btn, async () => {
         try {
-          const res = await post('/api/auth/login', { national_code: latin(form.national_code.value), password: pass.value });
+          const res = await post('/api/auth/login', { identifier: latin(form.identifier.value).trim(), password: pass.value });
           loggedIn(res.user);
         } catch (err) {
           showFormErrors(form, err);

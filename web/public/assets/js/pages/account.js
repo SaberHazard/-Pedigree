@@ -26,6 +26,7 @@ export default function accountPage(container) {
     ),
     appearance(),
     passwordCard(),
+    usernameCard(),
     phoneCard(),
     sessionsCard(),
     h('div', { class: 'card mt row between' },
@@ -101,7 +102,34 @@ export default function accountPage(container) {
     });
     return h('div', { class: 'card mb' },
       h('div', { class: 'card-title' }, h('h3', null, user.has_password ? 'تغییر رمز عبور' : 'تعیین رمز عبور'), icon('key')),
-      h('p', { class: 'muted small' }, 'با رمز عبور می‌توانید با کد ملی هم وارد شوید (وقتی به موبایل دسترسی ندارید).'),
+      h('p', { class: 'muted small' }, 'با رمز عبور می‌توانید با کد ملی، نام کاربری یا شماره موبایل هم وارد شوید (وقتی پیامک به دستتان نمی‌رسد).'),
+      form,
+    );
+  }
+
+  // ------------------------------------------------------------ نام کاربری
+  function usernameCard() {
+    const input = h('input', { class: 'input ltr-input', name: 'username', value: user.username || '', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: 30, placeholder: 'مثلاً ali.ahmadi' });
+    const form = h('form', { novalidate: true }, field('نام کاربری', input, { hint: 'حروف کوچک انگلیسی، عدد، نقطه، خط تیره یا زیرخط؛ با حرف شروع شود. خالی = حذف' }));
+    const btn = h('button', { class: 'btn primary', type: 'submit' }, 'ذخیره نام کاربری');
+    form.append(btn);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearFormErrors(form);
+      await withLoading(btn, async () => {
+        try {
+          const res = await put('/api/account/username', { username: latin(input.value).trim() || null });
+          store.user.username = res.username;
+          input.value = res.username || '';
+          toast(res.message);
+        } catch (err) {
+          showFormErrors(form, err);
+        }
+      });
+    });
+    return h('div', { class: 'card mb' },
+      h('div', { class: 'card-title' }, h('h3', null, 'نام کاربری'), icon('user')),
+      h('p', { class: 'muted small' }, 'اختیاری؛ برای ورود با «نام کاربری + رمز» به جای کد ملی. برای پدربزرگ و مادربزرگی که موبایل ندارند، از صفحه ویرایش پروفایل آن‌ها نام کاربری و رمز تعیین کنید.'),
       form,
     );
   }
