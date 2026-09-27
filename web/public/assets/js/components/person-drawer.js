@@ -72,6 +72,7 @@ export function createDrawer(host, { onAction } = {}) {
         h('button', { class: 'btn sm', type: 'button', onclick: () => navigate(`/tree/${person.id}?mode=ancestors`) }, icon('ancestors'), 'نیاکان'),
         h('button', { class: 'btn sm', type: 'button', onclick: () => navigate(`/tree/${person.id}?mode=hourglass`) }, icon('hourglass'), 'ساعت شنی'),
         h('button', { class: 'btn sm', type: 'button', onclick: () => onAction?.('lineage-to', person.id) }, icon('route'), 'مسیر از ریشه'),
+        h('button', { class: 'btn sm', type: 'button', title: 'چاپ یا PDF از این شخص به پایین (یا نیاکانش)', onclick: () => onAction?.('export', person.id) }, icon('printer'), 'چاپ از این شخص'),
       ),
       galleryEl,
     );

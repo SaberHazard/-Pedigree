@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\SocialNetworks;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,25 @@ return new class extends Migration
 
         Schema::table('persons', function (Blueprint $table) {
             $table->dropColumn(['share_location', 'share_contact']);
+        });
+
+        // شناسه‌های شبکه‌های اجتماعی قبلی به شکل استاندارد (لینک کامل ← شناسه، ۰۹۱۲ ← +۹۸۹۱۲)
+        DB::table('persons')->whereNotNull('social')->orderBy('id')->chunk(500, function ($rows) {
+            foreach ($rows as $row) {
+                $social = json_decode((string) $row->social, true);
+                if (! is_array($social)) {
+                    continue;
+                }
+                $clean = [];
+                foreach ($social as $network => $value) {
+                    $clean[$network] = is_string($network) && is_string($value)
+                        ? (SocialNetworks::normalize($network, $value) ?? $value)
+                        : $value;
+                }
+                if ($clean !== $social) {
+                    DB::table('persons')->where('id', $row->id)->update(['social' => json_encode($clean, JSON_UNESCAPED_UNICODE)]);
+                }
+            }
         });
     }
 

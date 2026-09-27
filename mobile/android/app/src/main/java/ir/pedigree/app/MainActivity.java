@@ -173,6 +173,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /** آیا آدرس متعلق به سایت خودمان است؟ (پروتکل، دامنه و پورت یکسان) */
+    /** طرح‌هایی که صفحه اجازه دارد با برنامه‌های دیگر گوشی باز کند */
+    static final java.util.Set<String> EXTERNAL_SCHEMES = new java.util.HashSet<>(
+            java.util.Arrays.asList("http", "https", "tel", "mailto", "sms", "geo"));
+
     static boolean isOwnUrl(Uri uri) {
         if (uri == null) {
             return false;
@@ -210,9 +214,16 @@ public class MainActivity extends AppCompatActivity {
             if (isOwnUrl(uri)) {
                 return false;
             }
-            // لینک‌های بیرونی (مثلاً مستندات پنل پیامک) در مرورگر گوشی باز می‌شوند
+            // لینک‌های بیرونی در برنامه مربوط باز می‌شوند (wa.me ← واتس‌اپ، t.me ← تلگرام،
+            // instagram.com ← اینستاگرام، tel: ← شماره‌گیر، نقشه ← مسیریاب)؛ فقط طرح‌های امن
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(java.util.Locale.ROOT);
+            if (!EXTERNAL_SCHEMES.contains(scheme)) {
+                return true;
+            }
             try {
-                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                intent.addCategory(Intent.CATEGORY_BROWSABLE);
+                startActivity(intent);
             } catch (ActivityNotFoundException ignored) {
                 // برنامه‌ای برای باز کردن این لینک نیست
             }

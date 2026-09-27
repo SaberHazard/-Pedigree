@@ -4,6 +4,7 @@ namespace App\Services\Social;
 
 use App\Exceptions\DomainException;
 use App\Support\SocialNetworks;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * دریافت نام و عکس پروفایل عمومی از شبکه‌های اجتماعی.
@@ -39,6 +40,11 @@ class SocialProfileFetcher
     {
         if (! $this->canFetch($network, $handle)) {
             throw new DomainException('دریافت خودکار عکس برای این شبکه ممکن نیست.');
+        }
+        // سقف کل درخواست‌های سرور به هر شبکه (تا IP سرور از طرف شبکه‌ها مسدود نشود و سرور ابزار حمله نشود)
+        $limit = (int) config('pedigree.social.hourly_limit', 300);
+        if (! RateLimiter::attempt('social-fetch:'.$network, $limit, fn () => true, 3600)) {
+            throw new DomainException('تعداد درخواست‌ها به این شبکه زیاد شده است؛ کمی بعد دوباره امتحان کنید.', 429);
         }
 
         return match ($network) {

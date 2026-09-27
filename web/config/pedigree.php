@@ -373,6 +373,8 @@ return [
         'max_image_kb' => 6144,
         // مدت نگه‌داری نتیجه پیش‌نمایش (دقیقه)
         'preview_cache_minutes' => 360,
+        // سقف کل درخواست‌های سرور به هر شبکه در ساعت
+        'hourly_limit' => (int) env('PEDIGREE_SOCIAL_HOURLY', 300),
         'instagram' => [
             'graph_token' => env('PEDIGREE_INSTAGRAM_TOKEN'),
             'graph_user_id' => env('PEDIGREE_INSTAGRAM_USER_ID'),

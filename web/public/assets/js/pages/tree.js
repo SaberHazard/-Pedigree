@@ -78,6 +78,7 @@ export default async function treePage(container, { params, query }) {
   const drawer = createDrawer(page, {
     onAction: (action, id) => {
       if (action === 'reload') load({ keepView: true });
+      if (action === 'export') openExport({ personId: id, scope: state.mode === 'ancestors' ? 'ancestors' : 'descendants' });
       if (action === 'lineage-to') {
         const top = state.mode === 'ancestors' ? id : state.rootId;
         navigate(`/tree/${top}?mode=lineage&to=${state.mode === 'ancestors' ? state.rootId : id}`);
@@ -318,7 +319,7 @@ export default async function treePage(container, { params, query }) {
     ], { width: 250 });
   }
 
-  function openExport() {
+  function openExport(extra = {}) {
     openExportDialog({
       data: state.data,
       layout: state.layout,
@@ -326,6 +327,7 @@ export default async function treePage(container, { params, query }) {
       rootId: state.rootId,
       depth: state.depth,
       to: state.to,
+      ...extra,
     });
   }
 

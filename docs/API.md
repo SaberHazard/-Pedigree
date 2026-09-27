@@ -128,21 +128,28 @@
 ### `GET /persons/{id}` — مشخصات کامل
 علاوه بر فیلدهای Node:
 - مشخصات: `death_place, burial_place, burial_location{lat,lng}, education_level, education_field, education_institution,
-  academic_rank, workplace, country (ISO2), province, city, residence, blood_type, languages, interests,
-  custom_fields[{label,value}], website, social{instagram,telegram,...}, biography, is_locked, avatar_medium`
-- با اجازه خود شخص (`share_location`) یا برای ویرایشگران: `address, postal_code, home_location{lat,lng}` (وگرنه `null`؛ `has_home_location`)
-- با اجازه خود شخص (`share_contact`) یا دسترسی حساس: `phone, email, landline`
+  education_field_group, honorific_mode (auto|none), academic_rank, workplace, country (ISO2), province, city, residence,
+  blood_type, languages, interests, custom_fields[{label,value}], website, social{instagram,telegram,...}, biography,
+  is_locked, avatar_medium`
+- عنوان: `honorific` («دکتر»/«مهندس» خودکار یا `null`) و `display_title` (عنوان کامل مرتب: «حاج دکتر»، «دکتر سید») — در Node هم هست
+- `social_profiles[{network, label, value, display, url, photo{thumb, medium, media_id}|null}]` — لینک مستقیم را سرور می‌سازد
+- نشانی طبق `location_visibility` (پیش‌فرض `d1`): `address, postal_code, home_location{lat,lng}` (وگرنه `null`؛ `has_home_location`, `location_hidden`)
+- تماس طبق `contact_visibility` (پیش‌فرض `all`): `phone, email, landline` و شماره واتس‌اپ/تلگرام در `social` (وگرنه حذف؛ `contact_hidden`)
+- سطح‌ها: `all` همه اعضا، `d4`..`d1` بستگان تا آن درجه، `self` فقط خود شخص؛ خود شخص، مدیر و مدیرِ پروفایلِ بدون حساب همیشه می‌بینند
 - فقط با دسترسی حساس: `national_code, birth_cert_no, birth_cert_place, account.username, account.has_password`
 - `texts{summary|description|biography|resume: {segments: [[user_id, "متن"], ...], revision, updated_at}}` — نویسنده هر تکه
 - `resume[{id, type, title, organization, location, start_date, end_date, is_current, description, author_id}]`
 - `field_meta{field: {u: user_id, t: unix}}` آخرین ویرایشگر هر فیلد
 - `contributors[{id, name, person_id, relation, color}]` — `color`: `owner` | `admin` | شماره پالت
 - `completeness{percent, missing[]}` (فقط برای ویرایشگران)
-- `permissions{edit, sensitive, upload, delete, admin, history, comment, rate}`
+- `permissions{edit, sensitive, upload, delete, admin, history, privacy, comment, rate}` — `privacy`: اجازه تغییر سطح نمایش
 
 ### `POST /persons` — ساخت شخص مستقل (مثلاً جد اعلای یک خاندان)
 ### `PATCH /persons/{id}` — ویرایش
-همه فیلدهای بالا (به جز متن‌ها و رزومه که مسیر جدا دارند) + `home_lat, home_lng, burial_lat, burial_lng, share_location, share_contact`؛
+همه فیلدهای بالا (به جز متن‌ها و رزومه که مسیر جدا دارند) + `home_lat, home_lng, burial_lat, burial_lng`؛
+`contact_visibility, location_visibility` فقط با `permissions.privacy` اعمال می‌شوند. ویرایشگری که تماس/نشانی را نمی‌بیند
+نمی‌تواند آن‌ها را تغییر دهد یا پاک کند (نادیده گرفته می‌شوند). `social` هر شکلی را می‌پذیرد (لینک کامل، ‎@شناسه، شماره)
+و به شکل استاندارد ذخیره می‌کند؛ لینکِ دامنه دیگر → `422`؛
 و (با دسترسی حساس) `national_code, phone, birth_cert_no, birth_cert_place, email, username, password, is_locked`.
 مقادیر مجاز `education_level`، `academic_rank`، `social` و ... در `GET /bootstrap` → `profile` هستند.
 
@@ -187,7 +194,19 @@
 | PUT | `/persons/{id}/ratings` | `{scores: {humor: 5, charisma: 4, kindness: null}}` (`null` = حذف امتیاز؛ به خود نمی‌شود) |
 
 ### `GET /map` — نقشه خاندان
-`{ "data": [{kind: home|burial, person: Node, lat, lng, city?, country?, place?}] }` — خانه‌ها فقط با اجازه خود شخص یا برای بستگان درجه یک.
+`{ "data": [{kind: home|burial, person: Node, lat, lng, city?, country?, place?}] }` — خانه‌ها طبق `location_visibility` هر شخص.
+
+### `GET /persons/{id}/kin?max=4` — بستگان تا درجه ۴ (چه کسانی شماره/نشانی را می‌بینند)
+درجه: خونی = `بالا + پایین − ۱` (خواهر و برادر ۱، عمو و نوه ۲، عموزاده ۳)؛ همسر ۱؛ بستگان همسر و همسرِ بستگان = درجه + ۱.
+```json
+{ "data": [{ "degree": 1, "count": 6, "people": [{ "person": Node, "label": "پدرزن", "inlaw": true, "has_account": true }] }], "max": 4, "total": 25 }
+```
+
+### شبکه‌های اجتماعی
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/social/preview?network=&value=` | شکل استاندارد، لینک مستقیم، و برای تلگرام/اینستاگرام/گیت‌هاب نام و عکس عمومی (`image`: data URI)؛ ۲۰ در دقیقه |
+| POST | `/persons/{id}/social-avatar` | `network` (+ اختیاری `file`): دریافت عکس پروفایل آن شبکه یا آپلود دستی (مثلاً واتس‌اپ)؛ مثل هر آپلود از مسیر تأیید می‌گذرد. اگر شخص عکس آپلودی ندارد، به ترتیب اینستاگرام ← واتس‌اپ ← تلگرام عکس پروفایل می‌شود |
 ### `GET /persons/{id}/relationship/{otherId}` — نسبت خانوادگی
 ```json
 { "found": true, "label": "پسرعمو", "description": "پسرِ برادرِ پدر", "path": [ids], "path_names": [...], "steps": ["father","brother","son"] }

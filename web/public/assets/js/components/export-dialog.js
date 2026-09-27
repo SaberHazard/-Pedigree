@@ -20,6 +20,11 @@ import { buildExportSvg, exportPdf, exportPng, exportSvg, printSvg, tileCount } 
 import { buildVectorPdf, sheetCount, photoDiameterMm, PAPER } from '../tree/vector-pdf.js';
 import { personRow, searchBox } from './person-search.js';
 
+/** بیشترین تعداد نسل مجاز (برای «کل خاندان» و «تا جد اعلا») */
+function maxDepth() {
+  return store.config.tree?.max_depth || 30;
+}
+
 const SCOPES = [
   { value: 'current', label: 'نمای فعلی', icon: 'grid' },
   { value: 'descendants', label: 'نوادگان', icon: 'tree' },
@@ -30,10 +35,10 @@ const SCOPES = [
 
 export function openExportDialog(ctx) {
   const opts = {
-    scope: 'current',
-    personId: ctx.rootId,
+    scope: ctx.scope || 'current',
+    personId: ctx.personId || ctx.rootId,
     toId: ctx.to,
-    depth: Math.max(ctx.depth || 4, 1),
+    depth: ctx.scope ? maxDepth() : Math.max(ctx.depth || 4, 1),
     format: 'pdf',
     paper: 'A3',
     orientation: 'auto',
@@ -50,18 +55,24 @@ export function openExportDialog(ctx) {
   };
   let built = null;
   let buildToken = 0;
+  /** اشخاصی که در داده درخت فعلی نیستند (انتخاب سریع/جستجو) برای نام در عنوان */
+  const names = new Map();
   const root = ctx.data.get(ctx.rootId);
   opts.title = defaultTitle();
 
   const preview = h('div', { class: 'card', style: { padding: '8px', minHeight: '220px', display: 'grid', placeItems: 'center', background: 'var(--surface-2)' } });
   const info = h('div', { class: 'muted small' });
+  const suggestBox = h('div', { class: 'mt-sm' });
   const scopeBox = h('div');
   const formatBox = h('div');
   const titleInput = h('input', { class: 'input', value: opts.title, oninput: () => { opts.title = titleInput.value; rebuild(); } });
 
+  const presetBox = h('div', { class: 'export-presets' });
+  const scopeSwitch = segmented(SCOPES, opts.scope, (v) => { opts.scope = v; renderScope(); if (!opts.title || opts.title === lastDefault) setTitle(defaultTitle()); rebuild(); });
   const body = h('div', { class: 'grid grid-2' },
     h('div', null,
-      h('div', { class: 'field' }, h('label', null, 'چه بخشی از شجره‌نامه؟'), segmented(SCOPES, opts.scope, (v) => { opts.scope = v; renderScope(); if (!opts.title || opts.title === lastDefault) setTitle(defaultTitle()); rebuild(); })),
+      presetBox,
+      h('div', { class: 'field' }, h('label', null, 'چه بخشی از شجره‌نامه؟'), scopeSwitch),
       scopeBox,
       field('عنوان', titleInput),
       h('div', { class: 'row wrap', style: { gap: '18px', marginBottom: '14px' } },
@@ -79,7 +90,7 @@ export function openExportDialog(ctx) {
         h('button', { class: 'btn ghost sm', type: 'button', onclick: gedcom }, icon('gedcom'), 'خروجی GEDCOM (برای MyHeritage، Gramps و ...)'),
       ),
     ),
-    h('div', null, h('label', { class: 'label' }, 'پیش‌نمایش'), preview, info),
+    h('div', null, h('label', { class: 'label' }, 'پیش‌نمایش'), preview, info, suggestBox),
   );
 
   let lastDefault = opts.title;
@@ -90,7 +101,7 @@ export function openExportDialog(ctx) {
   }
 
   function defaultTitle() {
-    const person = ctx.data.get(opts.personId) || root;
+    const person = ctx.data.get(opts.personId) || names.get(opts.personId) || root;
     const name = fullName(person);
     switch (opts.scope) {
       case 'ancestors': return `نیاکان ${name}`;
@@ -101,13 +112,70 @@ export function openExportDialog(ctx) {
     }
   }
 
+  // ------------------------------------------------------------ انتخاب سریع
+  // برای خاندان‌های بزرگ (هزاران نفر): هر کس بخش خودش را با یک کلیک چاپ کند
+  function applyPreset(scope, personId, person) {
+    if (person) names.set(personId, person);
+    opts.scope = scope;
+    opts.personId = personId;
+    opts.depth = scope === 'hourglass' ? 4 : maxDepth();
+    scopeSwitch.setValue(scope);
+    renderScope();
+    setTitle(defaultTitle());
+    rebuild();
+  }
+  async function loadPresets() {
+    const me = store.user?.person;
+    const chips = [];
+    const chip = (label, scope, person, ic) => person && chips.push(h('button', { class: 'chip preset', type: 'button', title: `${label}: ${fullName(person)}`, onclick: (e) => {
+      presetBox.querySelectorAll('.preset').forEach((b) => b.classList.remove('primary'));
+      e.currentTarget.classList.add('primary');
+      applyPreset(scope, person.id, person);
+    } }, icon(ic), label));
+    const focus = ctx.data.get(ctx.personId || ctx.rootId);
+    if (me) {
+      let up = new Map();
+      try {
+        const payload = await get(`/api/tree/${me.id}/ancestors`, { depth: maxDepth() });
+        up = new Map((payload.persons || []).map((p) => [p.id, p]));
+      } catch {
+        /* بدون نیاکان هم گزینه‌های خودِ شخص کار می‌کند */
+      }
+      const self = up.get(me.id) || me;
+      const father = up.get(self.father_id);
+      const mother = up.get(self.mother_id);
+      const gfPaternal = father && up.get(father.father_id);
+      const gfMaternal = mother && (up.get(mother.father_id) || up.get(mother.mother_id));
+      let top = self;
+      for (let i = 0; i < 60 && up.get(top.father_id); i++) top = up.get(top.father_id);
+      chip('خانواده من (من و نوادگانم)', 'descendants', self, 'user');
+      chip('از پدر و مادرم به پایین', 'descendants', father || mother, 'users');
+      chip('از پدربزرگ پدری به پایین', 'descendants', gfPaternal, 'tree');
+      chip('از پدربزرگ مادری به پایین', 'descendants', gfMaternal, 'tree');
+      chip('نیاکان من', 'ancestors', self, 'ancestors');
+      chip('نیاکان پدرم', 'ancestors', father, 'ancestors');
+      chip('نیاکان مادرم', 'ancestors', mother, 'ancestors');
+      chip('ساعت شنی من', 'hourglass', self, 'hourglass');
+      if (top !== self && top.id !== gfPaternal?.id && top.id !== father?.id) chip(`کل خاندان از جد اعلا (${top.first_name})`, 'descendants', top, 'crown');
+    }
+    if (focus && focus.id !== me?.id) {
+      chip(`از ${focus.first_name} به پایین`, 'descendants', focus, 'tree');
+      chip(`نیاکان ${focus.first_name}`, 'ancestors', focus, 'ancestors');
+    }
+    if (chips.length) {
+      presetBox.replaceChildren(h('label', { class: 'label' }, icon('sparkles'), ' انتخاب سریع'), h('div', { class: 'row wrap', style: { gap: '6px' } }, ...chips));
+    }
+  }
+  loadPresets();
+
   function personPicker(label, getId, setId) {
-    const current = ctx.data.get(getId());
+    const current = ctx.data.get(getId()) || names.get(getId());
     const holder = h('div', null, current ? personRow(current) : h('div', { class: 'muted small' }, 'انتخاب نشده'));
     const box = searchBox({
       inline: true,
       placeholder: 'تغییر شخص...',
       onSelect: (p) => {
+        names.set(p.id, p);
         setId(p.id);
         holder.replaceChildren(personRow(p));
         box.input.value = '';
@@ -241,7 +309,36 @@ export function openExportDialog(ctx) {
     return { w, h: hh };
   }
 
+  /**
+   * خاندان‌های بزرگ روی کاغذ معمولی ریز می‌شوند؛ اندازه‌ای پیشنهاد می‌شود که عکس هر نفر
+   * حدود ۱۵ میلی‌متر (نام‌ها خوانا) باشد — حداکثر ۱۰۰ متر.
+   */
+  function suggestSize(t, d, cm) {
+    suggestBox.replaceChildren();
+    if (!(d > 0) || d >= 12) return;
+    const k = 15 / d;
+    let wCm = Math.ceil((t.widthMm * k) / 100) * 10;
+    let hCm = Math.ceil((t.heightMm * k) / 100) * 10;
+    const cap = 10000 / Math.max(wCm, hCm);
+    if (cap < 1) {
+      wCm = Math.floor(wCm * cap);
+      hCm = Math.floor(hCm * cap);
+    }
+    hCm = Math.max(hCm, 20);
+    suggestBox.append(h('div', { class: 'suggest-size' },
+      icon('info'), ` برای اینکه نام‌ها و عکس‌ها خوانا باشند اندازه چاپ حدود ${cm(wCm * 10)} × ${cm(hCm * 10)} پیشنهاد می‌شود (یا بخش کوچک‌تری از خاندان را انتخاب کنید).`,
+      h('button', { class: 'btn soft xs', type: 'button', onclick: () => {
+        opts.paper = 'custom';
+        opts.customW = wCm;
+        opts.customH = hCm;
+        opts.unit = wCm >= 200 ? 'm' : 'cm';
+        renderFormat();
+      } }, 'استفاده از این اندازه'),
+    ));
+  }
+
   function updateInfo() {
+    suggestBox.replaceChildren();
     if (!built) return;
     const parts = [`${fa(built.count)} نفر`];
     if (opts.format === 'pdf' && opts.quality === 'vector') {
@@ -252,6 +349,7 @@ export function openExportDialog(ctx) {
       const d = photoDiameterMm(built.layout, { w: t.widthMm, h: t.heightMm });
       parts.push(`قطر عکس هر نفر: ${fa(d >= 10 ? Math.round(d) : d.toFixed(1))} میلی‌متر${d < 8 ? ' (کوچک؛ اندازه بزرگ‌تر یا نمای فشرده را امتحان کنید)' : ''}`);
       if (opts.pdfMode === 'tiles') parts.push(`${fa(t.total)} برگه ${opts.sheet} (${fa(t.rows)} ردیف × ${fa(t.cols)} ستون)`);
+      suggestSize(t, d, cm);
     } else {
       parts.push(`ابعاد ${fa(built.width)}×${fa(built.height)}`);
       if (opts.format === 'pdf' && opts.pdfMode === 'tiles') {

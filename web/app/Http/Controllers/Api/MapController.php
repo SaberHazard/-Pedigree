@@ -34,8 +34,8 @@ class MapController extends Controller
             ->where('is_deceased', false)
             ->when(! $user->isAdmin(), fn (Builder $q) => $q->where(fn (Builder $q) => $q
                 ->where('location_visibility', 'all')
-                ->orWhere('id', $user->person_id)
-                ->orWhereIn('id', array_keys($kin) ?: [''])))
+                ->when($user->person_id, fn (Builder $q) => $q->orWhere('id', $user->person_id))
+                ->when($kin, fn (Builder $q) => $q->orWhereIn('id', array_keys($kin)))))
             ->limit($limit)
             ->get();
         foreach ($homes as $person) {
