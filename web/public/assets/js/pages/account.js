@@ -55,7 +55,7 @@ export default function accountPage(container) {
       ], prefs.theme, (v) => save('theme', v))),
       h('div', { class: 'form-grid' },
         field('متن بالای دایره', select('arc_top', prefs.arc_top, { name: 'نام', fullname: 'نام با عنوان', nickname: 'شهرت', none: 'هیچ' }, save)),
-        field('متن پایین دایره', select('arc_bottom', prefs.arc_bottom, { dates: 'سال تولد و وفات', place: 'محل تولد', occupation: 'شغل', none: 'هیچ' }, save)),
+        field('متن پایین دایره', select('arc_bottom', prefs.arc_bottom, { dates: 'سال تولد و وفات', place: 'محل تولد', occupation: 'شغل', education: 'تحصیلات', city: 'شهر محل زندگی', none: 'هیچ' }, save)),
         field('ترتیب فرزندان', select('children_order', prefs.children_order, { rtl: 'ارشد سمت راست', ltr: 'ارشد سمت چپ' }, save)),
       ),
       h('div', { class: 'row wrap', style: { gap: '20px' } },

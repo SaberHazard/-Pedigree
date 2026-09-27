@@ -17,6 +17,7 @@ import { saveFile } from '../core/native.js';
 import { TreeData } from '../tree/model.js';
 import { layoutDescendants, layoutAncestors, layoutHourglass } from '../tree/layout.js';
 import { buildExportSvg, exportPdf, exportPng, exportSvg, printSvg, tileCount } from '../tree/export.js';
+import { buildVectorPdf, sheetCount, photoDiameterMm, PAPER } from '../tree/vector-pdf.js';
 import { personRow, searchBox } from './person-search.js';
 
 const SCOPES = [
@@ -38,6 +39,11 @@ export function openExportDialog(ctx) {
     orientation: 'auto',
     pdfMode: 'fit',
     tileScale: 100,
+    quality: 'vector', // vector | raster
+    customW: 1000, // اندازه دلخواه به سانتی‌متر (پیش‌فرض بنر ۱۰×۵ متر)
+    customH: 500,
+    unit: 'cm',
+    sheet: 'A3',
     photos: store.prefs.show_photos !== false,
     grayscale: false,
     title: '',
@@ -143,25 +149,50 @@ export function openExportDialog(ctx) {
 
   function renderFormat() {
     formatBox.replaceChildren();
+    const vector = opts.format === 'pdf' && opts.quality === 'vector';
+    // اندازه دلخواه فقط در PDF برداری؛ در چاپ و خروجی تصویری به A3 برگردد
+    if (!vector && opts.paper === 'custom') opts.paper = 'A3';
+    if (opts.format === 'pdf') {
+      formatBox.append(h('div', { class: 'field' }, h('label', null, 'کیفیت'), segmented([
+        { value: 'vector', label: 'برداری (هر اندازه، بدون افت کیفیت)' },
+        { value: 'raster', label: 'تصویری' },
+      ], opts.quality, (v) => {
+        opts.quality = v;
+        if (v === 'raster' && opts.paper === 'custom') opts.paper = 'A3';
+        renderFormat();
+      })));
+    }
     if (opts.format === 'pdf' || opts.format === 'print') {
-      const paper = h('select', { class: 'input', onchange: () => { opts.paper = paper.value; updateInfo(); } },
-        ...['A4', 'A3', 'A2', 'A1', 'A0'].map((p) => h('option', { value: p, selected: p === opts.paper }, p)));
+      const sizes = ['A4', 'A3', 'A2', 'A1', 'A0'];
+      if (vector) sizes.push('custom');
+      const paper = h('select', { class: 'input', onchange: () => { opts.paper = paper.value; renderFormat(); } },
+        ...sizes.map((p) => h('option', { value: p, selected: p === opts.paper }, p === 'custom' ? 'اندازه دلخواه (مثلاً بنر)' : p)));
       const orient = h('select', { class: 'input', onchange: () => { opts.orientation = orient.value; updateInfo(); } },
         h('option', { value: 'auto' }, 'خودکار'), h('option', { value: 'landscape' }, 'افقی'), h('option', { value: 'portrait' }, 'عمودی'));
       orient.value = opts.orientation;
-      formatBox.append(h('div', { class: 'form-grid' }, field('اندازه کاغذ', paper), field('جهت', orient)));
+      formatBox.append(h('div', { class: 'form-grid' }, field(vector ? 'اندازه چاپ نهایی' : 'اندازه کاغذ', paper), field('جهت', orient)));
+      if (vector && opts.paper === 'custom') formatBox.append(customSize());
     }
     if (opts.format === 'pdf') {
       const scale = h('input', { class: 'input', type: 'number', min: 30, max: 200, value: opts.tileScale, onchange: () => { opts.tileScale = +scale.value || 100; updateInfo(); } });
       const scaleField = field('اندازه درخت در چاپ پوستری (درصد)', scale, { hint: 'برای چسباندن صفحات کنار هم و ساخت پوستر بزرگ' });
-      scaleField.hidden = opts.pdfMode !== 'tiles';
+      const sheet = h('select', { class: 'input', onchange: () => { opts.sheet = sheet.value; updateInfo(); } },
+        ...['A4', 'A3', 'A2', 'A1'].map((p) => h('option', { value: p, selected: p === opts.sheet }, p)));
+      const sheetField = field('چاپ روی برگه‌های', sheet, { hint: 'برگه‌ها با ۶ میلی‌متر هم‌پوشانی و علامت برش؛ کنار هم بچسبانید.' });
+      const syncFields = () => {
+        scaleField.hidden = vector || opts.pdfMode !== 'tiles';
+        sheetField.hidden = !vector || opts.pdfMode !== 'tiles';
+      };
+      syncFields();
       formatBox.append(
         h('div', { class: 'field' }, h('label', null, 'چیدمان صفحه'), segmented([
-          { value: 'fit', label: 'همه در یک صفحه' },
-          { value: 'tiles', label: 'پوستری (چند صفحه)' },
-        ], opts.pdfMode, (v) => { opts.pdfMode = v; scaleField.hidden = v !== 'tiles'; updateInfo(); })),
+          { value: 'fit', label: vector ? 'یک صفحه به همین اندازه' : 'همه در یک صفحه' },
+          { value: 'tiles', label: vector ? 'چند برگه برای چسباندن' : 'پوستری (چند صفحه)' },
+        ], opts.pdfMode, (v) => { opts.pdfMode = v; syncFields(); updateInfo(); })),
         scaleField,
+        sheetField,
       );
+      if (vector) formatBox.append(h('p', { class: 'muted small' }, icon('info'), ' در PDF برداری متن‌ها و خطوط در هر بزرگنمایی تیز می‌مانند؛ مناسب چاپ دیواری و بنر (چاپخانه‌ها فایل را مستقیم می‌پذیرند). متن داخل PDF قابل جستجو است.'));
     }
     if (opts.format === 'print') {
       formatBox.append(h('p', { class: 'muted small' }, 'در پنجره چاپ می‌توانید «Save as PDF» را هم انتخاب کنید تا یک PDF کاملاً برداری (با کیفیت نامحدود) داشته باشید.'));
@@ -169,12 +200,64 @@ export function openExportDialog(ctx) {
     updateInfo();
   }
 
+  /** ورود اندازه دلخواه به سانتی‌متر یا متر */
+  function customSize() {
+    const factor = () => (opts.unit === 'm' ? 100 : 1);
+    const w = h('input', { class: 'input ltr-input', type: 'number', min: 0.1, step: 'any', value: +(opts.customW / factor()).toFixed(2) });
+    const hh = h('input', { class: 'input ltr-input', type: 'number', min: 0.1, step: 'any', value: +(opts.customH / factor()).toFixed(2) });
+    const unit = h('select', { class: 'input' }, h('option', { value: 'cm' }, 'سانتی‌متر'), h('option', { value: 'm' }, 'متر'));
+    unit.value = opts.unit;
+    const read = () => {
+      opts.customW = Math.min(10000, Math.max(5, (parseFloat(w.value) || 0) * factor()));
+      opts.customH = Math.min(10000, Math.max(5, (parseFloat(hh.value) || 0) * factor()));
+      updateInfo();
+    };
+    w.addEventListener('input', read);
+    hh.addEventListener('input', read);
+    unit.addEventListener('change', () => {
+      opts.unit = unit.value;
+      w.value = +(opts.customW / factor()).toFixed(2);
+      hh.value = +(opts.customH / factor()).toFixed(2);
+    });
+    return h('div', { class: 'form-grid' },
+      field('عرض', w),
+      field('ارتفاع', hh),
+      field('واحد', unit),
+      h('div', { class: 'field' }, h('label', null, 'نمونه‌ها'), h('div', { class: 'row wrap', style: { gap: '4px' } },
+        ...[[100, 70, '۱×۰٫۷ متر'], [200, 100, '۲×۱ متر'], [500, 250, '۵×۲٫۵ متر'], [1000, 500, 'بنر ۱۰×۵ متر']].map(([cw, ch, label]) => h('button', {
+          class: 'btn ghost sm', type: 'button', onclick: () => {
+            opts.customW = cw;
+            opts.customH = ch;
+            renderFormat();
+          },
+        }, label)))),
+    );
+  }
+
+  /** اندازه صفحه/چاپ نهایی به میلی‌متر */
+  function sizeMm() {
+    if (opts.paper === 'custom') return { w: opts.customW * 10, h: opts.customH * 10 };
+    const [w, hh] = PAPER[opts.paper] || PAPER.A3;
+    return { w, h: hh };
+  }
+
   function updateInfo() {
     if (!built) return;
-    const parts = [`${fa(built.count)} نفر`, `ابعاد ${fa(built.width)}×${fa(built.height)}`];
-    if (opts.format === 'pdf' && opts.pdfMode === 'tiles') {
-      const t = tileCount(built, opts);
-      parts.push(`${fa(t.total)} صفحه ${opts.paper} (${fa(t.rows)} ردیف × ${fa(t.cols)} ستون)`);
+    const parts = [`${fa(built.count)} نفر`];
+    if (opts.format === 'pdf' && opts.quality === 'vector') {
+      const size = sizeMm();
+      const t = sheetCount(built.layout, { final: size, sheet: opts.sheet, orientation: opts.orientation });
+      const cm = (mm) => (mm >= 1000 ? `${fa((mm / 1000).toFixed(2).replace(/\.?0+$/, ''))} متر` : `${fa(Math.round(mm / 10))} سانتی‌متر`);
+      parts.push(`اندازه چاپ درخت: ${cm(t.widthMm)} × ${cm(t.heightMm)}`);
+      const d = photoDiameterMm(built.layout, { w: t.widthMm, h: t.heightMm });
+      parts.push(`قطر عکس هر نفر: ${fa(d >= 10 ? Math.round(d) : d.toFixed(1))} میلی‌متر${d < 8 ? ' (کوچک؛ اندازه بزرگ‌تر یا نمای فشرده را امتحان کنید)' : ''}`);
+      if (opts.pdfMode === 'tiles') parts.push(`${fa(t.total)} برگه ${opts.sheet} (${fa(t.rows)} ردیف × ${fa(t.cols)} ستون)`);
+    } else {
+      parts.push(`ابعاد ${fa(built.width)}×${fa(built.height)}`);
+      if (opts.format === 'pdf' && opts.pdfMode === 'tiles') {
+        const t = tileCount(built, opts);
+        parts.push(`${fa(t.total)} صفحه ${opts.paper} (${fa(t.rows)} ردیف × ${fa(t.cols)} ستون)`);
+      }
     }
     info.textContent = parts.join(' • ');
   }
@@ -220,7 +303,7 @@ export function openExportDialog(ctx) {
         siteName: store.config.site_name,
       });
       if (my !== buildToken) return;
-      built = { ...result, count: layout.nodes.length };
+      built = { ...result, count: layout.nodes.length, layout };
       const url = URL.createObjectURL(new Blob([result.svg], { type: 'image/svg+xml' }));
       const img = h('img', { src: url, alt: 'پیش‌نمایش', style: { maxWidth: '100%', maxHeight: '340px', borderRadius: '10px', boxShadow: 'var(--shadow-sm)', background: '#fff' } });
       img.onload = () => setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -243,7 +326,25 @@ export function openExportDialog(ctx) {
       if (opts.format === 'svg') await exportSvg(built, `${name}.svg`);
       else if (opts.format === 'png') await exportPng(built, `${name}.png`);
       else if (opts.format === 'print') printSvg(built, opts);
-      else {
+      else if (opts.quality === 'vector') {
+        const label = button.lastChild.textContent;
+        const blob = await buildVectorPdf(built.layout, {
+          title: opts.title,
+          subtitle: `${store.config.site_name || ''} - ${dateTime(new Date().toISOString(), false)}`,
+          siteName: store.config.site_name,
+          prefs: store.prefs,
+          photos: opts.photos,
+          grayscale: opts.grayscale,
+          mode: opts.pdfMode,
+          page: sizeMm(),
+          final: sizeMm(),
+          sheet: opts.sheet,
+          orientation: opts.orientation,
+          onProgress: (p) => (button.lastChild.textContent = `در حال ساخت... ${fa(Math.round(p * 100))}٪`),
+        });
+        button.lastChild.textContent = label;
+        await saveFile(blob, `${name}.pdf`);
+      } else {
         const label = button.textContent;
         await exportPdf(built, `${name}.pdf`, {
           ...opts,

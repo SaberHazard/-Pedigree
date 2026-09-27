@@ -51,8 +51,8 @@ export function fitText(text, maxWidth, baseSize, minSize, weight) {
 
 // ------------------------------------------------------------------ تعاریف مشترک (defs)
 export function buildDefs(g, idPrefix = 't') {
-  const rt = g.R + g.ring + 3; // شعاع خط پایه متن بالا (حروف رو به بیرون)
-  const rb = g.R + g.ring + g.band - 5; // شعاع خط پایه متن پایین (حروف رو به داخل = ایستاده)
+  const rt = g.rt; // شعاع خط پایه متن بالا (حروف رو به بیرون)
+  const rb = g.rb; // شعاع خط پایه متن پایین (حروف رو به داخل = ایستاده)
   const defs = s('defs');
   defs.innerHTML = `
     <clipPath id="${idPrefix}-clip-photo" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5"/></clipPath>
@@ -72,6 +72,14 @@ export function buildDefs(g, idPrefix = 't') {
   return defs;
 }
 
+/** نام کوتاه مقطع تحصیلی برای جا شدن روی قوس کوچک */
+const EDUCATION_SHORT = {
+  illiterate: 'بی‌سواد', literate: 'سواد قدیمی', primary: 'ابتدایی', middle: 'سیکل', high_school: 'دیپلم',
+  associate: 'فوق‌دیپلم', bachelor: 'لیسانس', master: 'فوق‌لیسانس', professional_doctorate: 'دکترای حرفه‌ای',
+  phd: 'دکترا', specialist: 'متخصص', subspecialist: 'فوق‌تخصص', fellowship: 'فلوشیپ', postdoc: 'پسادکترا',
+  hawza_1: 'حوزوی ۱', hawza_2: 'حوزوی ۲', hawza_3: 'حوزوی ۳', hawza_4: 'حوزوی ۴',
+};
+
 // ------------------------------------------------------------------ متن‌های دور دایره
 export function arcTexts(person, prefs = {}) {
   const topMode = prefs.arc_top || 'name';
@@ -85,6 +93,8 @@ export function arcTexts(person, prefs = {}) {
   if (bottomMode === 'dates' || bottomMode === 'years') bottom = lifespan(person);
   else if (bottomMode === 'place') bottom = person.birth_place || '';
   else if (bottomMode === 'occupation') bottom = person.occupation || '';
+  else if (bottomMode === 'education') bottom = EDUCATION_SHORT[person.education_level] || '';
+  else if (bottomMode === 'city') bottom = person.city || '';
 
   return { top: fa(top), bottom: fa(bottom) };
 }
@@ -108,8 +118,8 @@ export function buildNode(node, g, opts = {}) {
   const inner = s('g', { class: 't-inner' });
   el.append(inner);
 
-  const rt = g.R + g.ring + 3;
-  const rb = g.R + g.ring + g.band - 5;
+  const rt = g.rt;
+  const rb = g.rb;
 
   if (opts.interactive !== false) {
     inner.append(
@@ -172,17 +182,15 @@ export function buildNode(node, g, opts = {}) {
 
   // متن‌های روی قوس
   const texts = arcTexts(p, prefs);
-  const maxTop = Math.PI * rt * 0.78;
-  const maxBottom = Math.PI * rb * 0.72;
-  const baseTop = g.R >= 40 ? 13.5 : 12;
-  const baseBottom = g.R >= 40 ? 11.5 : 10.5;
+  const maxTop = Math.PI * rt * 0.8;
+  const maxBottom = Math.PI * rb * 0.74;
 
   if (texts.top) {
-    const fit = fitText(texts.top, maxTop, baseTop, 8.5, 700);
+    const fit = fitText(texts.top, maxTop, g.topSize, g.topSize * 0.78, 700);
     inner.append(arcText(`#${idp}-arc-top`, fit, 't-arc t-arc-top', 700));
   }
   if (texts.bottom) {
-    const fit = fitText(texts.bottom, maxBottom, baseBottom, 8, 500);
+    const fit = fitText(texts.bottom, maxBottom, g.bottomSize, g.bottomSize * 0.8, 500);
     inner.append(arcText(`#${idp}-arc-bottom`, fit, 't-arc t-arc-bottom', 500));
   }
 

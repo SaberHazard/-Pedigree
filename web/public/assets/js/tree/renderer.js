@@ -21,7 +21,7 @@ const OVERVIEW_ZOOM = 0.28;
 
 /** استایل داخلی SVG (برای خروجی PDF/SVG هم استفاده می‌شود) */
 export const TREE_CSS = `
-.t-arc{fill:var(--t-text,#1d2a2f);paint-order:stroke;stroke:var(--t-halo,#fbf8f2);stroke-width:3.2px;stroke-linejoin:round;font-family:Vazirmatn,Tahoma,sans-serif}
+.t-arc{fill:var(--t-text,#1d2a2f);paint-order:stroke;stroke:var(--t-halo,#fbf8f2);stroke-width:2.4px;stroke-linejoin:round;font-family:Vazirmatn,Tahoma,sans-serif}
 .t-arc-bottom{fill:var(--t-text-2,#56666b)}
 .t-link{fill:none;stroke:var(--t-link,#b39a74);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .t-link.marriage{stroke:var(--t-marriage,#c9a24a);stroke-width:2.6}

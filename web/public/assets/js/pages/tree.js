@@ -307,6 +307,8 @@ export default async function treePage(container, { params, query }) {
       { label: 'پایین دایره: سال تولد و وفات', icon: check(prefs.arc_bottom === 'dates'), onClick: () => set('arc_bottom', 'dates') },
       { label: 'پایین دایره: محل تولد', icon: check(prefs.arc_bottom === 'place'), onClick: () => set('arc_bottom', 'place') },
       { label: 'پایین دایره: شغل', icon: check(prefs.arc_bottom === 'occupation'), onClick: () => set('arc_bottom', 'occupation') },
+      { label: 'پایین دایره: تحصیلات', icon: check(prefs.arc_bottom === 'education'), onClick: () => set('arc_bottom', 'education') },
+      { label: 'پایین دایره: شهر محل زندگی', icon: check(prefs.arc_bottom === 'city'), onClick: () => set('arc_bottom', 'city') },
       { label: 'پایین دایره: هیچ', icon: check(prefs.arc_bottom === 'none'), onClick: () => set('arc_bottom', 'none') },
       'sep',
       { label: 'فرزند ارشد سمت راست', icon: check(prefs.children_order !== 'ltr'), onClick: () => set('children_order', 'rtl') },

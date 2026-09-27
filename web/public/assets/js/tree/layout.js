@@ -6,7 +6,7 @@
  * نزدیک می‌شوند و والدین بالای فرزندانشان وسط‌چین می‌شوند.
  *
  * هر «واحد» در نمای نوادگان = یک عضو خونی + همسرانش در یک ردیف.
- *   ترتیب همسران در ردیف: [همسر۲][شخص][همسر۱][همسر۳] ...
+ *   ترتیب همسران در ردیف: [شخص][همسر۱][همسر۲][همسر۳] ... (همسر اول نزدیک‌ترین)
  * فرزندان هر ازدواج زیر نقطه میانی خط ازدواج آویزان می‌شوند.
  *
  * خروجی: { nodes, links, bounds }  (مختصات مرکز دایره‌ها)
@@ -14,23 +14,39 @@
  * تا فرزند ارشد سمت راست و شوهر سمت راستِ همسرش قرار بگیرد.
  */
 
-/** اندازه‌ها (در حالت فشرده کوچک‌تر می‌شوند) */
+/**
+ * اندازه‌ها (در حالت فشرده کوچک‌تر می‌شوند).
+ *
+ * متن‌ها نسبت به عکس کوچک و درست بیرون حلقه قرار می‌گیرند؛ شعاع خط پایه متن‌ها از روی
+ * اندازه حروف حساب می‌شود تا دنباله حروف (ی، ن، ر) به حلقه نخورد و فاصله اضافه هم نماند.
+ * فاصله همسران و خواهر/برادرها کم، و فاصله شاخه‌های خانواده‌های مختلف بیشتر است
+ * تا در چاپ دیواری بزرگ (هزار نفر و بیشتر) خانواده‌ها از هم جدا ولی درون خود فشرده باشند.
+ */
 export function geometry(compact = false) {
-  const R = compact ? 34 : 42; // شعاع عکس
-  const ring = compact ? 4 : 5; // ضخامت حلقه رنگی
-  const band = compact ? 17 : 20; // فضای متن دور دایره
-  const outer = R + ring + band;
+  const R = compact ? 32 : 40; // شعاع عکس
+  const ring = compact ? 2.5 : 3; // ضخامت حلقه رنگی
+  const topSize = compact ? 9 : 10.5; // قلم نام (قوس بالا)
+  const bottomSize = compact ? 7.6 : 8.8; // قلم تاریخ‌ها (قوس پایین)
+  // قوس بالا: حروف رو به بیرون؛ خط پایه به اندازه دنباله حروف بیرون از حلقه
+  const rt = R + ring + topSize * 0.38 + 0.6;
+  // قوس پایین: حروف ایستاده و رو به مرکز؛ خط پایه به اندازه بلندی حروف بیرون از حلقه
+  const rb = R + ring + bottomSize * 0.8 + 0.8;
+  const outer = Math.ceil(Math.max(rt + topSize * 0.8, rb + bottomSize * 0.4) + 1);
   return {
     R,
     ring,
-    band,
+    topSize,
+    bottomSize,
+    rt,
+    rb,
     outer,
-    nodeW: outer * 2 + (compact ? 10 : 16),
-    spouseGap: compact ? 24 : 34,
-    siblingGap: compact ? 14 : 22,
-    subtreeGap: compact ? 26 : 40,
-    groupGap: compact ? 26 : 40,
-    levelH: compact ? 200 : 250,
+    band: outer - R - ring,
+    nodeW: outer * 2 + (compact ? 2 : 4),
+    spouseGap: compact ? 4 : 8, // فاصله همسران در یک ردیف
+    siblingGap: compact ? 4 : 6, // فاصله خواهر و برادرها
+    groupGap: compact ? 12 : 16, // فاصله فرزندانِ همسرهای مختلف
+    subtreeGap: compact ? 22 : 30, // فاصله شاخه‌های خانواده‌های مختلف (عموزاده‌ها ...)
+    levelH: compact ? 146 : 176, // فاصله نسل‌ها
   };
 }
 
@@ -65,10 +81,14 @@ function shiftContour(contour, dx) {
   return contour.map((c) => ({ l: c.l + dx, r: c.r + dx }));
 }
 
-/** موقعیت‌های ردیف همسران نسبت به شخص: ۰، +۱، -۱، +۲، -۲ ... */
-function spouseSlot(i) {
-  const n = Math.floor(i / 2) + 1;
-  return i % 2 === 0 ? n : -n;
+/**
+ * جایگاه همسران در ردیف: همه در یک سمت شخص و به ترتیب ازدواج
+ * (همسر اول نزدیک‌ترین، دوم کنار او، سوم بعدی ...).
+ * سمت: همسرانِ مرد سمت چپ او و همسرانِ زن سمت راست او (پس از قرینه‌سازی راست‌به‌چپ)
+ * تا همیشه شوهر سمت راست همسرش باشد.
+ */
+function spouseSlot(i, gender) {
+  return (gender === 'f' ? -1 : 1) * (i + 1);
 }
 
 // ------------------------------------------------------------------ نمای نوادگان
@@ -100,10 +120,11 @@ function descendantsRaw(data, rootId, opts = {}) {
 
     // همسران
     const marriages = data.marriagesOf(personId);
+    const gender = data.get(personId)?.gender;
     const spouses = marriages.map((m, i) => ({
       marriage: m,
       id: data.partnerOf(m, personId),
-      slot: spouseSlot(i),
+      slot: spouseSlot(i, gender),
     }));
 
     // گروه‌بندی فرزندان بر اساس والد دیگر
@@ -216,7 +237,7 @@ function descendantsRaw(data, rootId, opts = {}) {
         from: main.key,
       });
       spouseNodes.set(s.id, sp);
-      links.push({ type: 'marriage', a: main, b: sp, marriage: s.marriage, far: Math.abs(s.slot) > 1 });
+      links.push({ type: 'marriage', a: main, b: sp, marriage: s.marriage, far: Math.abs(s.slot) > 1, level: Math.abs(s.slot) });
     }
 
     for (const gr of unit.groups) {
@@ -371,8 +392,8 @@ function marriagePath(l, g) {
     d = `M${left.x + edge},${a.y} H${right.x - edge}`;
     mid = { x: (left.x + right.x) / 2, y: a.y };
   } else {
-    // همسر دورتر (همسر سوم به بعد): قوس از بالای ردیف
-    const lift = g.outer + 26;
+    // همسر دوم به بعد: قوس از بالای ردیف (هر همسر بعدی کمی بالاتر تا قوس‌ها روی هم نیفتند)
+    const lift = g.outer + 26 + Math.max(0, (l.level || 2) - 2) * 18;
     const y0 = a.y - g.R * 0.75;
     d = `M${left.x},${y0} C${left.x},${a.y - lift} ${right.x},${a.y - lift} ${right.x},${y0}`;
     mid = { x: (left.x + right.x) / 2, y: a.y - lift * 0.76 };
