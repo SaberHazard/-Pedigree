@@ -129,8 +129,12 @@ class PersonController extends Controller
 
         // شناسه‌ها به صورت رشته گرفته می‌شوند (در PostgreSQL مقایسه مستقیم uuid با varchar خطا است)
         $mediaIds = $person->media()->withTrashed()->pluck('id')->map(fn ($id) => (string) $id)->all();
+        // ورود/خروج و تغییرات حساب فقط برای خود شخص و مدیر (حریم خصوصی)
+        $viewer = $request->user();
+        $private = ! $viewer->isAdmin() && $viewer->person_id !== $person->id;
         $logs = ActivityLog::query()
             ->with('user.person')
+            ->when($private, fn (Builder $q) => $q->where('action', 'not like', 'auth.%')->where('action', 'not like', 'account.%'))
             ->where(function (Builder $q) use ($person, $mediaIds) {
                 $q->where(fn (Builder $q) => $q->where('subject_type', 'Person')->where('subject_id', (string) $person->id));
                 if ($mediaIds) {

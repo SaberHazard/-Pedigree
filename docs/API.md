@@ -81,14 +81,18 @@
 ### `POST /auth/register` — تکمیل ثبت‌نام
 ```json
 { "registration_token": "...", "first_name": "مریم", "last_name": "کریمی", "gender": "f",
+  "national_code": "0012345679", "no_national_code": false,
   "birth_date": "1370", "password": null, "device_name": "iPhone" }
 ```
+کد ملی اجباری است مگر `no_national_code: true` (کسی که کد ملی ایرانی ندارد؛ قابل غیرفعال کردن در تنظیمات).
+کد ملی‌ای که به پروفایل موجودی تعلق دارد پذیرفته نمی‌شود (پروفایل موجود فقط با ثبت موبایل توسط بستگان ادعا می‌شود).
 
-### `POST /auth/login` — ورود با کد ملی و رمز
+### `POST /auth/login` — ورود با رمز
 ```json
-{ "national_code": "0012345679", "password": "********", "device_name": "Pixel 8" }
+{ "identifier": "0012345679 | tahereh.k | 09121234567", "password": "********", "device_name": "Pixel 8" }
 ```
-پس از ۵ تلاش ناموفق، ورود با آن کد ملی ۱۵ دقیقه قفل می‌شود.
+`identifier` می‌تواند کد ملی، نام کاربری یا موبایل باشد (فیلد قدیمی `national_code` هم پذیرفته می‌شود).
+پس از ۵ تلاش ناموفق، ورود با آن شناسه ۱۵ دقیقه قفل می‌شود.
 
 ### `GET /auth/me` — کاربر فعلی
 ```json
@@ -105,8 +109,9 @@
 
 | روش | مسیر | توضیح |
 |---|---|---|
-| PUT | `/account/preferences` | `theme` (light/dark/auto)، `arc_top` (name/fullname/nickname/none)، `arc_bottom` (dates/place/occupation/none)، `children_order` (rtl/ltr)، `show_photos`، `compact`، `calendar` |
+| PUT | `/account/preferences` | `theme` (light/dark/auto)، `arc_top` (name/fullname/nickname/none)، `arc_bottom` (dates/place/occupation/education/city/none)، `children_order` (rtl/ltr)، `show_photos`، `compact`، `calendar` |
 | PUT | `/account/password` | `current_password` (اگر در ۱۵ دقیقه اخیر با پیامک وارد نشده‌اید)، `password`، `password_confirmation` |
+| PUT | `/account/username` | `{username}` (حروف کوچک لاتین، عدد، `.` `_` `-`؛ `null` = حذف) |
 | POST | `/account/phone/otp` | ارسال کد به شماره جدید: `{phone}` |
 | PUT | `/account/phone` | تأیید شماره جدید: `{phone, code}` |
 | GET | `/account/sessions` | فهرست نشست‌ها و دستگاه‌ها |
@@ -122,16 +127,24 @@
 
 ### `GET /persons/{id}` — مشخصات کامل
 علاوه بر فیلدهای Node:
-`death_place, burial_place, education, residence, biography, is_locked, avatar_medium,
-national_code, phone, birth_cert_no, birth_cert_place, email` (فیلدهای حساس فقط برای افراد مجاز، وگرنه `null`)،
-`has_national_code, has_phone, account{exists, active, has_password}`،
-`permissions{edit, sensitive, upload, delete, admin}`.
+- مشخصات: `death_place, burial_place, burial_location{lat,lng}, education_level, education_field, education_institution,
+  academic_rank, workplace, country (ISO2), province, city, residence, blood_type, languages, interests,
+  custom_fields[{label,value}], website, social{instagram,telegram,...}, biography, is_locked, avatar_medium`
+- با اجازه خود شخص (`share_location`) یا برای ویرایشگران: `address, postal_code, home_location{lat,lng}` (وگرنه `null`؛ `has_home_location`)
+- با اجازه خود شخص (`share_contact`) یا دسترسی حساس: `phone, email, landline`
+- فقط با دسترسی حساس: `national_code, birth_cert_no, birth_cert_place, account.username, account.has_password`
+- `texts{summary|description|biography|resume: {segments: [[user_id, "متن"], ...], revision, updated_at}}` — نویسنده هر تکه
+- `resume[{id, type, title, organization, location, start_date, end_date, is_current, description, author_id}]`
+- `field_meta{field: {u: user_id, t: unix}}` آخرین ویرایشگر هر فیلد
+- `contributors[{id, name, person_id, relation, color}]` — `color`: `owner` | `admin` | شماره پالت
+- `completeness{percent, missing[]}` (فقط برای ویرایشگران)
+- `permissions{edit, sensitive, upload, delete, admin, history, comment, rate}`
 
 ### `POST /persons` — ساخت شخص مستقل (مثلاً جد اعلای یک خاندان)
 ### `PATCH /persons/{id}` — ویرایش
-فیلدها: `first_name, last_name, nickname, title, gender, birth_order, birth_date, birth_place,
-is_deceased, death_date, death_place, burial_place, occupation, education, residence, biography`
-و (با دسترسی حساس) `national_code, phone, birth_cert_no, birth_cert_place, email, password, is_locked`.
+همه فیلدهای بالا (به جز متن‌ها و رزومه که مسیر جدا دارند) + `home_lat, home_lng, burial_lat, burial_lng, share_location, share_contact`؛
+و (با دسترسی حساس) `national_code, phone, birth_cert_no, birth_cert_place, email, username, password, is_locked`.
+مقادیر مجاز `education_level`، `academic_rank`، `social` و ... در `GET /bootstrap` → `profile` هستند.
 
 ### `DELETE /persons/{id}` — حذف (قابل بازیابی توسط مدیر)
 
@@ -143,6 +156,38 @@ is_deceased, death_date, death_place, burial_place, occupation, education, resid
 ```
 
 ### `GET /persons/{id}/history` — تاریخچه تغییرات (لاگ ممیزی)
+برای همه اعضا (قابل تنظیم)؛ IP فقط برای مدیر، و ورود/خروج فقط برای خود شخص و مدیر.
+
+### متن‌های رنگی (نویسنده هر کلمه)
+| روش | مسیر | توضیح |
+|---|---|---|
+| PUT | `/persons/{id}/texts/{field}` | `{text, base_revision}` — `field`: summary / description / biography / resume. اگر نسخه پایه قدیمی باشد `409` با `code: text_conflict` |
+| GET | `/persons/{id}/texts/{field}/revisions` | نسخه‌ها: نویسنده، `added`/`removed` (کلمه)، `restored_from` |
+| GET | `/persons/{id}/texts/{field}/revisions/{n}` | متن کامل یک نسخه + نویسندگان |
+| POST | `/persons/{id}/texts/{field}/revisions/{n}/restore` | بازگردانی (نویسندگان همان نسخه حفظ می‌شوند) |
+
+پاسخ ذخیره: `{ "data": {field, segments, revision, updated_at}, "contributors": [...] }`
+
+### رزومه
+| روش | مسیر | بدنه |
+|---|---|---|
+| POST | `/persons/{id}/resume` | `type (education/work/military/award/certificate/publication/skill/volunteer/travel/other), title, organization, location, start_date, end_date, is_current, description, sort_order` |
+| PATCH | `/resume/{id}` | همان فیلدها |
+| DELETE | `/resume/{id}` | |
+
+### نظرها و امتیاز ویژگی‌ها
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/persons/{id}/comments?page=` | نظرها (مخفی‌شده‌ها فقط برای نویسنده و ویرایشگران) + `can{write, moderate}` |
+| POST | `/persons/{id}/comments` | `{body}` |
+| PATCH | `/comments/{id}` | فقط نویسنده: `{body}` |
+| DELETE | `/comments/{id}` | نویسنده یا مدیر |
+| POST | `/comments/{id}/hide` | `{hidden: true/false}` — خود شخص، بستگان درجه یک، مدیر |
+| GET | `/persons/{id}/ratings` | `{traits[{key,label,average,count,distribution[5],mine}], raters_count, raters[], can_rate}` |
+| PUT | `/persons/{id}/ratings` | `{scores: {humor: 5, charisma: 4, kindness: null}}` (`null` = حذف امتیاز؛ به خود نمی‌شود) |
+
+### `GET /map` — نقشه خاندان
+`{ "data": [{kind: home|burial, person: Node, lat, lng, city?, country?, place?}] }` — خانه‌ها فقط با اجازه خود شخص یا برای بستگان درجه یک.
 ### `GET /persons/{id}/relationship/{otherId}` — نسبت خانوادگی
 ```json
 { "found": true, "label": "پسرعمو", "description": "پسرِ برادرِ پدر", "path": [ids], "path_names": [...], "steps": ["father","brother","son"] }
@@ -198,8 +243,8 @@ is_deceased, death_date, death_place, burial_place, occupation, education, resid
 
 | روش | مسیر | توضیح |
 |---|---|---|
-| GET | `/persons/{id}/media?type=image` | گالری (تأییدشده‌ها + در انتظارهای قابل مشاهده برای شما) |
-| POST | `/persons/{id}/media` | آپلود: `file`, `caption`, `description`, `taken_at`, `as_avatar` |
+| GET | `/persons/{id}/media?type=image&category=story` | گالری یا استوری‌ها (تأییدشده‌ها + در انتظارهای قابل مشاهده برای شما) |
+| POST | `/persons/{id}/media` | آپلود: `file`, `caption`, `description`, `taken_at`, `as_avatar`, `category` (gallery/story) |
 | POST | `/persons/{id}/avatar` | آپلود عکس پروفایل: `file` |
 | PUT | `/persons/{id}/avatar` | انتخاب عکس پروفایل از عکس‌های تأییدشده: `{media_id}` |
 | GET | `/media/{id}` | |

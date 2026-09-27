@@ -65,7 +65,8 @@ class OpinionController extends Controller
         $comment->person_id = $person->id;
         $comment->user_id = $user->id;
         $comment->save();
-        $this->audit->log('comment.created', $person, ['comment' => $comment->id, 'excerpt' => mb_strimwidth($body, 0, 80, '…')], $user);
+        // متن نظر در تاریخچه عمومی ذخیره نمی‌شود (اگر بعداً مخفی شود نباید از راه تاریخچه دیده شود)
+        $this->audit->log('comment.created', $person, ['comment' => $comment->id], $user);
 
         $owner = $person->user;
         if ($owner && $owner->id !== $user->id && $owner->isActive() && $owner->last_login_at) {
@@ -87,7 +88,7 @@ class OpinionController extends Controller
             $comment->body = $body;
             $comment->edited_at = now();
             $comment->save();
-            $this->audit->log('comment.updated', $comment->person, ['comment' => $comment->id, 'changes' => ['body' => [$old, $body]]], $user);
+            $this->audit->log('comment.updated', $comment->person, ['comment' => $comment->id, 'length' => [mb_strlen($old), mb_strlen($body)]], $user);
         }
 
         return response()->json(['data' => $this->presentComment($comment->load('user.person.avatar'), $user, $this->canModerate($user, $comment->person))]);
@@ -101,7 +102,7 @@ class OpinionController extends Controller
             throw new DomainException('فقط نویسنده نظر یا مدیر می‌تواند آن را حذف کند. (می‌توانید آن را مخفی کنید)', 403);
         }
         $comment->delete();
-        $this->audit->log('comment.deleted', $person, ['comment' => $comment->id, 'excerpt' => mb_strimwidth($comment->body, 0, 80, '…')], $user);
+        $this->audit->log('comment.deleted', $person, ['comment' => $comment->id], $user);
 
         return response()->json(['message' => 'نظر حذف شد.']);
     }
@@ -191,7 +192,8 @@ class OpinionController extends Controller
                 }
             }
         });
-        $this->audit->log('rating.updated', $person, ['scores' => $data['scores']], $user);
+        // اگر نام امتیازدهندگان خصوصی است، امتیازها هم در تاریخچه ثبت نشود
+        $this->audit->log('rating.updated', $person, config('pedigree.ratings.show_raters', true) ? ['scores' => $data['scores']] : [], $user);
 
         return $this->ratings($request, $person);
     }

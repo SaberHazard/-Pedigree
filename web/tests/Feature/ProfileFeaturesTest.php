@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Person;
 use App\Models\PersonText;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -325,6 +326,26 @@ class ProfileFeaturesTest extends TestCase
 
         config(['pedigree.permissions.history_public' => false]);
         $this->actingAs($this->cousin, 'sanctum')->getJson("/api/persons/{$id}/history")->assertForbidden();
+    }
+
+    public function test_public_history_does_not_leak_private_data(): void
+    {
+        $id = $this->me->person_id;
+        // ایمیل تغییر کرد، یک ورود ثبت شد و نظری نوشته و سپس مخفی شد
+        $this->actingAs($this->me, 'sanctum')->patchJson("/api/persons/{$id}", ['email' => 'secret@example.com'])->assertOk();
+        app(AuditLogger::class)->log('auth.login', $this->me->person, ['method' => 'otp'], $this->me);
+        $comment = $this->actingAs($this->cousin, 'sanctum')->postJson("/api/persons/{$id}/comments", ['body' => 'متن توهین‌آمیز'])->json('data');
+        $this->actingAs($this->me, 'sanctum')->postJson("/api/comments/{$comment['id']}/hide")->assertOk();
+
+        $other = $this->member();
+        $raw = $this->actingAs($other, 'sanctum')->getJson("/api/persons/{$id}/history")->assertOk()->getContent();
+        $this->assertStringNotContainsString('secret@example.com', $raw);
+        $this->assertStringNotContainsString('توهین', $raw);
+        $this->assertStringNotContainsString('auth.login', $raw);
+
+        // خود شخص ورودهایش را می‌بیند
+        $own = $this->actingAs($this->me, 'sanctum')->getJson("/api/persons/{$id}/history")->getContent();
+        $this->assertStringContainsString('auth.login', $own);
     }
 
     public function test_completeness_is_shown_to_editors_only(): void

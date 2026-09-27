@@ -10,7 +10,7 @@
         "laravel",
         "persian"
     ],
-    "license": "proprietary",
+    "license": "MIT",
     "require": {
         "php": "^8.3",
         "intervention/image": "^4.3",

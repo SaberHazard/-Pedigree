@@ -19,8 +19,8 @@ class AuditLogger
     private const SENSITIVE = [
         'national_code', 'national_code_hash', 'phone', 'phone_hash', 'birth_cert_no',
         'password', 'remember_token', 'search_text', 'updated_at', 'created_at',
-        // نشانی و موقعیت خانه و تلفن ثابت (رمزنگاری‌شده)
-        'address', 'postal_code', 'home_lat', 'home_lng', 'landline',
+        // نشانی و موقعیت خانه، تلفن ثابت و ایمیل (تاریخچه برای همه اعضا قابل دیدن است)
+        'address', 'postal_code', 'home_lat', 'home_lng', 'landline', 'email', 'username',
     ];
 
     public function log(string $action, ?Model $subject = null, array $properties = [], ?User $user = null): ActivityLog
