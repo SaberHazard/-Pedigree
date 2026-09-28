@@ -56,7 +56,7 @@ export default async function personPage(container, { params }) {
   let colored = localPref('author_colors', true);
   const reload = () => navigate(`/person/${person.id}`, { replace: true });
 
-  page.replaceChildren(
+  page.replaceChildren(...[
     hero(),
     loggedIn ? storiesStrip(person) : null,
     tabs([
@@ -70,7 +70,7 @@ export default async function personPage(container, { params }) {
       show(tab);
     }),
     tabBody,
-  );
+  ].filter(Boolean));
   show(active);
 
   // ------------------------------------------------------------ سربرگ

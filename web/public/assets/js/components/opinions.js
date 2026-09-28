@@ -15,10 +15,10 @@ export function opinionsTab(person) {
   const root = h('div', { class: 'opinions' });
   const ratingsBox = h('div', null, loader());
   const commentsBox = h('div', null, loader());
-  root.append(
+  root.append(...[
     store.config.ratings?.enabled !== false ? ratingsBox : null,
     store.config.comments_enabled !== false ? commentsBox : null,
-  );
+  ].filter(Boolean));
   if (store.config.ratings?.enabled !== false) loadRatings(person, ratingsBox);
   if (store.config.comments_enabled !== false) loadComments(person, commentsBox);
   return root;

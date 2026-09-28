@@ -100,6 +100,7 @@ export function renderHeader() {
       { label: `تأییدها${(u.counters?.votes || 0) + (u.counters?.links || 0) ? ` (${fa((u.counters.votes || 0) + (u.counters.links || 0))})` : ''}`, icon: 'shield', onClick: () => navigate('/approvals') },
       { label: 'پیام‌ها', icon: 'chat', onClick: () => navigate('/messages') },
       { label: 'دستیار هوشمند', icon: 'bot', onClick: () => navigate('/assistant') },
+      { label: 'بازی‌های خانوادگی', icon: 'gamepad', onClick: () => navigate('/games') },
       { label: 'تبریک مناسبت‌ها', icon: 'cake', onClick: () => navigate('/greetings') },
       { label: 'جستجوی پیشرفته', icon: 'search', onClick: () => navigate('/search') },
       'sep',

@@ -68,10 +68,44 @@ export function gallery(person, { onChange } = {}) {
       m.can.vote ? { label: 'رأی مخالف', icon: 'thumbs-down', onClick: () => vote(m, 'reject') } : null,
       m.can.set_avatar && !m.is_avatar ? { label: 'انتخاب به عنوان عکس پروفایل', icon: 'user', onClick: () => setAvatar(m) } : null,
       m.can.edit ? { label: 'ویرایش توضیحات', icon: 'edit', onClick: () => editMeta(m) } : null,
+      store.config.assistant?.restore && m.type === 'image' && m.status === 'approved' && canUpload
+        ? { label: 'بازسازی / رنگی کردن با هوش مصنوعی', icon: 'wand', onClick: () => restore(m) } : null,
       m.status === 'pending' ? { label: `رأی‌ها: ${fa(m.votes.approve)} موافق، ${fa(m.votes.reject)} مخالف از ${fa(m.votes.total)}`, icon: 'info' } : null,
       m.can.delete ? 'sep' : null,
       m.can.delete ? { label: 'حذف', icon: 'trash', danger: true, onClick: () => remove(m) } : null,
     ].filter(Boolean));
+  }
+
+  /** زنده کردن عکس قدیمی: نسخه بازسازی‌شده یا رنگی به عنوان عکس تازه ذخیره می‌شود */
+  function restore(m) {
+    let mode = 'both';
+    const options = [['restore', 'بازسازی', 'رفع خط و خش، لک، پارگی و تاری'], ['colorize', 'رنگی کردن', 'برای عکس سیاه‌وسفید'], ['both', 'هر دو', 'بازسازی و رنگی کردن']];
+    const box = h('div', { class: 'tpl-list', role: 'radiogroup' });
+    const draw = () => box.replaceChildren(...options.map(([key, label, hint]) => h('button', {
+      type: 'button', class: `tpl ${key === mode ? 'active' : ''}`, role: 'radio', 'aria-checked': key === mode ? 'true' : 'false',
+      onclick: () => { mode = key; draw(); },
+    }, h('b', { class: 'small' }, label), h('div', { class: 'tpl-text' }, hint))));
+    draw();
+    modal({
+      title: '✨ زنده کردن عکس قدیمی',
+      body: h('div', null,
+        m.urls?.thumb ? h('img', { src: m.urls.medium || m.urls.thumb, alt: '', style: { width: '100%', maxHeight: '220px', objectFit: 'contain', borderRadius: '12px', background: 'var(--surface-3)' } }) : null,
+        h('div', { class: 'mt-sm' }, box),
+        h('p', { class: 'muted tiny mt-sm' }, icon('info'), ' این عکس برای سرویس هوش مصنوعی Google (Gemini) فرستاده می‌شود. عکس اصلی دست نمی‌خورد و نسخه تازه کنارش در گالری ذخیره می‌شود. ساخت آن ممکن است تا یک دقیقه طول بکشد.'),
+      ),
+      actions: [{ label: 'انصراف' }, { label: 'بساز', class: 'primary', icon: 'wand', onClick: async () => {
+        try {
+          const res = await post(`/api/media/${m.id}/restore`, { mode });
+          toast(res.message, 'success', 6000);
+          onChange?.();
+          load();
+          return true;
+        } catch (e) {
+          toastError(e);
+          return false;
+        }
+      } }],
+    });
   }
 
   async function vote(m, decision) {

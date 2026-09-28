@@ -17,6 +17,16 @@ class DomainException extends RuntimeException
         parent::__construct($message);
     }
 
+    public function errorCode(): ?string
+    {
+        return $this->errorCode;
+    }
+
+    public function status(): int
+    {
+        return $this->status;
+    }
+
     public function render(): JsonResponse
     {
         return response()->json([

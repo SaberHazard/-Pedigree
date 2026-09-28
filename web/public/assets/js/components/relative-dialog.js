@@ -142,7 +142,7 @@ export async function openRelativeDialog(anchor, type = 'child', { onDone } = {}
       mother: 'مادری که قبلاً در شجره‌نامه ثبت شده را انتخاب کنید.',
       child: 'فرزندی که قبلاً ثبت شده ولی به والدش وصل نشده را انتخاب کنید.',
     };
-    content.append(
+    content.append(...[
       h('p', { class: 'muted small' }, hints[type]),
       searchBox({
         inline: true,
@@ -157,7 +157,7 @@ export async function openRelativeDialog(anchor, type = 'child', { onDone } = {}
       h('div', { class: 'mt' }, selected),
       type === 'spouse' ? marriageFields() : null,
       field('پیام برای تأییدکننده (اختیاری)', h('input', { class: 'input', name: 'message', placeholder: 'مثلاً: همسر من است، دختر آقای ...' }), { hint: 'اگر به طرف مقابل دسترسی نداشته باشید، اتصال پس از تأیید بستگانِ او انجام می‌شود.' }),
-    );
+    ].filter(Boolean));
   }
 
   // ------------------------------------------------------------ ارسال

@@ -276,11 +276,11 @@ export default async function groupPage(container, { query }) {
     pinnedBar.hidden = !pins.length;
     if (!pins.length) return;
     const p = pins[0];
-    pinnedBar.replaceChildren(
+    pinnedBar.replaceChildren(...[
       icon('pin'),
       h('button', { class: 'grow ellipsis', type: 'button', onclick: () => jump(p.id) }, h('b', null, 'سنجاق‌شده: '), p.body || (p.media ? 'عکس خاطره' : '')),
       pins.length > 1 ? h('span', { class: 'chip' }, fa(pins.length)) : null,
-    );
+    ].filter(Boolean));
   }
 
   function dayLabel(iso) {

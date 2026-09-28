@@ -80,10 +80,10 @@ export function textSection(field, ctx) {
       return;
     }
     card.classList.toggle('empty-text', false);
-    body.replaceChildren(
+    body.replaceChildren(...[
       renderSegments(state.segments, ctx.byId, { colored: ctx.colored() }),
       state.updated_at ? h('div', { class: 'muted tiny mt-sm' }, `آخرین تغییر ${timeAgo(state.updated_at)}`) : null,
-    );
+    ].filter(Boolean));
   }
 
   function edit(draft = null) {

@@ -34,14 +34,14 @@ export function storiesStrip(person, { onChange } = {}) {
   }
 
   function render() {
-    strip.replaceChildren(
+    strip.replaceChildren(...[
       canAdd ? h('button', { class: 'story add', type: 'button', title: 'افزودن استوری', onclick: (e) => addMenu(e.currentTarget) },
         h('span', { class: 'story-ring' }, icon('plus')), h('span', { class: 'story-label' }, 'استوری تازه')) : null,
       ...items.map((m, i) => h('button', { class: `story ${m.status === 'pending' ? 'pending' : ''}`, type: 'button', onclick: () => openViewer(items, i, { onDeleted: load }) },
         h('span', { class: 'story-ring' }, h('img', { src: m.urls.thumb || m.urls.poster || '', alt: m.caption || '', loading: 'lazy' }), m.type === 'video' ? h('i', { class: 'story-video' }, icon('play')) : null),
         h('span', { class: 'story-label' }, m.caption || timeAgo(m.created_at)),
       )),
-    );
+    ].filter(Boolean));
     strip.hidden = !canAdd && !items.length;
   }
 
@@ -273,7 +273,7 @@ export function openViewer(items, index = 0, { onDeleted } = {}) {
         if (f >= 1) go(i + 1);
       }, 50);
     }
-    info.replaceChildren(
+    info.replaceChildren(...[
       h('div', null,
         m.caption ? h('div', { class: 'bold' }, m.caption) : null,
         h('div', { class: 'tiny' }, [m.uploader?.name, timeAgo(m.created_at), m.status === 'pending' ? 'در انتظار تأیید' : null].filter(Boolean).join(' • ')),
@@ -290,7 +290,7 @@ export function openViewer(items, index = 0, { onDeleted } = {}) {
           toastError(e);
         }
       } }, icon('trash'), 'حذف') : null,
-    );
+    ].filter(Boolean));
   }
 
   function onKey(e) {

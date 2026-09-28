@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Models\Media;
 use App\Models\User;
 use App\Services\Social\SafeHttp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -213,5 +216,68 @@ class AssistantTest extends TestCase
         $this->assertTrue($ai['status']['configured']);
 
         $this->actingAs($this->user, 'sanctum')->postJson('/api/admin/settings/test', ['action' => 'ai'])->assertForbidden();
+    }
+
+    public function test_game_modes_and_fallback_provider(): void
+    {
+        config([
+            'pedigree.ai.fallback_provider' => 'groq',
+            'pedigree.ai.providers.groq' => ['api_key' => 'GROQ-KEY', 'model' => 'llama-3.3-70b-versatile'],
+        ]);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response(['error' => ['message' => 'quota exceeded']], 429),
+            'api.groq.com/*' => Http::response(['choices' => [['message' => ['content' => 'از حافظ: الا یا ایها الساقی ...']]]]),
+        ]);
+
+        $modes = $this->actingAs($this->user, 'sanctum')->getJson('/api/assistant')->json('data.modes');
+        $this->assertContains('mushaere', array_column($modes, 'key'));
+
+        // سرویس اصلی (Gemini) سهمیه‌اش تمام شده ← پشتیبان (Groq) جواب می‌دهد
+
+        $this->postJson('/api/assistant/chat', ['mode' => 'mushaere', 'messages' => [['role' => 'user', 'content' => 'بیا مشاعره کنیم!']]])
+            ->assertOk()->assertJsonPath('data.reply', 'از حافظ: الا یا ایها الساقی ...');
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'api.groq.com') && str_contains($r['messages'][0]['content'], 'مشاعره'));
+        $this->postJson('/api/assistant/chat', ['mode' => 'hack', 'messages' => [['role' => 'user', 'content' => 'x']]])->assertStatus(422);
+    }
+
+    public function test_old_photo_restoration(): void
+    {
+        Storage::fake('media');
+        config(['pedigree.ai.image.daily_per_user' => 1]);
+        $img = imagecreatetruecolor(200, 150);
+        $path = tempnam(sys_get_temp_dir(), 'bw').'.png';
+        imagepng($img, $path);
+        $mediaId = $this->actingAs($this->user, 'sanctum')->postJson("/api/persons/{$this->user->person_id}/media", [
+            'file' => new UploadedFile($path, 'old.png', 'image/png', null, true), 'caption' => 'پدربزرگ جوان',
+        ])->assertCreated()->json('data.id');
+
+        ob_start();
+        $out = imagecreatetruecolor(200, 150);
+        imagefilledrectangle($out, 0, 0, 200, 150, imagecolorallocate($out, 200, 120, 60));
+        imagepng($out);
+        $colored = base64_encode(ob_get_clean());
+        Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['candidates' => [['content' => ['parts' => [
+            ['text' => 'اینم عکس'], ['inlineData' => ['mimeType' => 'image/png', 'data' => $colored]],
+        ]]]]])]);
+
+        $this->assertTrue($this->getJson('/api/bootstrap')->json('assistant.restore'));
+        $res = $this->postJson("/api/media/{$mediaId}/restore", ['mode' => 'colorize'])->assertCreated()
+            ->assertJsonPath('data.caption', '✨ رنگی‌شده: پدربزرگ جوان')->assertJsonPath('data.status', 'approved')->assertJsonPath('remaining', 0);
+        $this->assertNotSame($mediaId, $res->json('data.id'));
+        $this->assertSame('image/jpeg', Media::find($res->json('data.id'))->mime);
+        Http::assertSent(fn (Request $r) => str_contains($r->url(), 'gemini-2.5-flash-image:generateContent')
+            && $r['contents'][0]['parts'][1]['inline_data']['mime_type'] === 'image/jpeg'
+            && str_contains($r['contents'][0]['parts'][0]['text'], 'Colorize'));
+
+        // سهمیه روزانه
+        $this->postJson("/api/media/{$mediaId}/restore", ['mode' => 'restore'])->assertStatus(429)->assertJsonPath('code', 'ai_quota');
+
+        // فقط کسی که می‌تواند برای این شخص عکس بگذارد (خود شخص، بستگان درجه یک، مدیر)
+        $stranger = User::factory()->withPerson()->create()->refresh();
+        $this->actingAs($stranger, 'sanctum')->postJson("/api/media/{$mediaId}/restore", ['mode' => 'restore'])->assertForbidden();
+
+        // خاموش
+        config(['pedigree.ai.image.enabled' => false]);
+        $this->actingAs($this->user, 'sanctum')->postJson("/api/media/{$mediaId}/restore", ['mode' => 'restore'])->assertStatus(503);
     }
 }

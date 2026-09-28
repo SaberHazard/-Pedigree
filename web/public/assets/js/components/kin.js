@@ -78,11 +78,11 @@ export function openKinDialog(person, max = 4, what = '') {
       );
     };
     const items = groups.map((g) => ({ value: g.degree, label: `درجه ${fa(g.degree)} (${fa(g.count)})` }));
-    body.replaceChildren(
+    body.replaceChildren(...[
       what ? h('p', { class: 'small' }, icon('info'), ` اگر «تا درجه ${fa(max)}» را انتخاب کنید، همه افراد زیر (${fa(res.total)} نفر) ${what} را می‌بینند؛ مدیر سایت هم همیشه می‌بیند.`) : null,
       tabs(items, groups[0].degree, show),
       list,
-    );
+    ].filter(Boolean));
     show(groups[0].degree);
   }).catch((e) => {
     body.replaceChildren(h('p', { class: 'muted' }, 'بارگذاری ممکن نشد.'));

@@ -33,6 +33,7 @@ export default async function dashboard(container) {
       h('a', { class: 'btn', href: `#/tree/${me.id}?mode=ancestors` }, icon('ancestors'), 'نیاکان من'),
       h('a', { class: 'btn', href: `#/person/${me.id}` }, icon('user'), 'پروفایل من'),
       store.config.assistant?.enabled ? h('a', { class: 'btn', href: '#/assistant' }, icon('bot'), 'دستیار هوشمند') : null,
+      h('a', { class: 'btn', href: '#/games' }, icon('gamepad'), 'بازی‌ها'),
     ),
   ));
 

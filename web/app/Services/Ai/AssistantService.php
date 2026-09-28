@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\RateLimiter;
 /**
  * دستیار هوش مصنوعی سایت.
  *
- *  - سرویس‌ها: Google Gemini (سهمیه رایگان)، OpenRouter (مدل‌های رایگان)، Groq (سهمیه رایگان)،
- *    ChatGPT (OpenAI)، Claude (Anthropic) و هر سرویس سازگار با OpenAI (مثلاً درگاه‌های داخلی)
+ *  - سرویس‌ها: Google Gemini (سهمیه رایگان)، OpenRouter (مدل‌های رایگان)، Groq و Cerebras (سهمیه رایگان)،
+ *    Mistral، DeepSeek، ChatGPT (OpenAI)، Claude (Anthropic)، Grok (xAI) و هر سرویس سازگار با OpenAI
+ *  - سرویس پشتیبان: اگر سرویس اصلی شلوغ بود یا سهمیه رایگانش تمام شد، خودکار سراغ دومی می‌رود
+ *  - حالت‌های بازی و سرگرمی: مشاعره، بیست سؤالی، چیستان، مسابقه، داستان‌سازی، ضرب‌المثل و زنده کردن خاطره
  *  - گفتگو در سرور ذخیره نمی‌شود و هیچ اطلاعاتی از شجره‌نامه برای سرویس فرستاده نمی‌شود؛
  *    فقط همان متنی که کاربر در همین گفتگو نوشته است
  *  - درخواست‌ها از مسیر امن SafeHttp (فقط https، دامنه مجاز، بدون IP داخلی) و در صورت نیاز با پراکسی
@@ -26,9 +28,46 @@ class AssistantService
         'gemini' => ['label' => 'Google Gemini', 'host' => 'generativelanguage.googleapis.com', 'free' => true],
         'openrouter' => ['label' => 'OpenRouter', 'base' => 'https://openrouter.ai/api/v1', 'free' => true],
         'groq' => ['label' => 'Groq', 'base' => 'https://api.groq.com/openai/v1', 'free' => true],
+        'cerebras' => ['label' => 'Cerebras', 'base' => 'https://api.cerebras.ai/v1', 'free' => true],
+        'mistral' => ['label' => 'Mistral', 'base' => 'https://api.mistral.ai/v1', 'free' => true],
+        'deepseek' => ['label' => 'DeepSeek', 'base' => 'https://api.deepseek.com/v1', 'free' => false],
         'openai' => ['label' => 'ChatGPT (OpenAI)', 'base' => 'https://api.openai.com/v1', 'free' => false],
         'anthropic' => ['label' => 'Claude (Anthropic)', 'host' => 'api.anthropic.com', 'free' => false],
+        'xai' => ['label' => 'Grok (xAI)', 'base' => 'https://api.x.ai/v1', 'free' => false],
         'custom' => ['label' => 'سرویس سازگار با OpenAI', 'free' => false],
+    ];
+
+    /** حالت‌های دستیار: گفتگو، زنده کردن خاطره و بازی‌ها (دستور هر حالت فقط سمت سرور است) */
+    public const MODES = [
+        'chat' => ['label' => 'گفتگوی آزاد', 'emoji' => '💬', 'starter' => null, 'prompt' => null],
+        'memory' => [
+            'label' => 'زنده کردن خاطره', 'emoji' => '📜', 'starter' => 'سلام! می‌خواهم یک خاطره قدیمی خانوادگی را زنده کنم.',
+            'prompt' => 'حالت «زنده کردن خاطره»: مثل یک مصاحبه‌گر مهربان، هر بار فقط یک پرسش کوتاه درباره یک خاطره قدیمی خانوادگی بپرس (کجا، کی، چه کسانی، چه حال و هوایی، چه صدا و بویی، چه اتفاقی افتاد، بعدش چه شد). بعد از ۵ تا ۸ پرسش یا هر وقت کاربر خواست، خاطره را در یک متن روان، گرم و ادبی (حدود ۲۰۰ کلمه) از زبان خود کاربر بنویس تا بتواند در گروه خاندان یا زندگی‌نامه بگذارد. هیچ چیزی که کاربر نگفته اضافه نکن.',
+        ],
+        'mushaere' => [
+            'label' => 'مشاعره', 'emoji' => '📖', 'starter' => 'بیا مشاعره کنیم! تو شروع کن.',
+            'prompt' => 'حالت «مشاعره»: بازی سنتی مشاعره. هر بیت باید با آخرین حرف بیت قبلی شروع شود. فقط بیت‌های واقعی و مشهور شاعران فارسی (حافظ، سعدی، مولوی، فردوسی، خیام، نظامی، پروین، شهریار و ...) را با نام شاعر بخوان و هرگز شعر نساز. بیت کاربر را بررسی کن که با حرف درست شروع شده باشد و اگر نه مهربانانه بگو. بعد از هر نوبت حرف بعدی را مشخص کن و امتیاز را نگه دار.',
+        ],
+        'twenty' => [
+            'label' => 'بیست سؤالی', 'emoji' => '❓', 'starter' => 'بیا بیست سؤالی بازی کنیم. یک چیز را در نظر بگیر.',
+            'prompt' => 'حالت «بیست سؤالی»: یک چیز (شخصیت مشهور ایرانی، شیء، حیوان، خوراکی یا مکانی در ایران) را در ذهن نگه دار و نگو. کاربر فقط سؤال بله/خیر می‌پرسد؛ کوتاه جواب بده (بله / خیر / تا حدی) و شمارش را بگو («سؤال ۵ از ۲۰»). اگر درست حدس زد تبریک بگو؛ بعد از ۲۰ سؤال جواب را بگو و پیشنهاد دور تازه بده. پاسخ‌هایت باید با همان چیزی که در ذهن داری سازگار بماند.',
+        ],
+        'riddle' => [
+            'label' => 'چیستان و معما', 'emoji' => '🧩', 'starter' => 'یک چیستان بگو!',
+            'prompt' => 'حالت «چیستان و معما»: هر بار یک چیستان یا معمای کوتاه فارسی مناسب همه سنین بگو (چیستان‌های قدیمی ایرانی هم). منتظر جواب بمان؛ اگر اشتباه بود یک راهنمایی بده و بعد از دو اشتباه جواب را بگو. امتیاز را نگه دار و چیستان بعدی را بپرس.',
+        ],
+        'quiz' => [
+            'label' => 'مسابقه ایران‌شناسی', 'emoji' => '🏆', 'starter' => 'مسابقه را شروع کن.',
+            'prompt' => 'حالت «مسابقه»: سؤال‌های چهارگزینه‌ای (الف تا د) درباره تاریخ، جغرافیا، ادبیات، هنر، غذا و آداب و رسوم ایران؛ هر بار یک سؤال، از آسان به سخت. پس از جواب کاربر، درست یا غلط بودن را با یک نکته کوتاه و جالب بگو، امتیاز را اعلام کن و سؤال بعد را بپرس. فقط اطلاعاتی را بپرس که از درستی‌اش مطمئنی.',
+        ],
+        'story' => [
+            'label' => 'داستان‌سازی', 'emoji' => '📚', 'starter' => 'بیا با هم یک داستان بسازیم. تو شروع کن.',
+            'prompt' => 'حالت «داستان‌سازی»: با کاربر یک داستان خانوادگی گرم و خیالی مناسب همه سنین بسازید. هر نوبت ۲ تا ۳ جمله به داستان اضافه کن و از کاربر بخواه ادامه دهد یا بین دو انتخاب کوتاه یکی را برگزیند.',
+        ],
+        'proverb' => [
+            'label' => 'ضرب‌المثل', 'emoji' => '🗝️', 'starter' => 'بازی ضرب‌المثل را شروع کن.',
+            'prompt' => 'حالت «ضرب‌المثل»: یک ضرب‌المثل فارسی را نیمه‌کاره بگو یا با توصیف یک موقعیت به آن اشاره کن تا کاربر کاملش کند. بعد معنی و ریشه کوتاهش را بگو، امتیاز را نگه دار و سراغ بعدی برو.',
+        ],
     ];
 
     /** بیشترین طول هر پیام کاربر */
@@ -56,17 +95,30 @@ class AssistantService
         return self::PROVIDERS[$this->provider()]['label'];
     }
 
-    /** دستیار روشن است و کلید و مدل سرویس انتخاب‌شده تنظیم شده؟ */
+    /** دستیار روشن است و کلید و مدل سرویس اصلی (یا پشتیبان) تنظیم شده؟ */
     public function configured(): bool
     {
-        if (! config('pedigree.ai.enabled')) {
+        return (bool) config('pedigree.ai.enabled') && $this->providers() !== [];
+    }
+
+    /** این سرویس کلید و مدل دارد؟ */
+    public function providerReady(string $provider): bool
+    {
+        if (! isset(self::PROVIDERS[$provider])) {
             return false;
         }
-        $provider = $this->provider();
         $conf = (array) config("pedigree.ai.providers.{$provider}");
 
         return ! empty($conf['api_key']) && ! empty($conf['model'])
             && ($provider !== 'custom' || ! empty($conf['base_url']));
+    }
+
+    /** @return string[] سرویس اصلی و سپس پشتیبان (فقط آن‌هایی که آماده‌اند) */
+    public function providers(): array
+    {
+        $list = [$this->provider(), (string) config('pedigree.ai.fallback_provider')];
+
+        return array_values(array_unique(array_filter($list, fn ($p) => $p !== '' && $this->providerReady($p))));
     }
 
     /** تعداد پیام باقی‌مانده امروز برای کاربر */
@@ -82,8 +134,9 @@ class AssistantService
      *
      * @throws DomainException
      */
-    public function chat(User $user, array $messages): string
+    public function chat(User $user, array $messages, string $mode = 'chat'): string
     {
+        $mode = isset(self::MODES[$mode]) ? $mode : 'chat';
         if (! $this->configured()) {
             throw new DomainException('دستیار هوش مصنوعی هنوز راه‌اندازی نشده است؛ مدیر سایت باید کلید یکی از سرویس‌ها را در «تنظیمات و اتصال‌ها» وارد کند.', 503, 'ai_off');
         }
@@ -101,7 +154,12 @@ class AssistantService
         RateLimiter::hit($userKey, 86400);
         RateLimiter::hit($globalKey, 86400);
 
-        return $this->complete($this->systemPrompt(), $messages, (int) config('pedigree.ai.max_output_tokens', 1500));
+        $system = $this->systemPrompt();
+        if (self::MODES[$mode]['prompt']) {
+            $system .= "\n\n".self::MODES[$mode]['prompt'];
+        }
+
+        return $this->complete($system, $messages, (int) config('pedigree.ai.max_output_tokens', 1500));
     }
 
     /** آزمایش اتصال از پنل مدیریت (بدون مصرف سهمیه اعضا) */
@@ -110,9 +168,20 @@ class AssistantService
         if (! $this->configured()) {
             throw new DomainException('ابتدا دستیار را روشن کنید و کلید API و نام مدل سرویس انتخاب‌شده را وارد و ذخیره کنید.');
         }
-        $reply = $this->complete('Reply with one short friendly Persian sentence.', [['role' => 'user', 'content' => 'سلام! آماده‌ای؟']], 60);
+        $out = [];
+        foreach ($this->providers() as $provider) {
+            try {
+                $reply = $this->completeWith($provider, 'Reply with one short friendly Persian sentence.', [['role' => 'user', 'content' => 'سلام! آماده‌ای؟']], 60);
+                $out[] = 'اتصال به '.self::PROVIDERS[$provider]['label'].' برقرار است. پاسخ: «'.mb_substr($reply, 0, 120).'»';
+            } catch (DomainException $e) {
+                if ($provider === $this->provider() && count($this->providers()) === 1) {
+                    throw $e;
+                }
+                $out[] = self::PROVIDERS[$provider]['label'].': '.$e->getMessage();
+            }
+        }
 
-        return 'اتصال به '.$this->label().' برقرار است. پاسخ: «'.mb_substr($reply, 0, 120).'»';
+        return implode(' — ', $out);
     }
 
     // ------------------------------------------------------------------ آماده‌سازی گفتگو
@@ -182,10 +251,32 @@ class AssistantService
 
     // ------------------------------------------------------------------ تماس با سرویس
 
-    /** @param array<int, array{role:string, content:string}> $messages */
+    /**
+     * سرویس اصلی و در صورت شلوغی/خطا سرویس پشتیبان
+     *
+     * @param  array<int, array{role:string, content:string}>  $messages
+     */
     private function complete(string $system, array $messages, int $maxTokens): string
     {
-        $provider = $this->provider();
+        $providers = $this->providers();
+        foreach ($providers as $i => $provider) {
+            try {
+                return $this->completeWith($provider, $system, $messages, $maxTokens);
+            } catch (DomainException $e) {
+                $retryable = in_array($e->errorCode(), ['ai_busy', 'ai_down', 'ai_auth', 'ai_model', null], true);
+                if (! $retryable || $i === count($providers) - 1) {
+                    throw $e;
+                }
+                Log::info('AI provider failed, trying fallback', ['provider' => $provider, 'code' => $e->errorCode()]);
+            }
+        }
+
+        throw new DomainException('دستیار هوش مصنوعی هنوز راه‌اندازی نشده است.', 503, 'ai_off');
+    }
+
+    /** @param array<int, array{role:string, content:string}> $messages */
+    private function completeWith(string $provider, string $system, array $messages, int $maxTokens): string
+    {
         $conf = (array) config("pedigree.ai.providers.{$provider}");
         $key = (string) $conf['api_key'];
         $model = trim((string) $conf['model']);
@@ -211,7 +302,7 @@ class AssistantService
         $json = json_decode($response['body'], true);
 
         if ($response['status'] >= 400 || ! is_array($json)) {
-            $this->fail($response['status'], is_array($json) ? $json : null);
+            $this->fail($provider, $response['status'], is_array($json) ? $json : null);
         }
 
         $text = match ($provider) {
@@ -302,12 +393,12 @@ class AssistantService
     }
 
     /** @throws DomainException */
-    private function fail(int $status, ?array $json): never
+    private function fail(string $provider, int $status, ?array $json): never
     {
         // جزئیات فقط در لاگ سرور (بدون کلید)؛ به کاربر پیام کلی
         $detail = $json['error']['message'] ?? $json['error'] ?? $json['message'] ?? null;
         Log::warning('AI provider error', [
-            'provider' => $this->provider(),
+            'provider' => $provider,
             'status' => $status,
             'detail' => is_string($detail) ? mb_substr($detail, 0, 300) : null,
         ]);

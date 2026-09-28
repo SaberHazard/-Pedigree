@@ -432,7 +432,7 @@ return [
     */
     'ai' => [
         'enabled' => (bool) env('PEDIGREE_AI_ENABLED', true),
-        // gemini | openrouter | groq | openai | anthropic | custom (هر سرویس سازگار با OpenAI)
+        // gemini | openrouter | groq | cerebras | mistral | deepseek | openai | anthropic | xai | custom (هر سرویس سازگار با OpenAI)
         'provider' => env('PEDIGREE_AI_PROVIDER', 'gemini'),
         // اگر سرور در ایران است (این سرویس‌ها IP ایران را نمی‌پذیرند)؛ خالی = پراکسی شبکه‌های اجتماعی
         'proxy' => env('PEDIGREE_AI_PROXY'),
@@ -447,7 +447,21 @@ return [
             'groq' => ['api_key' => env('GROQ_API_KEY'), 'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile')],
             'openai' => ['api_key' => env('OPENAI_API_KEY'), 'model' => env('OPENAI_MODEL', 'gpt-4.1-mini')],
             'anthropic' => ['api_key' => env('ANTHROPIC_API_KEY'), 'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5')],
+            'deepseek' => ['api_key' => env('DEEPSEEK_API_KEY'), 'model' => env('DEEPSEEK_MODEL', 'deepseek-chat')],
+            'mistral' => ['api_key' => env('MISTRAL_API_KEY'), 'model' => env('MISTRAL_MODEL', 'mistral-small-latest')],
+            'cerebras' => ['api_key' => env('CEREBRAS_API_KEY'), 'model' => env('CEREBRAS_MODEL', 'llama-3.3-70b')],
+            'xai' => ['api_key' => env('XAI_API_KEY'), 'model' => env('XAI_MODEL', 'grok-3-mini')],
             'custom' => ['base_url' => env('PEDIGREE_AI_BASE_URL'), 'api_key' => env('PEDIGREE_AI_API_KEY'), 'model' => env('PEDIGREE_AI_MODEL')],
+        ],
+        // اگر سرویس اصلی شلوغ بود یا سهمیه رایگانش تمام شد، این سرویس امتحان می‌شود (خالی = هیچ)
+        'fallback_provider' => env('PEDIGREE_AI_FALLBACK', ''),
+        // بازسازی و رنگی کردن عکس‌های قدیمی با مدل تصویری Gemini (کلید همان Gemini)
+        'image' => [
+            'enabled' => (bool) env('PEDIGREE_AI_IMAGE_ENABLED', true),
+            'model' => env('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
+            'daily_per_user' => (int) env('PEDIGREE_AI_IMAGE_DAILY', 5),
+            'global_daily' => (int) env('PEDIGREE_AI_IMAGE_GLOBAL', 60),
+            'timeout' => 120,
         ],
     ],
 

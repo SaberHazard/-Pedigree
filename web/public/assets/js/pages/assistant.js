@@ -21,7 +21,7 @@ const STARTERS = [
   ['tree', 'پژوهش در تاریخچه خانواده', 'برای کامل کردن شجره‌نامه خانواده از چه منابع و اسنادی (مثل شناسنامه قدیمی) می‌توانم استفاده کنم؟'],
 ];
 
-export default async function assistantPage(container) {
+export default async function assistantPage(container, { query } = {}) {
   document.title = `دستیار هوشمند | ${store.config.site_name}`;
   const page = h('div', { class: 'page assistant' });
   container.append(page);
@@ -41,7 +41,10 @@ export default async function assistantPage(container) {
     return;
   }
 
-  const storeKey = `ai-chat:${store.user?.id}`;
+  const modes = info.modes || [{ key: 'chat', label: 'گفتگو', emoji: '💬' }];
+  let mode = modes.some((m) => m.key === query?.mode) ? query.mode : 'chat';
+  const keyFor = (m) => `ai-chat:${store.user?.id}:${m}`;
+  let storeKey = keyFor(mode);
   let history = load();
   let busy = false;
 
@@ -61,6 +64,14 @@ export default async function assistantPage(container) {
     }
   });
 
+  // حالت‌ها: گفتگو، زنده کردن خاطره و بازی‌ها (هر حالت گفتگوی جدای خودش را دارد)
+  const modeBar = h('div', { class: 'ai-modes', role: 'tablist' });
+  const drawModes = () => modeBar.replaceChildren(...modes.map((m) => h('button', {
+    type: 'button', role: 'tab', class: `ai-mode ${m.key === mode ? 'active' : ''}`, 'aria-selected': m.key === mode ? 'true' : 'false',
+    onclick: () => switchMode(m.key),
+  }, m.emoji, ' ', m.label)));
+  drawModes();
+
   page.replaceChildren(
     h('div', { class: 'ai-shell card' },
       h('div', { class: 'ai-head' },
@@ -70,6 +81,7 @@ export default async function assistantPage(container) {
           h('div', { class: 'muted tiny ellipsis' }, `با ${info.provider}`, ' • ', remainingEl)),
         h('button', { class: 'btn ghost sm', type: 'button', title: 'پاک کردن گفتگو و شروع دوباره', onclick: reset }, icon('refresh'), h('span', { class: 'hide-mobile' }, 'گفتگوی تازه')),
       ),
+      modeBar,
       thread,
       h('div', { class: 'ai-compose' },
         h('div', { class: 'row', style: { gap: '6px', alignItems: 'flex-end' } }, input, sendBtn),
@@ -80,6 +92,27 @@ export default async function assistantPage(container) {
   setRemaining(info.remaining);
   render();
   if (!matchMedia('(pointer: coarse)').matches) input.focus();
+
+  function switchMode(key) {
+    if (busy || key === mode) return;
+    mode = key;
+    storeKey = keyFor(mode);
+    history = load();
+    drawModes();
+    history_replace();
+    render();
+    const m = modes.find((x) => x.key === mode);
+    // بازی‌ها خودشان شروع می‌شوند
+    if (!history.length && m?.starter) send(m.starter);
+  }
+
+  function history_replace() {
+    try {
+      window.history.replaceState(null, '', mode === 'chat' ? '#/assistant' : `#/assistant?mode=${mode}`);
+    } catch {
+      /* ignore */
+    }
+  }
 
   function setRemaining(n) {
     remainingEl.textContent = `${fa(n)} پیام دیگر تا پایان امروز`;
@@ -112,7 +145,14 @@ export default async function assistantPage(container) {
 
   function render(pending = false) {
     const items = [];
-    if (!history.length) {
+    const current = modes.find((x) => x.key === mode);
+    if (!history.length && mode !== 'chat') {
+      items.push(h('div', { class: 'ai-welcome' },
+        h('div', { class: 'ai-avatar lg' }, h('span', { style: { fontSize: '2rem' } }, current?.emoji || '🎲')),
+        h('h2', null, current?.label || ''),
+        h('button', { class: 'btn primary', type: 'button', onclick: () => send(current?.starter || 'شروع کن') }, icon('play'), 'شروع'),
+      ));
+    } else if (!history.length) {
       items.push(h('div', { class: 'ai-welcome' },
         h('div', { class: 'ai-avatar lg' }, icon('bot')),
         h('h2', null, 'سلام! چطور کمکتان کنم؟'),
@@ -145,7 +185,7 @@ export default async function assistantPage(container) {
     }
     render(true);
     try {
-      const res = await post('/api/assistant/chat', { messages: history.slice(-20) });
+      const res = await post('/api/assistant/chat', { messages: history.slice(-20), mode });
       history.push({ role: 'assistant', content: res.data.reply });
       setRemaining(res.data.remaining);
       save();

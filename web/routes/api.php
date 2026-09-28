@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
+use App\Http\Controllers\Api\GameController;
 use App\Http\Controllers\Api\GreetingController;
 use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\KinController;
@@ -166,9 +167,13 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('group/messages/{message}/report', [GroupController::class, 'report'])->whereNumber('message')->middleware('throttle:10,1,group-report');
     Route::delete('group/messages/{message}', [GroupController::class, 'destroy'])->whereNumber('message');
 
+    // بازی‌های خانوادگی
+    Route::get('games/question', [GameController::class, 'question'])->middleware('throttle:60,1,games');
+
     // دستیار هوش مصنوعی
     Route::get('assistant', [AssistantController::class, 'index']);
     Route::post('assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:8,1,assistant-chat');
+    Route::post('media/{media}/restore', [AssistantController::class, 'restorePhoto'])->middleware('throttle:4,1,ai-restore');
 
     Route::get('greetings', [GreetingController::class, 'index']);
     Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1,greeting-send');
