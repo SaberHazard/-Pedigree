@@ -195,13 +195,14 @@ return [
             // مسیر ffmpeg؛ اگر روی سرور نصب نباشد ویدیو بدون فشرده‌سازی ذخیره می‌شود
             'ffmpeg' => env('FFMPEG_PATH', 'ffmpeg'),
             'ffprobe' => env('FFPROBE_PATH', 'ffprobe'),
-            'max_height' => 720,
+            // ضلع کوچک‌تر ویدیو (۷۲۰ = کیفیت HD تلگرام)
+            'max_height' => (int) env('PEDIGREE_VIDEO_MAX_SIDE', 720),
             // سقف مدت ویدیو (ثانیه)؛ بیشتر از این بریده می‌شود
             'max_duration' => (int) env('PEDIGREE_VIDEO_MAX_SECONDS', 3600),
             // تعداد هسته پردازنده برای فشرده‌سازی (تا سایت هنگام تبدیل ویدیو کند نشود)
             'threads' => (int) env('PEDIGREE_VIDEO_THREADS', 2),
-            // CRF پایین‌تر = کیفیت بیشتر و حجم بیشتر (۲۳ تا ۲۸ مناسب است)
-            'crf' => 25,
+            // CRF پایین‌تر = کیفیت بیشتر و حجم بیشتر (۲۳ تا ۲۸ مناسب است؛ ۲۶ شبیه تلگرام)
+            'crf' => (int) env('PEDIGREE_VIDEO_CRF', 26),
             'timeout' => 1800,
         ],
 
@@ -389,6 +390,34 @@ return [
     'messaging' => [
         // سقف پیام هر عضو در روز
         'daily_limit' => 500,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | دستیار هوش مصنوعی
+    |--------------------------------------------------------------------------
+    | گفتگو بدون ذخیره در سرور؛ هیچ اطلاعاتی از شجره‌نامه برای سرویس فرستاده نمی‌شود
+    | (فقط همان چیزی که کاربر در گفتگو می‌نویسد). کلیدها از پنل مدیریت هم قابل تنظیم‌اند.
+    */
+    'ai' => [
+        'enabled' => (bool) env('PEDIGREE_AI_ENABLED', true),
+        // gemini | openrouter | groq | openai | anthropic | custom (هر سرویس سازگار با OpenAI)
+        'provider' => env('PEDIGREE_AI_PROVIDER', 'gemini'),
+        // اگر سرور در ایران است (این سرویس‌ها IP ایران را نمی‌پذیرند)؛ خالی = پراکسی شبکه‌های اجتماعی
+        'proxy' => env('PEDIGREE_AI_PROXY'),
+        'timeout' => 60,
+        'max_output_tokens' => 1500,
+        // سقف پیام هر عضو و کل سایت در روز
+        'daily_per_user' => (int) env('PEDIGREE_AI_DAILY_PER_USER', 40),
+        'global_daily' => (int) env('PEDIGREE_AI_GLOBAL_DAILY', 2000),
+        'providers' => [
+            'gemini' => ['api_key' => env('GEMINI_API_KEY'), 'model' => env('GEMINI_MODEL', 'gemini-flash-latest')],
+            'openrouter' => ['api_key' => env('OPENROUTER_API_KEY'), 'model' => env('OPENROUTER_MODEL', 'meta-llama/llama-3.3-70b-instruct:free')],
+            'groq' => ['api_key' => env('GROQ_API_KEY'), 'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile')],
+            'openai' => ['api_key' => env('OPENAI_API_KEY'), 'model' => env('OPENAI_MODEL', 'gpt-4.1-mini')],
+            'anthropic' => ['api_key' => env('ANTHROPIC_API_KEY'), 'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-5')],
+            'custom' => ['base_url' => env('PEDIGREE_AI_BASE_URL'), 'api_key' => env('PEDIGREE_AI_API_KEY'), 'model' => env('PEDIGREE_AI_MODEL')],
+        ],
     ],
 
     /*

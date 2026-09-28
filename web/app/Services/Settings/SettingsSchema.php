@@ -22,6 +22,18 @@ final class SettingsSchema
         'ghasedak' => 'قاصدک',
     ];
 
+    private const AI_PROVIDERS = [
+        'gemini' => 'Google Gemini (رایگان با سهمیه روزانه)',
+        'openrouter' => 'OpenRouter (مدل‌های رایگان و پولی)',
+        'groq' => 'Groq (رایگان با سهمیه)',
+        'openai' => 'ChatGPT از OpenAI (پولی)',
+        'anthropic' => 'Claude از Anthropic (پولی)',
+        'custom' => 'سرویس دیگر سازگار با OpenAI',
+    ];
+
+    /** نام مدل: حرف و عدد لاتین و . _ : / @ - */
+    private const MODEL_PATTERN = '#^[A-Za-z0-9._:/@-]*$#';
+
     private const SCOPES = [
         'all' => 'همه اعضای شجره‌نامه',
         'd4' => 'بستگان تا درجه ۴',
@@ -149,6 +161,39 @@ final class SettingsSchema
                 ],
             ],
 
+            'ai' => [
+                'label' => 'دستیار هوش مصنوعی',
+                'icon' => 'bot',
+                'description' => 'گفتگو با هوش مصنوعی برای همه اعضا. رایگان‌ها: Google Gemini (کلید رایگان از AI Studio با سهمیه روزانه)، OpenRouter (مدل‌های رایگانِ «:free») و Groq. ChatGPT و Claude پولی‌اند. گفتگوها در سرور ذخیره نمی‌شوند و هیچ اطلاعاتی از شجره‌نامه برای سرویس فرستاده نمی‌شود. سرویس‌های خارجی IP ایران را نمی‌پذیرند؛ اگر سرور در ایران است پراکسی بگذارید یا از یک درگاه داخلی سازگار با OpenAI استفاده کنید.',
+                'fields' => [
+                    'pedigree.ai.enabled' => ['label' => 'دستیار هوش مصنوعی فعال باشد', 'type' => 'bool'],
+                    'pedigree.ai.provider' => ['label' => 'سرویس', 'type' => 'select', 'options' => self::AI_PROVIDERS],
+                    'pedigree.ai.proxy' => ['label' => 'پراکسی خروجی (اگر سرور در ایران است)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)'],
+                    'pedigree.ai.daily_per_user' => ['label' => 'سقف پیام هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 1000],
+                    'pedigree.ai.global_daily' => ['label' => 'سقف کل پیام‌های سایت در روز', 'type' => 'int', 'min' => 10, 'max' => 100000],
+                ],
+            ],
+            'ai_keys' => [
+                'label' => 'کلیدهای هوش مصنوعی',
+                'icon' => 'key',
+                'description' => 'فقط کلید سرویسی که در «دستیار هوش مصنوعی» انتخاب کرده‌اید لازم است. نام مدل را می‌توانید عوض کنید (مثلاً مدل تازه‌تر همان سرویس).',
+                'fields' => [
+                    'pedigree.ai.providers.gemini.api_key' => ['label' => 'Gemini: کلید API (رایگان)', 'type' => 'secret', 'link' => 'https://aistudio.google.com/apikey'],
+                    'pedigree.ai.providers.gemini.model' => ['label' => 'Gemini: مدل', 'type' => 'text', 'max' => 80, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'gemini-flash-latest'],
+                    'pedigree.ai.providers.openrouter.api_key' => ['label' => 'OpenRouter: کلید API', 'type' => 'secret', 'link' => 'https://openrouter.ai/settings/keys'],
+                    'pedigree.ai.providers.openrouter.model' => ['label' => 'OpenRouter: مدل', 'type' => 'text', 'max' => 120, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'meta-llama/llama-3.3-70b-instruct:free', 'help' => 'مدل‌های رایگان با «:free» تمام می‌شوند', 'link' => 'https://openrouter.ai/models?max_price=0'],
+                    'pedigree.ai.providers.groq.api_key' => ['label' => 'Groq: کلید API (رایگان)', 'type' => 'secret', 'link' => 'https://console.groq.com/keys'],
+                    'pedigree.ai.providers.groq.model' => ['label' => 'Groq: مدل', 'type' => 'text', 'max' => 120, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'llama-3.3-70b-versatile'],
+                    'pedigree.ai.providers.openai.api_key' => ['label' => 'ChatGPT (OpenAI): کلید API', 'type' => 'secret', 'link' => 'https://platform.openai.com/api-keys'],
+                    'pedigree.ai.providers.openai.model' => ['label' => 'ChatGPT: مدل', 'type' => 'text', 'max' => 120, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'gpt-4.1-mini'],
+                    'pedigree.ai.providers.anthropic.api_key' => ['label' => 'Claude (Anthropic): کلید API', 'type' => 'secret', 'link' => 'https://console.anthropic.com/settings/keys'],
+                    'pedigree.ai.providers.anthropic.model' => ['label' => 'Claude: مدل', 'type' => 'text', 'max' => 120, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'claude-sonnet-5', 'help' => 'claude-opus-5-5 قوی‌ترین، claude-sonnet-5 متعادل، claude-haiku-4-5-20251001 ارزان‌ترین'],
+                    'pedigree.ai.providers.custom.base_url' => ['label' => 'سرویس سازگار با OpenAI: آدرس پایه', 'type' => 'url', 'placeholder' => 'https://api.example.com/v1', 'help' => 'آدرسی که ‎/chat/completions‎ به انتهایش اضافه می‌شود؛ مثلاً درگاه‌های داخلی که از ایران بدون پراکسی کار می‌کنند'],
+                    'pedigree.ai.providers.custom.api_key' => ['label' => 'سرویس سازگار با OpenAI: کلید API', 'type' => 'secret'],
+                    'pedigree.ai.providers.custom.model' => ['label' => 'سرویس سازگار با OpenAI: مدل', 'type' => 'text', 'max' => 120, 'pattern' => self::MODEL_PATTERN],
+                ],
+            ],
+
             'social' => [
                 'label' => 'شبکه‌های اجتماعی',
                 'icon' => 'share',
@@ -161,6 +206,29 @@ final class SettingsSchema
                     'pedigree.social.instagram.graph_user_id' => ['label' => 'اینستاگرام: شناسه عددی حساب تجاری شما', 'type' => 'text', 'max' => 30, 'pattern' => '/^\d*$/'],
                     'pedigree.social.x.bearer_token' => ['label' => 'ایکس (توییتر): Bearer Token', 'type' => 'secret', 'link' => 'https://developer.x.com/en/portal/dashboard'],
                     'pedigree.social.youtube.api_key' => ['label' => 'یوتیوب: کلید YouTube Data API', 'type' => 'secret', 'link' => 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'],
+                ],
+            ],
+
+            'media' => [
+                'label' => 'عکس و ویدیو',
+                'icon' => 'image',
+                'description' => 'عکس‌ها خودکار به WebP (حداکثر ۲۵۶۰ پیکسل، بدون اطلاعات مکانی) و ویدیوها مثل تلگرام به MP4 با ضلع کوچک‌تر ۷۲۰ و حداکثر ۳۰ فریم تبدیل می‌شوند؛ معمولاً ۵ تا ۱۰ برابر کم‌حجم‌تر بدون افت محسوس. فایل اصلی پس از تبدیل پاک می‌شود. عکس‌های بزرگ پیش از آپلود در خود مرورگر هم کوچک می‌شوند.',
+                'fields' => [
+                    'pedigree.media.image.max_upload_kb' => ['label' => 'بیشترین حجم هر عکس (کیلوبایت)', 'type' => 'int', 'min' => 512, 'max' => 102400, 'help' => '۲۰۴۸۰ = ۲۰ مگابایت'],
+                    'pedigree.media.image.quality' => ['label' => 'کیفیت عکس ذخیره‌شده (WebP)', 'type' => 'int', 'min' => 70, 'max' => 95, 'help' => '۸۵ از نظر چشمی بدون افت است'],
+                    'pedigree.media.video.enabled' => ['label' => 'آپلود ویدیو مجاز باشد', 'type' => 'bool'],
+                    'pedigree.media.video.max_upload_kb' => ['label' => 'بیشترین حجم هر ویدیو هنگام آپلود (کیلوبایت)', 'type' => 'int', 'min' => 10240, 'max' => 4194304, 'help' => '۵۱۲۰۰۰ = ۵۰۰ مگابایت؛ سقف PHP و وب‌سرور هم باید به همین اندازه باشد'],
+                    'pedigree.media.video.max_duration' => ['label' => 'بیشترین مدت ویدیو (ثانیه)', 'type' => 'int', 'min' => 10, 'max' => 14400, 'help' => 'بیشتر از این بریده می‌شود'],
+                    'pedigree.media.video.max_height' => ['label' => 'وضوح ویدیو', 'type' => 'select', 'options' => [
+                        '480' => '۴۸۰p — کم‌حجم‌ترین',
+                        '720' => '۷۲۰p — مثل تلگرام (پیشنهادی)',
+                        '1080' => '۱۰۸۰p — کیفیت کامل (حجم بیشتر)',
+                    ]],
+                    'pedigree.media.video.crf' => ['label' => 'فشرده‌سازی ویدیو', 'type' => 'select', 'options' => [
+                        '23' => 'کیفیت بالا (حجم بیشتر)',
+                        '26' => 'متعادل (پیشنهادی)',
+                        '28' => 'صرفه‌جویی بیشتر در فضا',
+                    ]],
                 ],
             ],
 

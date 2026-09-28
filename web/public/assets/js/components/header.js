@@ -97,6 +97,7 @@ export function renderHeader() {
       { label: 'نیاکان من', icon: 'ancestors', onClick: () => navigate(`/tree/${u.person.id}?mode=ancestors`) },
       store.config.map?.enabled !== false ? { label: 'نقشه خاندان', icon: 'pin', onClick: () => navigate('/map') } : null,
       { label: 'پیام‌ها', icon: 'chat', onClick: () => navigate('/messages') },
+      { label: 'دستیار هوشمند', icon: 'bot', onClick: () => navigate('/assistant') },
       { label: 'تبریک تولد', icon: 'cake', onClick: () => navigate('/greetings') },
       { label: 'جستجوی پیشرفته', icon: 'search', onClick: () => navigate('/search') },
       'sep',
@@ -118,6 +119,12 @@ export function renderHeader() {
 export async function logout() {
   try {
     await post('/api/auth/logout');
+  } catch {
+    /* ignore */
+  }
+  // گفتگوی دستیار هوشمند روی این مرورگر نماند (رایانه مشترک)
+  try {
+    Object.keys(sessionStorage).filter((k) => k.startsWith('ai-chat:')).forEach((k) => sessionStorage.removeItem(k));
   } catch {
     /* ignore */
   }

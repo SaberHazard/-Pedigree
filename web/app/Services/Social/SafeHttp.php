@@ -32,8 +32,29 @@ class SafeHttp
      */
     public function get(string $url, array $allowedHosts, int $maxBytes, array $headers = [], int $maxRedirects = 3): array
     {
-        $proxy = config('pedigree.social.proxy');
-        $timeout = (int) config('pedigree.social.timeout', 8);
+        return $this->request('GET', $url, $allowedHosts, $maxBytes, $headers, null, $maxRedirects);
+    }
+
+    /**
+     * ارسال JSON (بدون دنبال کردن ریدایرکت تا بدنه درخواست به جای دیگری فرستاده نشود)
+     *
+     * @param  string[]  $allowedHosts
+     * @return array{status:int, body:string, type:string}
+     */
+    public function postJson(string $url, array $allowedHosts, array $json, int $maxBytes, array $headers = [], ?string $proxy = null, ?int $timeout = null): array
+    {
+        return $this->request('POST', $url, $allowedHosts, $maxBytes, $headers, $json, 0, $proxy ?? '', $timeout);
+    }
+
+    /**
+     * @param  string[]  $allowedHosts
+     * @param  ?string  $proxy  خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)
+     * @return array{status:int, body:string, type:string}
+     */
+    private function request(string $method, string $url, array $allowedHosts, int $maxBytes, array $headers, ?array $json, int $maxRedirects, ?string $proxy = null, ?int $timeout = null): array
+    {
+        $proxy = $proxy === null || $proxy === '' ? config('pedigree.social.proxy') : $proxy;
+        $timeout ??= (int) config('pedigree.social.timeout', 8);
 
         for ($hop = 0; $hop <= $maxRedirects; $hop++) {
             [$host, $ip] = $this->check($url, $allowedHosts, (bool) $proxy);
@@ -41,7 +62,7 @@ class SafeHttp
             $options = [
                 'allow_redirects' => false,
                 'timeout' => $timeout,
-                'connect_timeout' => min(5, $timeout),
+                'connect_timeout' => min(8, $timeout),
                 'stream' => true,
                 'http_errors' => false,
             ];
@@ -56,19 +77,18 @@ class SafeHttp
             }
 
             try {
-                $response = Http::withOptions($options)
-                    ->withHeaders($headers + [
-                        'User-Agent' => 'Mozilla/5.0 (compatible; PedigreeLinkPreview/1.0)',
-                        'Accept-Language' => 'fa,en;q=0.8',
-                    ])
-                    ->get($url);
+                $pending = Http::withOptions($options)->withHeaders($headers + [
+                    'User-Agent' => 'Mozilla/5.0 (compatible; PedigreeLinkPreview/1.0)',
+                    'Accept-Language' => 'fa,en;q=0.8',
+                ]);
+                $response = $method === 'POST' ? $pending->asJson()->post($url, $json ?? []) : $pending->get($url);
             } catch (Throwable) {
-                throw new DomainException('اتصال به سرور شبکه اجتماعی برقرار نشد.', 502);
+                throw new DomainException('اتصال به سرور بیرونی برقرار نشد.', 502);
             }
 
             if (in_array($response->status(), [301, 302, 303, 307, 308], true)) {
                 $location = (string) $response->header('Location');
-                if ($location === '') {
+                if ($location === '' || $hop === $maxRedirects) {
                     break;
                 }
                 $url = $this->absolute($location, $url);

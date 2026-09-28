@@ -37,6 +37,7 @@ route('/notifications', () => import('./pages/notifications.js'));
 route('/greetings', () => import('./pages/greetings.js'));
 route('/messages', () => import('./pages/messages.js'), { layout: 'full' });
 route('/messages/:id', () => import('./pages/messages.js'), { layout: 'full' });
+route('/assistant', () => import('./pages/assistant.js'));
 route('/account', () => import('./pages/account.js'));
 route('/admin', () => import('./pages/admin.js'));
 route('/admin/:tab', () => import('./pages/admin.js'));

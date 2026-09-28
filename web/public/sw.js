@@ -27,7 +27,14 @@ self.addEventListener('fetch', (event) => {
         const cached = await cache.match(req);
         if (cached) return cached;
         const res = await fetch(req);
-        if (res.ok) cache.put(req, res.clone());
+        if (res.ok) {
+          await cache.put(req, res.clone());
+          // نسخه‌های قدیمی همین فایل (?v=...) پاک شوند تا حافظه گوشی پر نشود
+          for (const old of await cache.keys()) {
+            const u = new URL(old.url);
+            if (u.pathname === url.pathname && u.search !== url.search) cache.delete(old);
+          }
+        }
         return res;
       }),
     );

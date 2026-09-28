@@ -12,6 +12,7 @@ import { get, upload, del } from '../core/api.js';
 import { store } from '../core/store.js';
 import { fa, timeAgo, duration } from '../core/format.js';
 import { modal, toast, toastError, confirmDialog, dropdown } from '../core/ui.js';
+import { shrinkImage } from '../core/shrink.js';
 
 const PHOTO_SECONDS = 6;
 const isTouch = () => matchMedia('(pointer: coarse)').matches;
@@ -78,7 +79,8 @@ export function storiesStrip(person, { onChange } = {}) {
     const caption = await askCaption(blob);
     if (caption === null) return;
     const form = new FormData();
-    form.append('file', blob, name);
+    const ready = blob instanceof File ? await shrinkImage(blob) : blob;
+    form.append('file', ready, ready === blob ? name : ready.name);
     form.append('category', 'story');
     if (caption) form.append('caption', caption);
     const t = toastProgress();

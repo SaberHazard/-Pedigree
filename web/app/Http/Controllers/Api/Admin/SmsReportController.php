@@ -8,12 +8,14 @@ use App\Services\Sms\SmsManager;
 use App\Services\Tree\NodePresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /** گزارش پیامک‌های تبریک اعضا برای مدیران */
 class SmsReportController extends Controller
 {
     public function index(Request $request, SmsManager $sms): JsonResponse
     {
+        $request->validate(['status' => ['nullable', 'string', Rule::in([SmsMessage::STATUS_SENT, SmsMessage::STATUS_FAILED])]]);
         $query = SmsMessage::with(['sender.person', 'recipient'])
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
             ->latest('id');

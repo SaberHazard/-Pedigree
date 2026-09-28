@@ -37,6 +37,10 @@ class MediaController extends Controller
         Gate::authorize('view', $person);
         $user = $request->user();
 
+        $request->validate([
+            'type' => ['nullable', 'string', Rule::in([Media::TYPE_IMAGE, Media::TYPE_VIDEO])],
+            'category' => ['nullable', 'string', Rule::in([Media::CATEGORY_GALLERY, Media::CATEGORY_STORY, Media::CATEGORY_SOCIAL])],
+        ]);
         $items = Media::query()
             ->with(['uploader.person', 'votes.user.person', 'person'])
             ->where('person_id', $person->id)

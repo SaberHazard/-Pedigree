@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\PersonAdminController;
 use App\Http\Controllers\Api\Admin\SettingsController;
 use App\Http\Controllers\Api\Admin\SmsReportController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
@@ -153,6 +154,10 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::delete('direct-messages/{message}', [MessageController::class, 'destroy'])->whereNumber('message');
 
     // تبریک تولد و پیامک از پنل سایت
+    // دستیار هوش مصنوعی
+    Route::get('assistant', [AssistantController::class, 'index']);
+    Route::post('assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:8,1,assistant-chat');
+
     Route::get('greetings', [GreetingController::class, 'index']);
     Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1,greeting-send');
     Route::post('greetings/preview', [GreetingController::class, 'preview'])->middleware('throttle:90,1,greeting-preview');

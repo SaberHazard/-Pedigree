@@ -32,6 +32,7 @@ export default async function dashboard(container) {
       h('a', { class: 'btn accent', href: `#/tree/${me.id}?mode=hourglass` }, icon('tree'), 'درخت من'),
       h('a', { class: 'btn', href: `#/tree/${me.id}?mode=ancestors` }, icon('ancestors'), 'نیاکان من'),
       h('a', { class: 'btn', href: `#/person/${me.id}` }, icon('user'), 'پروفایل من'),
+      store.config.assistant?.enabled ? h('a', { class: 'btn', href: '#/assistant' }, icon('bot'), 'دستیار هوشمند') : null,
     ),
   ));
 
@@ -44,6 +45,15 @@ export default async function dashboard(container) {
         h('b', null, 'منتظر نظر شما هستند'),
         h('div', { class: 'muted small' }, [c.votes ? `${fa(c.votes)} عکس/ویدیو برای رأی` : null, c.links ? `${fa(c.links)} درخواست اتصال درخت` : null].filter(Boolean).join(' • ')),
       ),
+      icon('chevron-left'),
+    ));
+  }
+
+  // پیام‌های نخوانده
+  if (c.messages > 0) {
+    page.append(h('a', { class: 'card hover row mt', href: '#/messages', style: { textDecoration: 'none', color: 'inherit' } },
+      h('div', { class: 'stat' }, h('div', { class: 's-icon' }, icon('chat'))),
+      h('div', { class: 'grow' }, h('b', null, `${fa(c.messages)} پیام نخوانده دارید`), h('div', { class: 'muted small' }, 'برای خواندن و پاسخ دادن بزنید')),
       icon('chevron-left'),
     ));
   }

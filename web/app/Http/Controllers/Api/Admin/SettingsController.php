@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
+use App\Services\Ai\AssistantService;
 use App\Services\AuditLogger;
 use App\Services\Push\FcmClient;
 use App\Services\Settings\SettingsSchema;
@@ -83,12 +84,12 @@ class SettingsController extends Controller
         return response()->json(['data' => $this->present(), 'changed' => $changed, 'message' => $changed ? 'تنظیمات ذخیره شد.' : 'تغییری نبود.']);
     }
 
-    /** آزمایش اتصال: اعتبار پنل پیامکی، پیامک آزمایشی به موبایل خود مدیر، Firebase، شبکه اجتماعی */
-    public function test(Request $request, SmsManager $sms, FcmClient $fcm, SocialProfileFetcher $social): JsonResponse
+    /** آزمایش اتصال: اعتبار پنل پیامکی، پیامک آزمایشی به موبایل خود مدیر، Firebase، شبکه اجتماعی، دستیار هوش مصنوعی */
+    public function test(Request $request, SmsManager $sms, FcmClient $fcm, SocialProfileFetcher $social, AssistantService $assistant): JsonResponse
     {
         $this->authorizeSuperAdmin($request);
         $data = $request->validate([
-            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social'])],
+            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai'])],
             'provider' => ['required_if:action,sms_credit,sms_send', 'nullable', Rule::in(SmsManager::names())],
             'network' => ['required_if:action,social', 'nullable', Rule::in(SocialProfileFetcher::FETCHABLE)],
             'handle' => ['required_if:action,social', 'nullable', 'string', 'max:200'],
@@ -100,6 +101,7 @@ class SettingsController extends Controller
                 'sms_send' => $this->sendTest($request, $sms, $data['provider']),
                 'push' => $fcm->test(),
                 'social' => $this->socialTest($social, $data['network'], (string) $data['handle']),
+                'ai' => $assistant->ping(),
             };
         } catch (SmsException|DomainException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -263,6 +265,8 @@ class SettingsController extends Controller
                 $status = ['configured' => $missingSecrets === 0, 'roles' => $roles];
             } elseif ($groupKey === 'push') {
                 $status = ['configured' => (bool) config('services.fcm.enabled') && $missingSecrets === 0, 'roles' => []];
+            } elseif ($groupKey === 'ai') {
+                $status = ['configured' => app(AssistantService::class)->configured(), 'roles' => []];
             }
 
             $groups[] = [

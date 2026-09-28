@@ -9,6 +9,7 @@ import { fa, fileSize, duration } from '../core/format.js';
 import { toast, toastError, modal, field, confirmDialog, emptyState, dropdown } from '../core/ui.js';
 import { openLightbox } from './lightbox.js';
 import { dateInput } from './date-input.js';
+import { shrinkImage } from '../core/shrink.js';
 
 const STATUS = {
   pending: ['warning', 'در انتظار تأیید'],
@@ -133,7 +134,7 @@ export function gallery(person, { onChange } = {}) {
       icon('upload'),
       h('div', { class: 'bold' }, 'افزودن عکس یا ویدیو'),
       h('div', { class: 'small' }, `کشیدن و رها کردن فایل یا کلیک • عکس تا ${fileSize((cfg.image_max_kb || 20480) * 1024)}${cfg.video_enabled ? ` • ویدیو تا ${fileSize((cfg.video_max_kb || 512000) * 1024)}` : ''}`),
-      h('div', { class: 'tiny', style: { marginTop: '6px' } }, 'عکس‌ها بدون افت محسوس کیفیت فشرده می‌شوند. فایل‌هایی که برای دیگران آپلود می‌کنید پس از تأیید بستگان نمایش داده می‌شوند.'),
+      h('div', { class: 'tiny', style: { marginTop: '6px' } }, 'عکس‌ها و ویدیوها مثل تلگرام بدون افت محسوس کیفیت فشرده می‌شوند. فایل‌هایی که برای دیگران آپلود می‌کنید پس از تأیید بستگان نمایش داده می‌شوند.'),
       input,
     );
     ['dragenter', 'dragover'].forEach((ev) => dropzone.addEventListener(ev, (e) => { e.preventDefault(); dropzone.classList.add('drag'); }));
@@ -147,8 +148,25 @@ export function gallery(person, { onChange } = {}) {
         const label = h('div', { class: 'small ellipsis' }, file.name);
         const row = h('div', { class: 'card', style: { padding: '10px 14px' } }, label, h('div', { class: 'progress', style: { marginTop: '6px' } }, bar));
         progress.append(row);
+        // پیش از آپلود: بررسی حجم و کوچک کردن عکس‌های بزرگ در خود مرورگر
+        const isVideo = file.type.startsWith('video/');
+        const maxKb = isVideo ? cfg.video_max_kb || 512000 : cfg.image_max_kb || 20480;
+        const reject = (message) => {
+          label.textContent = `${file.name}: ${message}`;
+          label.style.color = 'var(--danger)';
+          setTimeout(() => row.remove(), 8000);
+        };
+        if (isVideo && !cfg.video_enabled) {
+          reject('آپلود ویدیو فعلاً مجاز نیست.');
+          continue;
+        }
+        const ready = isVideo ? file : await shrinkImage(file);
+        if (ready.size > maxKb * 1024) {
+          reject(`حجم فایل بیشتر از ${fileSize(maxKb * 1024)} است.`);
+          continue;
+        }
         const form = new FormData();
-        form.append('file', file);
+        form.append('file', ready);
         try {
           const res = await upload(`/api/persons/${person.id}/media`, form, (p) => {
             bar.style.width = p + '%';

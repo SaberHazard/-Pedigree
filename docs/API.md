@@ -295,15 +295,38 @@
 
 ## تبریک تولد و پیامک از پنل سایت
 
+متن پیامک ثابت است: یکی از قالب‌های آماده + نام کامل گیرنده و فرستنده با عنوان «دکتر/مهندس» + نسبت فامیلی محاسبه‌شده
++ یادداشت کوتاه اختیاری (حداکثر ۳۰ نویسه، بدون عدد و لینک) + نام سایت. دریافت پیامک تبریک و اعلان تولد قابل خاموش کردن نیست.
+
 | روش | مسیر | توضیح |
 |---|---|---|
-| GET | `/greetings` | `eligibility{eligible, reason (disabled/provider/incomplete/no_profile), message, percent, required, missing[{key,label}], limits{daily_left,...}}`، `birthdays[{person, in_days (-1..7), age, degree, relation, can_sms, problem, greeted, is_me}]`، `auto{auto, scope, template, allowed, max_scope, send_hour}`، `accept_greeting_sms`، `history[]` |
-| POST | `/greetings/preview` | `{person_id, message}` → متن نهایی با نام فرستنده، تعداد نویسه و بخش |
-| POST | `/greetings/sms` | `{person_id, message}` ← ارسال (۱۰ در دقیقه). خطاها با `code`: `sms_incomplete`، `sms_recipient`، `sms_limit`، `sms_recipient_limit`، `sms_global_limit`، `sms_failed` |
-| PUT | `/greetings/auto` | `{auto, scope (d1..d4/all), template}` — متن باید `{name}` داشته باشد |
+| GET | `/greetings` | `eligibility{eligible, reason (provider/incomplete/no_profile), message, percent, required, missing[{key,label}], limits{daily_left,...}}`، `birthdays[{person, in_days (-1..7), age, degree, relation, can_sms, problem, greeted, is_me}]`، `templates[{id,label,text}]`، `default_template`، `note_max`، `auto{auto, scope, template, note, max_scope, send_hour}`، `history[]` |
+| POST | `/greetings/preview` | `{person_id, template, note?}` → `{text, length, parts}` متن نهایی (۹۰ در دقیقه) |
+| POST | `/greetings/sms` | `{person_id, template, note?}` ← ارسال (۱۰ در دقیقه). خطاها با `code`: `sms_incomplete`، `sms_provider`، `sms_recipient`، `sms_limit`، `sms_recipient_limit`، `sms_global_limit`، `sms_failed` |
+| PUT | `/greetings/auto` | `{auto, scope (d1..d4/all), template, note?}` |
 
-`PATCH /persons/{id}` با `accept_greeting_sms` (فقط خود شخص) دریافت پیامک تبریک را روشن/خاموش می‌کند.
 اعلان تولد با `kind: birthday` و `link: #/greetings?person={id}` در `/notifications` می‌آید.
+
+## پیام‌رسان اعضا (فقط متن و ایموجی)
+
+همه مسیرها فقط برای دو طرف گفتگو پاسخ می‌دهند؛ برای بقیه (حتی مدیر) `404`. متن در پایگاه داده رمزنگاری‌شده است.
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/messages` | `data[{id, other{user_id, person, name, active}, last{text, deleted, mine, read, at}, unread}]`، `unread_total` |
+| GET | `/messages/unread` | `{unread}` (در `/auth/me` هم `counters.messages`) |
+| POST | `/messages/start` | `{person_id}` → `{data:{id}}`؛ خطا `not_member` (هنوز عضو فعال نیست)، `blocked` (۴۰۳) — ۳۰ در دقیقه |
+| GET | `/messages/{id}?before=&after=` | ۵۰ پیام آخر (یا قدیمی‌تر از `before` / تازه‌تر از `after`)؛ `conversation{other, blocked_by_me, can_send, read_up_to}`، `has_more`؛ پیام‌های طرف مقابل خوانده می‌شوند |
+| POST | `/messages/{id}` | `{body}` (حداکثر ۲۰۰۰ نویسه) → `201`؛ سقف ۲۰ در دقیقه و ۵۰۰ در روز (`message_limit`) |
+| DELETE | `/direct-messages/{id}` | حذف پیام خودم برای هر دو طرف |
+| POST | `/messages/{id}/block` | `{blocked: true/false}` — مسدودسازی دوطرفه |
+
+## دستیار هوش مصنوعی
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/assistant` | `{enabled, provider, remaining, max_chars}` |
+| POST | `/assistant/chat` | `{messages: [{role: user/assistant, content}]}` (کل گفتگو تا اینجا، آخری از کاربر؛ سرور چیزی ذخیره نمی‌کند) → `{reply, remaining}` — ۸ در دقیقه. خطاها با `code`: `ai_off` (۵۰۳)، `ai_quota` (۴۲۹)، `ai_busy`، `ai_auth`، `ai_model`، `ai_rejected`، `ai_blocked`، `ai_empty`، `ai_down` |
 
 ## مدیریت (فقط مدیران)
 
@@ -318,4 +341,4 @@
 | GET | `/admin/sms-messages?status=` — گزارش پیامک‌های تبریک + آمار |
 | GET | `/admin/settings` — (مدیر کل) گروه‌های تنظیمات؛ کلیدها فقط با `is_set` و `hint` |
 | PUT | `/admin/settings` — `{values: {"pedigree.sms.drivers.kavenegar.api_key": "...", ...}, clear: [keys]}`؛ کلید خالی = بدون تغییر |
-| POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر) |
+| POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social|ai, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر؛ `ai` یک پیام کوتاه با سرویس هوش مصنوعی انتخاب‌شده) |

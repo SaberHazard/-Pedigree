@@ -1983,3 +1983,50 @@ textarea.input.msg-input { resize: none; min-height: 42px; height: 42px; max-hei
   .msg-back { display: inline-flex; }
   .msg { max-width: 86%; }
 }
+
+/* ------------------------------------------------------------ دستیار هوش مصنوعی */
+.page.assistant { max-width: 900px; padding-bottom: calc(14px + var(--bottom-nav-h)); height: calc(100dvh - var(--header-h, 64px)); display: flex; }
+.ai-shell { flex: 1; display: flex; flex-direction: column; padding: 0; overflow: hidden; min-height: 0; }
+.ai-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.ai-avatar { flex: none; width: 40px; height: 40px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--primary), var(--accent, #7c3aed)); }
+.ai-avatar .icon { width: 22px; height: 22px; }
+.ai-avatar.sm { width: 30px; height: 30px; border-radius: 10px; }
+.ai-avatar.sm .icon { width: 17px; height: 17px; }
+.ai-avatar.lg { width: 64px; height: 64px; border-radius: 20px; margin: 0 auto 10px; }
+.ai-avatar.lg .icon { width: 34px; height: 34px; }
+.ai-thread { flex: 1; overflow-y: auto; min-height: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--surface-2); }
+.ai-welcome { margin: auto; text-align: center; max-width: 620px; padding: 10px 0; }
+.ai-welcome h2 { margin: 4px 0; font-size: 1.25rem; }
+.ai-starters { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 16px; }
+.ai-starter { display: flex; align-items: center; gap: 8px; text-align: start; border: 1px solid var(--border); background: var(--surface); border-radius: 14px; padding: 10px 12px; cursor: pointer; font-size: 0.88rem; transition: border-color 0.2s, transform 0.2s var(--ease); }
+.ai-starter:hover { border-color: var(--primary); transform: translateY(-1px); }
+.ai-starter .icon { color: var(--primary); flex: none; }
+.ai-msg { display: flex; align-items: flex-start; gap: 8px; max-width: 100%; }
+.ai-msg.user { align-self: flex-start; max-width: min(82%, 620px); }
+.ai-msg.assistant { align-self: stretch; }
+.ai-bubble { padding: 9px 13px; border-radius: 16px; line-height: 1.85; overflow-wrap: anywhere; min-width: 0; }
+.ai-msg.user .ai-bubble { background: var(--primary); color: #fff; white-space: pre-wrap; border-start-start-radius: 4px; }
+.ai-msg.assistant .ai-bubble { background: var(--surface); border: 1px solid var(--border); flex: 1; border-start-start-radius: 4px; }
+.ai-bubble p { margin: 0 0 8px; }
+.ai-bubble p:last-child, .ai-bubble ul:last-child, .ai-bubble ol:last-child { margin-bottom: 0; }
+.ai-bubble .ai-h { font-weight: 700; margin-top: 6px; }
+.ai-bubble ul, .ai-bubble ol { margin: 0 0 8px; padding-inline-start: 22px; }
+.ai-bubble code { background: var(--surface-3); padding: 1px 5px; border-radius: 6px; font-size: 0.88em; }
+.ai-code { background: var(--surface-3); padding: 10px 12px; border-radius: 10px; overflow-x: auto; font-size: 0.85rem; text-align: left; white-space: pre; margin: 0 0 8px; }
+.ai-copy { flex: none; opacity: 0.55; }
+.ai-copy:hover { opacity: 1; }
+.ai-bubble.typing { display: flex; gap: 5px; align-items: center; flex: 0 0 auto; padding: 14px 16px; }
+.ai-bubble.typing i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: aiDot 1.2s infinite ease-in-out; }
+.ai-bubble.typing i:nth-child(2) { animation-delay: 0.15s; }
+.ai-bubble.typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes aiDot { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
+.ai-compose { border-top: 1px solid var(--border); padding: 10px 12px; background: var(--surface); }
+textarea.input.ai-input { resize: none; min-height: 44px; height: 44px; max-height: 180px; line-height: 1.6; flex: 1; }
+.ai-compose .muted.tiny .icon { width: 12px; height: 12px; vertical-align: -2px; }
+@media (max-width: 900px) {
+  .page.assistant { padding: 10px 10px calc(10px + var(--bottom-nav-h)); }
+  .ai-thread { padding: 12px 10px; }
+  .ai-msg.user { max-width: 88%; }
+  .ai-starters { grid-template-columns: 1fr 1fr; }
+  .ai-starter { font-size: 0.8rem; padding: 8px 10px; }
+}

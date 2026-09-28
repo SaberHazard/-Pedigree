@@ -19,6 +19,11 @@ class UserController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'role' => ['nullable', 'string', Rule::in([User::ROLE_MEMBER, User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN])],
+            'status' => ['nullable', 'string', Rule::in([User::STATUS_ACTIVE, User::STATUS_BLOCKED])],
+        ]);
         $query = User::query()->with('person.avatar');
 
         if ($q = trim((string) $request->input('q'))) {

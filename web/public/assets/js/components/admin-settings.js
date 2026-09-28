@@ -143,7 +143,7 @@ export async function adminSettings(body) {
     }
     const isInt = f.type === 'int';
     const input = h('input', {
-      class: `input ${isInt || f.type === 'url' || /api|line|sender|number|id|code|username|variable|template|parameter/.test(f.key) ? 'ltr-input' : ''}`,
+      class: `input ${isInt || f.type === 'url' || /api|line|sender|number|id|code|username|variable|template|parameter|model|base_url/.test(f.key) ? 'ltr-input' : ''}`,
       id, name: f.key, value: f.value ?? '', placeholder: f.placeholder || '',
       type: isInt ? 'number' : 'text', inputmode: isInt ? 'numeric' : null, min: f.min ?? null, max: isInt ? f.max : null, maxlength: !isInt ? f.max || 500 : null,
       autocomplete: 'off', spellcheck: 'false',
@@ -196,6 +196,10 @@ export async function adminSettings(body) {
         run(test, { action: 'social', network: net.value, handle: handle.value.trim() });
       } }, icon('refresh'), 'آزمایش دریافت');
       out.push(h('span', { class: 'row wrap', style: { gap: '6px' } }, net, handle, test));
+    }
+    if (g.key === 'ai' || g.key === 'ai_keys') {
+      const test = h('button', { class: 'btn soft sm', type: 'button', title: 'یک پیام کوتاه با سرویس انتخاب‌شده (پس از ذخیره)', onclick: () => run(test, { action: 'ai' }) }, icon('bot'), 'آزمایش دستیار');
+      out.push(test);
     }
     if (out.length) out.push(result);
     return out;

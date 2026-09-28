@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Ai\AssistantService;
 use App\Services\Social\SocialProfileFetcher;
 use App\Support\Countries;
 use App\Support\SocialNetworks;
@@ -93,6 +94,7 @@ class MetaController extends Controller
                 'traits' => config('pedigree.ratings.traits'),
             ],
             'history_public' => (bool) config('pedigree.permissions.history_public', true),
+            'assistant' => ['enabled' => app(AssistantService::class)->configured()],
         ]);
     }
 }
