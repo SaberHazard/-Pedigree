@@ -135,6 +135,7 @@ export default async function personPage(container, { params }) {
         ),
         h('div', { class: 'ph-actions' },
           h('a', { class: 'btn soft', href: `#/tree/${person.id}?mode=hourglass` }, icon('tree'), 'درخت'),
+          canMessage(person) ? h('button', { class: 'btn', type: 'button', title: 'پیام متنی به این عضو', onclick: () => import('./messages.js').then((m) => m.startConversation(person)) }, icon('chat'), 'پیام') : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/edit` }, icon('edit'), 'ویرایش') : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/interview`, title: 'تکمیل پروفایل با جواب دادن به سؤال‌های کوتاه' }, icon('sparkles'), 'پرسش‌وپاسخ') : null,
           perms.edit ? h('button', { class: 'btn', type: 'button', onclick: () => openRelativeDialog(person, 'child', { onDone: () => show('relatives') }) }, icon('user-plus'), 'افزودن بستگان') : null,
@@ -415,4 +416,9 @@ function localPref(key, fallback) {
 
 function saveLocalPref(key, value) {
   saveLocalPrefs({ [key]: value });
+}
+
+/** دکمه «پیام» فقط برای عضو فعالِ دیگر (نه خودم، نه مهمان) */
+function canMessage(person) {
+  return Boolean(store.user && person.account?.active && store.user.person?.id !== person.id);
 }

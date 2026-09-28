@@ -7,18 +7,12 @@
  */
 import { h, debounce } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { get, post, put, patch } from '../core/api.js';
+import { get, post, put } from '../core/api.js';
 import { store } from '../core/store.js';
 import { fa, fullName, timeAgo } from '../core/format.js';
 import { modal, toast, toastError, loader, emptyState, switchInput, withLoading } from '../core/ui.js';
 import { avatar } from '../components/avatar.js';
 
-const TEMPLATES = [
-  '{name} عزیز، زادروزت خجسته باد! سالی پر از سلامتی و شادی برایت آرزو می‌کنم.',
-  '{name} جان تولدت مبارک! همیشه سلامت و دلت شاد باشد.',
-  'زادروزتان مبارک {name} عزیز؛ سایه‌تان همیشه بر سر خانواده باشد.',
-  '{name} عزیز، تولدت مبارک! به امید سالی پر از موفقیت و خبرهای خوب.',
-];
 
 const SCOPES = { d1: 'فقط بستگان درجه ۱', d2: 'بستگان تا درجه ۲', d3: 'بستگان تا درجه ۳', d4: 'بستگان تا درجه ۴', all: 'همه اعضای شجره‌نامه' };
 const RANK = { d1: 1, d2: 2, d3: 3, d4: 4, all: 99 };
@@ -63,7 +57,6 @@ export default async function greetingsPage(container, { query }) {
         h('div', { class: 'bd-list' }, ...upcoming.map(row)),
       ) : null,
       autoBox(),
-      receiveBox(),
       historyBox(),
     ].filter(Boolean));
   }
@@ -135,40 +128,57 @@ export default async function greetingsPage(container, { query }) {
   }
 
   // ------------------------------------------------------------ نوشتن پیامک
+  /** انتخاب یکی از متن‌های آماده + یادداشت کوتاه اختیاری (نام‌ها و نسبت را سایت می‌نویسد) */
+  function templatePicker(selected, onChange) {
+    const box = h('div', { class: 'tpl-list', role: 'radiogroup' });
+    const draw = (current) => box.replaceChildren(...state.templates.map((t) => h('button', {
+      type: 'button', class: `tpl ${t.id === current ? 'active' : ''}`, role: 'radio', 'aria-checked': t.id === current ? 'true' : 'false',
+      onclick: () => { draw(t.id); onChange(t.id); },
+    }, t.text.replace('{to}', '…'))));
+    draw(selected);
+    return box;
+  }
+
+  function noteInput(value, onInput) {
+    const input = h('input', { class: 'input', maxlength: state.note_max, value: value || '', placeholder: 'اختیاری؛ مثلاً «علی کوچولو» یا «با عشق، خانواده رضایی»' });
+    input.addEventListener('input', onInput);
+    return input;
+  }
+
   function compose(r) {
     const p = r.person;
-    const area = h('textarea', { class: 'input', rows: 4, maxlength: state.eligibility.limits.max_length }, TEMPLATES[0]);
+    let template = state.auto?.template || state.default_template;
     const previewBox = h('div', { class: 'sms-preview' });
     const counter = h('div', { class: 'muted tiny' });
+    const note = noteInput('', () => refresh());
     const refresh = debounce(async () => {
       try {
-        const res = await post('/api/greetings/preview', { person_id: p.id, message: area.value });
+        const res = await post('/api/greetings/preview', { person_id: p.id, template, note: note.value });
         previewBox.textContent = res.text;
         counter.textContent = `${fa(res.length)} نویسه • ${fa(res.parts)} بخش پیامک`;
       } catch (e) {
         previewBox.textContent = e.message;
         counter.textContent = '';
       }
-    }, 350);
-    area.addEventListener('input', refresh);
+    }, 300);
     refresh();
     modal({
       title: `تبریک تولد ${fullName(p)}`,
       body: h('div', { class: 'compose-sms' },
-        h('div', { class: 'row wrap', style: { gap: '6px', marginBottom: '8px' } },
-          ...TEMPLATES.map((t, i) => h('button', { class: 'chip preset', type: 'button', onclick: () => { area.value = t; refresh(); } }, `متن ${fa(i + 1)}`))),
-        h('label', { class: 'label' }, 'متن پیامک ({name} = نام گیرنده)'),
-        area,
-        h('label', { class: 'label mt-sm' }, 'پیش‌نمایش پیامکی که ارسال می‌شود'),
+        h('label', { class: 'label' }, 'متن تبریک'),
+        templatePicker(template, (id) => { template = id; refresh(); }),
+        h('label', { class: 'label mt-sm' }, `یادداشت خیلی کوتاه از طرف شما (حداکثر ${fa(state.note_max)} نویسه، بدون عدد و لینک)`),
+        note,
+        h('label', { class: 'label mt-sm' }, 'پیامکی که ارسال می‌شود'),
         previewBox,
         counter,
-        h('p', { class: 'muted tiny' }, icon('lock'), ' شماره گیرنده به شما نشان داده نمی‌شود. نام شما و نام سایت پایین پیامک می‌آید؛ لینک مجاز نیست.'),
+        h('p', { class: 'muted tiny' }, icon('info'), ' نام کامل شما و گیرنده (با عنوان دکتر/مهندس) و نسبت فامیلی شما با او را سایت از روی شجره‌نامه می‌نویسد. شماره گیرنده به شما نشان داده نمی‌شود.'),
       ),
       actions: [
         { label: 'انصراف' },
         { label: 'ارسال پیامک', class: 'primary', icon: 'mail', onClick: async () => {
           try {
-            const res = await post('/api/greetings/sms', { person_id: p.id, message: area.value });
+            const res = await post('/api/greetings/sms', { person_id: p.id, template, note: note.value });
             toast(res.message);
             state.eligibility.limits = res.limits;
             r.greeted = true;
@@ -187,14 +197,14 @@ export default async function greetingsPage(container, { query }) {
   // ------------------------------------------------------------ تبریک خودکار
   function autoBox() {
     const a = state.auto;
-    if (!a.allowed) return null;
     const allowedScopes = Object.entries(SCOPES).filter(([k]) => RANK[k] <= RANK[a.max_scope]);
     const scope = h('select', { class: 'input' }, ...allowedScopes.map(([k, l]) => h('option', { value: k, selected: k === a.scope }, l)));
-    const template = h('textarea', { class: 'input', rows: 3, maxlength: state.eligibility.limits?.max_length || 250 }, a.template || state.default_template);
+    let template = a.template || state.default_template;
+    const note = noteInput(a.note, () => {});
     const sw = switchInput('auto', 'روشن', !!a.auto);
     const save = h('button', { class: 'btn primary sm', type: 'button', onclick: () => withLoading(save, async () => {
       try {
-        const res = await put('/api/greetings/auto', { auto: sw.querySelector('input').checked, scope: scope.value, template: template.value });
+        const res = await put('/api/greetings/auto', { auto: sw.querySelector('input').checked, scope: scope.value, template, note: note.value });
         state.auto = { ...state.auto, ...res.auto };
         toast(res.message);
       } catch (e) {
@@ -206,25 +216,11 @@ export default async function greetingsPage(container, { query }) {
       h('p', { class: 'muted small' }, `هر روز ساعت ${fa(a.send_hour)} به کسانی که تولدشان است (در دامنه انتخابی) از طرف شما پیامک تبریک فرستاده می‌شود؛ هر نفر سالی یک بار. فقط وقتی پروفایل شما بالای ${fa(state.eligibility.required)}٪ کامل باشد.`),
       h('div', { class: 'form-grid' },
         h('div', { class: 'field' }, h('label', null, 'به چه کسانی'), scope),
-        h('div', { class: 'field full' }, h('label', null, 'متن ({name} = نام شخص)'), template),
+        h('div', { class: 'field' }, h('label', null, 'یادداشت کوتاه (اختیاری)'), note),
+        h('div', { class: 'field full' }, h('label', null, 'متن تبریک'), templatePicker(template, (id) => { template = id; })),
       ),
       h('div', { class: 'row', style: { justifyContent: 'flex-end' } }, save),
     );
-  }
-
-  // ------------------------------------------------------------ دریافت پیامک
-  function receiveBox() {
-    if (!me) return null;
-    const sw = switchInput('accept', 'پیامک تبریک اعضا را دریافت کنم', !!state.accept_greeting_sms, async (v) => {
-      try {
-        await patch(`/api/persons/${me.id}`, { accept_greeting_sms: v });
-        state.accept_greeting_sms = v;
-        toast(v ? 'پیامک‌های تبریک برای شما ارسال می‌شود.' : 'پیامک تبریک برای شما ارسال نمی‌شود.');
-      } catch (e) {
-        toastError(e);
-      }
-    });
-    return h('section', { class: 'card mt' }, sw, h('p', { class: 'muted tiny', style: { margin: '6px 0 0' } }, 'اعلان تولد شما در سایت همچنان برای اعضا نمایش داده می‌شود.'));
   }
 
   // ------------------------------------------------------------ پیامک‌های من

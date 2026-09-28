@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\LinkRequestController;
 use App\Http\Controllers\Api\MapController;
 use App\Http\Controllers\Api\MarriageController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OpinionController;
@@ -38,10 +39,10 @@ Route::get('bootstrap', [MetaController::class, 'bootstrap']);
 
 // ------------------------------------------------------------------ ورود
 Route::prefix('auth')->group(function () {
-    Route::get('captcha', [AuthController::class, 'captcha'])->middleware('throttle:30,1');
+    Route::get('captcha', [AuthController::class, 'captcha'])->middleware('throttle:30,1,captcha');
     Route::post('otp', [AuthController::class, 'requestOtp'])->middleware('throttle:otp');
     Route::post('otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:otp-verify');
-    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:10,1,register');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:login');
 
     Route::middleware('auth:sanctum')->group(function () {
@@ -84,7 +85,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::delete('persons/{person}', [PersonController::class, 'destroy']);
     Route::get('persons/{person}/history', [PersonController::class, 'history']);
     Route::get('persons/{person}/relationship/{other}', [PersonController::class, 'relationship']);
-    Route::get('persons/{person}/kin', [KinController::class, 'index'])->middleware('throttle:30,1');
+    Route::get('persons/{person}/kin', [KinController::class, 'index'])->middleware('throttle:30,1,kin');
 
     // متن‌های رنگی پروفایل (بیوگرافی، توضیحات، زندگی‌نامه، رزومه) و نسخه‌های آن‌ها
     Route::put('persons/{person}/texts/{field}', [ProfileTextController::class, 'update'])->middleware('throttle:writes');
@@ -125,7 +126,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('persons/{person}/avatar', [MediaController::class, 'uploadAvatar'])->middleware('throttle:uploads');
     Route::put('persons/{person}/avatar', [MediaController::class, 'setAvatar']);
     Route::post('persons/{person}/social-avatar', [SocialController::class, 'storeAvatar'])->middleware('throttle:uploads');
-    Route::get('social/preview', [SocialController::class, 'preview'])->middleware('throttle:20,1');
+    Route::get('social/preview', [SocialController::class, 'preview'])->middleware('throttle:20,1,social-preview');
     Route::get('media/{media}', [MediaController::class, 'show']);
     Route::match(['put', 'patch'], 'media/{media}', [MediaController::class, 'update']);
     Route::delete('media/{media}', [MediaController::class, 'destroy']);
@@ -142,10 +143,19 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('dashboard/events', [DashboardController::class, 'events']);
     Route::get('dashboard/activity', [DashboardController::class, 'activity']);
+    // پیام‌رسان داخلی (فقط متن و ایموجی)
+    Route::get('messages', [MessageController::class, 'index']);
+    Route::get('messages/unread', [MessageController::class, 'unread']);
+    Route::post('messages/start', [MessageController::class, 'start'])->middleware('throttle:30,1,message-start');
+    Route::get('messages/{conversation}', [MessageController::class, 'show'])->whereNumber('conversation');
+    Route::post('messages/{conversation}', [MessageController::class, 'send'])->whereNumber('conversation')->middleware('throttle:40,1,message-send');
+    Route::post('messages/{conversation}/block', [MessageController::class, 'block'])->whereNumber('conversation');
+    Route::delete('direct-messages/{message}', [MessageController::class, 'destroy'])->whereNumber('message');
+
     // تبریک تولد و پیامک از پنل سایت
     Route::get('greetings', [GreetingController::class, 'index']);
-    Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1');
-    Route::post('greetings/preview', [GreetingController::class, 'preview'])->middleware('throttle:60,1');
+    Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1,greeting-send');
+    Route::post('greetings/preview', [GreetingController::class, 'preview'])->middleware('throttle:90,1,greeting-preview');
     Route::put('greetings/auto', [GreetingController::class, 'updateAuto'])->middleware('throttle:writes');
 
     Route::get('notifications', [NotificationController::class, 'index']);
@@ -153,7 +163,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
 
     // خروجی
-    Route::get('export/gedcom', [ExportController::class, 'gedcom'])->middleware('throttle:10,1');
+    Route::get('export/gedcom', [ExportController::class, 'gedcom'])->middleware('throttle:10,1,gedcom');
 
     // مدیریت
     Route::middleware('admin')->prefix('admin')->group(function () {
@@ -166,7 +176,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::get('sms-messages', [SmsReportController::class, 'index']);
         // تنظیمات و کلیدهای API (فقط مدیر کل)
         Route::get('settings', [SettingsController::class, 'index']);
-        Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1');
-        Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1');
+        Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1,settings-update');
+        Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1,settings-test');
     });
 });

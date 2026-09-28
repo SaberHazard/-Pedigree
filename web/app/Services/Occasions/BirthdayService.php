@@ -5,7 +5,6 @@ namespace App\Services\Occasions;
 use App\Models\Person;
 use App\Models\User;
 use App\Notifications\BirthdayToday;
-use App\Services\KinshipDegrees;
 use App\Support\Jalali;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -16,13 +15,11 @@ use Illuminate\Support\Facades\Notification;
  *
  * - فقط زندگان با تاریخ تولد کامل (سال-ماه-روز)
  * - متولدین ۳۰ اسفند در سال‌های غیرکبیسه، ۲۹ اسفند تبریک گفته می‌شوند
- * - اعلان به همه اعضای فعال (یا بستگان تا درجه تنظیم‌شده)، جز خود شخص
+ * - اعلان به همه اعضای فعال، جز خود شخص (قابل خاموش کردن نیست)
  * - هر تولد در هر سال فقط یک بار اعلان می‌شود (occasion_runs)
  */
 class BirthdayService
 {
-    public function __construct(private readonly KinshipDegrees $degrees) {}
-
     /** @return array{0:int,1:int,2:int} امروز شمسی */
     public function today(): array
     {
@@ -89,9 +86,6 @@ class BirthdayService
     /** اعلان تولدهای امروز؛ تعداد اعلان‌های فرستاده‌شده */
     public function notifyToday(): int
     {
-        if (! config('pedigree.birthdays.notify', true)) {
-            return 0;
-        }
         [$jy] = $this->today();
         $sent = 0;
         foreach ($this->todays() as ['person' => $person, 'age' => $age]) {
@@ -108,20 +102,11 @@ class BirthdayService
         return $sent;
     }
 
-    /** اعضای فعالی که اعلان تولد این شخص را می‌گیرند (جز خودش) */
+    /** همه اعضای فعالی که اعلان تولد این شخص را می‌گیرند (جز خودش) */
     public function recipients(Person $person): Collection
     {
-        $users = User::query()->where('status', User::STATUS_ACTIVE)->whereNotNull('last_login_at')
+        return User::query()->where('status', User::STATUS_ACTIVE)->whereNotNull('last_login_at')
             ->where(fn ($q) => $q->whereNull('person_id')->orWhere('person_id', '!=', $person->id))
-            ->with('person')
             ->get();
-
-        $max = KinshipDegrees::levelMax((string) config('pedigree.birthdays.scope', 'all'));
-        if ($max === null) {
-            return $users;
-        }
-        $kin = $this->degrees->from($person);
-
-        return $users->filter(fn (User $u) => $u->person_id && isset($kin[$u->person_id]) && $kin[$u->person_id]['degree'] <= $max)->values();
     }
 }

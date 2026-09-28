@@ -10,6 +10,7 @@ use App\Services\AuditLogger;
 use App\Services\KinshipDegrees;
 use App\Services\Occasions\BirthdayService;
 use App\Services\People\ProfileService;
+use App\Services\Tree\RelationshipCalculator;
 use App\Support\PersianText;
 use App\Support\Phone;
 use Illuminate\Support\Facades\Cache;
@@ -18,16 +19,29 @@ use Illuminate\Support\Facades\Log;
 /**
  * پیامک تبریک تولد از طرف اعضا با پنل پیامکی سایت.
  *
- * قوانین (همه از پنل مدیریت قابل تغییر):
+ * قوانین:
  *  - فقط اعضایی که پروفایلشان حداقل ۹۵٪ کامل است (با فهرست دقیق بخش‌های خالی در پیام خطا)
- *  - فقط برای کسی که امروز (یا دیروز) تولدش است، زنده است، موبایل دارد و پیامک تبریک را رد نکرده
+ *  - فقط برای کسی که امروز (یا دیروز) تولدش است، زنده است و موبایل دارد
+ *  - متن ثابت است (یکی از چند قالب آماده): نام کامل گیرنده و فرستنده با عنوان «دکتر/مهندس» و
+ *    نسبت فامیلی فرستنده با گیرنده که از روی شجره‌نامه حساب می‌شود («از طرف پسرخاله عزیزت، مهندس علی احمدی»).
+ *    فرستنده فقط یک یادداشت خیلی کوتاه (مثل لقب خودش) اضافه می‌کند؛ بدون عدد و لینک.
  *  - هر نفر به هر نفر سالی یک بار؛ سقف روزانه/ماهانه هر عضو، سقف روزانه هر گیرنده و کل سایت
- *  - لینک در متن مجاز نیست (جلوگیری از فیشینگ) و نام فرستنده و نام سایت همیشه پایین پیامک می‌آید
  *  - شماره گیرنده هرگز به فرستنده نشان داده نمی‌شود
  */
 class GreetingService
 {
-    public const DEFAULT_TEMPLATE = '{name} عزیز، زادروزت خجسته باد! سالی پر از سلامتی و شادی برایت آرزو می‌کنم.';
+    /** قالب‌های ثابت: {to} = نام کامل گیرنده با عنوان؛ formal = خطاب «شما» */
+    public const TEMPLATES = [
+        'warm' => ['text' => '🎂 {to} عزیز، زادروزت خجسته باد! سالی سرشار از سلامتی و شادی برایت آرزومندم.', 'formal' => false],
+        'short' => ['text' => '🌹 {to} عزیز، تولدت مبارک! همیشه سلامت و شاد باشی.', 'formal' => false],
+        'respect' => ['text' => '🎉 {to} گرامی، زادروزتان مبارک! سایه‌تان همیشه بر سر خانواده باشد.', 'formal' => true],
+        'success' => ['text' => '🎈 {to} عزیز، تولدت مبارک! به امید سالی پر از موفقیت و خبرهای خوب.', 'formal' => false],
+    ];
+
+    public const DEFAULT_TEMPLATE = 'warm';
+
+    /** بیشترین طول یادداشت کوتاه فرستنده */
+    public const NOTE_MAX = 30;
 
     public function __construct(
         private readonly SmsManager $sms,
@@ -35,6 +49,7 @@ class GreetingService
         private readonly BirthdayService $birthdays,
         private readonly KinshipDegrees $degrees,
         private readonly AuditLogger $audit,
+        private readonly RelationshipCalculator $relations,
     ) {}
 
     /**
@@ -47,9 +62,6 @@ class GreetingService
         $required = (int) config('pedigree.member_sms.min_completeness', 95);
         $result = ['eligible' => false, 'reason' => null, 'message' => null, 'percent' => null, 'required' => $required, 'missing' => [], 'limits' => $this->limits($user)];
 
-        if (! config('pedigree.member_sms.enabled', true)) {
-            return ['reason' => 'disabled', 'message' => 'ارسال پیامک تبریک از طرف مدیر سایت غیرفعال است.'] + $result;
-        }
         if (! $this->sms->messagesReady()) {
             return ['reason' => 'provider', 'message' => 'پنل پیامکی سایت هنوز تنظیم نشده است.'] + $result;
         }
@@ -85,7 +97,6 @@ class GreetingService
             'daily_left' => max(0, $daily - $sentToday),
             'monthly' => $monthly,
             'monthly_left' => max(0, $monthly - $sentMonth),
-            'max_length' => (int) config('pedigree.member_sms.max_length', 250),
         ];
     }
 
@@ -100,9 +111,6 @@ class GreetingService
         }
         if (! $recipient->phone_hash) {
             return 'شماره موبایل این شخص در شجره‌نامه ثبت نشده است.';
-        }
-        if (! $recipient->accept_greeting_sms) {
-            return 'این شخص دریافت پیامک تبریک از اعضا را خاموش کرده است.';
         }
         $inDays ??= $this->birthdays->around(1, 0)->firstWhere('person.id', $recipient->id)['in_days'] ?? null;
         if ($inDays === null || $inDays > 0 || $inDays < -1) {
@@ -120,20 +128,20 @@ class GreetingService
      *
      * @throws DomainException
      */
-    public function send(User $sender, Person $recipient, string $message, bool $auto = false): SmsMessage
+    public function send(User $sender, Person $recipient, string $template = self::DEFAULT_TEMPLATE, ?string $note = null, bool $auto = false): SmsMessage
     {
         $lock = Cache::lock('greeting-sms:'.$sender->id, 15);
         if (! $lock->get()) {
             throw new DomainException('پیامک قبلی شما در حال ارسال است؛ چند ثانیه صبر کنید.', 429);
         }
         try {
-            return $this->sendLocked($sender, $recipient, $message, $auto);
+            return $this->sendLocked($sender, $recipient, $template, $note, $auto);
         } finally {
             $lock->release();
         }
     }
 
-    private function sendLocked(User $sender, Person $recipient, string $message, bool $auto): SmsMessage
+    private function sendLocked(User $sender, Person $recipient, string $template, ?string $note, bool $auto): SmsMessage
     {
         $eligibility = $this->eligibility($sender);
         if (! $eligibility['eligible']) {
@@ -156,7 +164,7 @@ class GreetingService
             throw new DomainException('سقف روزانه پیامک‌های تبریک سایت پر شده است؛ فردا دوباره امتحان کنید.', 429, 'sms_global_limit');
         }
 
-        $text = $this->compose($sender, $recipient, $message);
+        $text = $this->compose($sender, $recipient, $template, $note);
         $provider = $this->sms->messageDriverName();
         $record = new SmsMessage([
             'sender_user_id' => $sender->id,
@@ -187,40 +195,78 @@ class GreetingService
         return $record;
     }
 
-    /** متن نهایی: متن کاربر + نام فرستنده + نام سایت */
-    public function compose(User $sender, Person $recipient, string $message): string
-    {
-        $message = $this->cleanMessage($message, $recipient);
-        $signature = '— '.($sender->person?->fullName() ?? $sender->displayName())."\n".config('pedigree.site_name');
-
-        return $message."\n".$signature;
-    }
-
     /**
-     * یکدست‌سازی و بررسی متن (جایگزینی {name} با نام گیرنده)
+     * متن نهایی پیامک (ثابت):
+     *   🎂 مهندس مریم احمدی عزیز، زادروزت خجسته باد! ...
+     *   از طرف پسرخاله عزیزت، دکتر علی احمدی
+     *   (یادداشت کوتاه فرستنده)
+     *   نام سایت
      *
      * @throws DomainException
      */
-    public function cleanMessage(string $message, ?Person $recipient = null): string
+    public function compose(User $sender, Person $recipient, string $template = self::DEFAULT_TEMPLATE, ?string $note = null): string
     {
-        $message = str_replace(["\r\n", "\r"], "\n", $message);
-        $message = preg_replace('/[\x00-\x08\x0B-\x1F\x7F\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', '', $message) ?? '';
-        $message = trim(preg_replace("/\n{3,}/", "\n\n", preg_replace('/[ \t]+/', ' ', $message) ?? '') ?? '');
-        if ($recipient) {
-            $message = str_replace('{name}', $recipient->first_name, $message);
+        $def = self::TEMPLATES[$template] ?? throw new DomainException('قالب پیامک معتبر نیست.');
+        $note = $this->cleanNote($note);
+        $from = $sender->person ? self::displayName($sender->person) : $sender->displayName();
+        $relation = $sender->person ? $this->relations->plainLabel($recipient, $sender->person) : null;
+
+        $lines = [str_replace('{to}', self::displayName($recipient), $def['text'])];
+        $lines[] = $relation
+            ? 'از طرف '.$relation.($def['formal'] ? ' شما' : ' عزیزت').'، '.$from
+            : 'از طرف '.$from;
+        if ($note !== null) {
+            $lines[] = $note;
         }
-        if ($message === '') {
-            throw new DomainException('متن پیامک خالی است.');
+        $lines[] = (string) config('pedigree.site_name');
+
+        return implode("\n", $lines);
+    }
+
+    /** نام کامل با عنوان علمی: «مهندس مریم احمدی» */
+    public static function displayName(Person $person): string
+    {
+        return trim(implode(' ', array_filter([$person->honorific(), $person->first_name, $person->last_name])));
+    }
+
+    /**
+     * یادداشت خیلی کوتاه فرستنده (مثل لقب یا «از طرف خانواده رضایی»):
+     * یک خط، حداکثر ۳۰ نویسه، بدون لینک و بدون عدد (تا شماره تلفن یا کد در پیامک نرود)
+     *
+     * @throws DomainException
+     */
+    public function cleanNote(?string $note): ?string
+    {
+        if ($note === null) {
+            return null;
         }
-        $max = (int) config('pedigree.member_sms.max_length', 250);
-        if (mb_strlen($message) > $max) {
-            throw new DomainException(PersianText::toPersianDigits("متن پیامک حداکثر {$max} نویسه باشد."));
+        $note = preg_replace('/[\x00-\x1F\x7F\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', ' ', $note) ?? '';
+        $note = trim(preg_replace('/\s+/u', ' ', $note) ?? '');
+        if ($note === '') {
+            return null;
         }
-        if (preg_match('~(https?://|www\.|[a-z0-9-]+\.(ir|com|net|org|me|io|co|app|xyz|info)\b|t\.me/)~iu', $message)) {
-            throw new DomainException('لینک و آدرس سایت در پیامک تبریک مجاز نیست.');
+        if (mb_strlen($note) > self::NOTE_MAX) {
+            throw new DomainException(PersianText::toPersianDigits('یادداشت کوتاه حداکثر '.self::NOTE_MAX.' نویسه باشد.'));
+        }
+        if (preg_match('/[0-9\x{06F0}-\x{06F9}\x{0660}-\x{0669}]/u', $note)) {
+            throw new DomainException('در یادداشت کوتاه عدد نگذارید (برای جلوگیری از ارسال شماره یا کد).');
+        }
+        if (preg_match('~(https?:|www\.|\.[a-z]{2,}\b|@|/)~iu', $note)) {
+            throw new DomainException('لینک و آدرس در پیامک تبریک مجاز نیست.');
         }
 
-        return $message;
+        return $note;
+    }
+
+    /** @return array<int, array{id:string, text:string}> قالب‌ها برای نمایش */
+    public static function templates(): array
+    {
+        $out = [];
+        foreach (self::TEMPLATES as $id => $def) {
+            $out[] = ['id' => $id, 'text' => $def['text'], 'formal' => $def['formal']];
+        }
+
+        return $out;
     }
 
     public function alreadyGreeted(User $sender, Person $recipient): bool
@@ -235,11 +281,13 @@ class GreetingService
     public function autoPreferences(User $user): array
     {
         $prefs = (array) (($user->preferences ?? [])['birthday_sms'] ?? []);
+        $note = is_string($prefs['note'] ?? null) ? $prefs['note'] : null;
 
         return [
             'auto' => (bool) ($prefs['auto'] ?? false),
             'scope' => in_array($prefs['scope'] ?? null, ['all', 'd4', 'd3', 'd2', 'd1'], true) ? $prefs['scope'] : 'd1',
-            'template' => is_string($prefs['template'] ?? null) && $prefs['template'] !== '' ? $prefs['template'] : self::DEFAULT_TEMPLATE,
+            'template' => isset(self::TEMPLATES[$prefs['template'] ?? '']) ? $prefs['template'] : self::DEFAULT_TEMPLATE,
+            'note' => $note,
         ];
     }
 
@@ -260,10 +308,7 @@ class GreetingService
     public function autoSendToday(): array
     {
         $stats = ['sent' => 0, 'skipped' => 0, 'failed' => 0];
-        if (! config('pedigree.member_sms.enabled', true) || ! config('pedigree.member_sms.auto_enabled', true)) {
-            return $stats;
-        }
-        $todays = $this->birthdays->todays()->filter(fn ($row) => $row['person']->phone_hash && $row['person']->accept_greeting_sms);
+        $todays = $this->birthdays->todays()->filter(fn ($row) => (bool) $row['person']->phone_hash);
         if ($todays->isEmpty()) {
             return $stats;
         }
@@ -290,7 +335,7 @@ class GreetingService
                     continue;
                 }
                 try {
-                    $this->send($sender, $person, $prefs['template'], true);
+                    $this->send($sender, $person, $prefs['template'], $prefs['note'], true);
                     $stats['sent']++;
                 } catch (DomainException) {
                     $stats['failed']++;

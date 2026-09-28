@@ -66,6 +66,7 @@ export function createDrawer(host, { onAction } = {}) {
       person.biography ? h('p', { class: 'small text-2', style: { marginTop: '12px', whiteSpace: 'pre-line' } }, person.biography.length > 280 ? person.biography.slice(0, 280) + '…' : person.biography) : null,
       h('div', { class: 'grid grid-2', style: { gap: '8px', marginTop: '14px' } },
         h('a', { class: 'btn soft sm', href: `#/person/${person.id}` }, icon('user'), 'پروفایل کامل'),
+        store.user && person.account?.active && store.user.person?.id !== person.id ? h('button', { class: 'btn sm', type: 'button', onclick: () => import('../pages/messages.js').then((m) => m.startConversation(person)) }, icon('chat'), 'پیام') : null,
         canEdit ? h('a', { class: 'btn sm', href: `#/person/${person.id}/edit` }, icon('edit'), 'ویرایش') : null,
         canEdit ? h('button', { class: 'btn sm', type: 'button', onclick: () => openRelativeDialog(person, 'child', { onDone: () => onAction?.('reload') }) }, icon('user-plus'), 'افزودن بستگان') : null,
         h('button', { class: 'btn sm', type: 'button', onclick: () => navigate(`/tree/${person.id}?mode=descendants`) }, icon('tree'), 'نوادگان'),

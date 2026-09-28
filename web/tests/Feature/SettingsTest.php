@@ -57,14 +57,14 @@ class SettingsTest extends TestCase
             'pedigree.sms.drivers.kavenegar.api_key' => 'SECRET-KEY-1234abcd',
             'pedigree.sms.drivers.kavenegar.template' => 'myverify',
             'pedigree.member_sms.min_completeness' => 90,
-            'pedigree.birthdays.notify' => false,
+            'pedigree.birthdays.notify_hour' => 7,
         ]])->assertOk();
 
         // همین حالا اعمال شده
         $this->assertSame('SECRET-KEY-1234abcd', config('pedigree.sms.drivers.kavenegar.api_key'));
         $this->assertSame('kavenegar', app(SmsManager::class)->driverName());
         $this->assertSame(90, config('pedigree.member_sms.min_completeness'));
-        $this->assertFalse(config('pedigree.birthdays.notify'));
+        $this->assertSame(7, config('pedigree.birthdays.notify_hour'));
 
         // در پایگاه داده رمزنگاری‌شده
         $raw = DB::table('settings')->where('key', 'pedigree.sms.drivers.kavenegar.api_key')->value('value');

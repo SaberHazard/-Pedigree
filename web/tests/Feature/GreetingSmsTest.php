@@ -87,14 +87,6 @@ class GreetingSmsTest extends TestCase
         $this->assertSame(1, $this->sender->fresh()->notifications()->count());
     }
 
-    public function test_birthday_notification_scope_can_be_limited_to_relatives(): void
-    {
-        config(['pedigree.birthdays.scope' => 'd1']);
-        $this->artisan('pedigree:birthdays', ['--force' => true]);
-        $this->assertSame(1, $this->sender->fresh()->notifications()->count(), 'برادر درجه ۱ است');
-        $this->assertSame(0, $this->other->fresh()->notifications()->count());
-    }
-
     public function test_esfand_30_birthdays_are_celebrated_on_esfand_29_in_common_years(): void
     {
         $year = 1404;
@@ -119,61 +111,85 @@ class GreetingSmsTest extends TestCase
         $this->assertContains('عکس پروفایل', array_column($res->json('eligibility.missing'), 'label'));
         $this->assertFalse(collect($res->json('birthdays'))->firstWhere('person.id', $this->birthdayUser->person_id)['can_sms']);
 
-        $this->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'message' => 'تولدت مبارک'])
+        $this->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => 'warm'])
             ->assertStatus(403)->assertJsonPath('code', 'sms_incomplete')
             ->assertJsonFragment(['message' => $res->json('eligibility.message')]);
         Http::assertNothingSent();
     }
 
-    public function test_greeting_is_sent_with_signature_and_rules_are_enforced(): void
+    public function test_greeting_uses_fixed_text_with_titles_and_computed_relation(): void
     {
         $recipient = $this->birthdayUser->person;
+        // گیرنده دکترا دارد و فرستنده لیسانس مهندسی
+        $recipient->forceFill(['education_level' => 'phd'])->save();
+        $this->sender->person->forceFill(['education_level' => 'bachelor', 'education_field_group' => 'engineering'])->save();
         $this->actingAs($this->sender, 'sanctum');
 
-        $res = $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'message' => '{name} عزیز تولدت مبارک!'])->assertCreated();
+        $preview = $this->postJson('/api/greetings/preview', ['person_id' => $recipient->id, 'template' => 'warm', 'note' => 'علی کوچولو'])->assertOk();
+        $expected = "🎂 دکتر مریم احمدی عزیز، زادروزت خجسته باد! سالی سرشار از سلامتی و شادی برایت آرزومندم.\n"
+            ."از طرف برادر عزیزت، مهندس علی احمدی\n"
+            ."علی کوچولو\n"
+            .'شجره احمدی';
+        $this->assertSame($expected, $preview->json('text'));
+
+        $res = $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'warm', 'note' => 'علی کوچولو'])->assertCreated();
         // شماره گیرنده به فرستنده برنمی‌گردد
         $this->assertStringNotContainsString('09121112222', $res->getContent());
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'sms/send.json')
-            && $r['receptor'] === '09121112222'
-            && $r['message'] === "مریم عزیز تولدت مبارک!\n— علی احمدی\nشجره احمدی");
+            && $r['receptor'] === '09121112222' && $r['message'] === $expected);
         $this->assertSame(1, SmsMessage::where('status', 'sent')->count());
         $this->assertSame('0912***2222', SmsMessage::first()->phone_hint);
 
+        // متن آزاد پذیرفته نمی‌شود؛ فقط قالب‌های ثابت
+        $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'my own text'])->assertStatus(422);
         // هر نفر سالی یک بار
-        $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'message' => 'باز هم مبارک'])->assertStatus(422)->assertJsonPath('code', 'sms_recipient');
-
+        $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'short'])->assertStatus(422)->assertJsonPath('code', 'sms_recipient');
         // کسی که امروز تولدش نیست
-        $this->postJson('/api/greetings/sms', ['person_id' => $this->other->person_id, 'message' => 'مبارک'])->assertStatus(422);
+        $this->postJson('/api/greetings/sms', ['person_id' => $this->other->person_id, 'template' => 'warm'])->assertStatus(422);
 
-        // لینک ممنوع
+        // یادداشت: کوتاه، بدون عدد و لینک
         $another = $this->member(['first_name' => 'سارا', 'gender' => 'f', 'birth_date' => '1380-'.$this->todayMd, 'phone' => '09123334444']);
-        $this->postJson('/api/greetings/sms', ['person_id' => $another->person_id, 'message' => 'تولدت مبارک https://evil.example'])->assertStatus(422);
-        $this->postJson('/api/greetings/sms', ['person_id' => $another->person_id, 'message' => 'هدیه در bit.ly/x و site.ir'])->assertStatus(422);
+        foreach (['شماره‌ام ۰۹۱۲۳۴۵۶۷۸۹', 'call 0912', 'site.ir', 'https://x.y', '@myid', str_repeat('ب', 31)] as $bad) {
+            $this->postJson('/api/greetings/preview', ['person_id' => $another->person_id, 'template' => 'warm', 'note' => $bad])->assertStatus(422);
+        }
 
-        // گیرنده‌ای که دریافت را خاموش کرده
-        $another->person->forceFill(['accept_greeting_sms' => false])->save();
-        $this->postJson('/api/greetings/sms', ['person_id' => $another->person_id, 'message' => 'مبارک'])->assertStatus(422)
-            ->assertJsonFragment(['message' => 'این شخص دریافت پیامک تبریک از اعضا را خاموش کرده است.']);
+        // غیرخویشاوند: فقط «از طرف ...»
+        $stranger = $this->member(['first_name' => 'نگار', 'last_name' => 'کریمی', 'gender' => 'f', 'birth_date' => '1385-'.$this->todayMd, 'phone' => '09125556666']);
+        $text = $this->postJson('/api/greetings/preview', ['person_id' => $stranger->person_id, 'template' => 'respect'])->json('text');
+        $this->assertStringContainsString("از طرف مهندس علی احمدی\n", $text);
+        $this->assertStringStartsWith('🎉 نگار کریمی گرامی', $text);
 
         // گیرنده بدون موبایل
         $noPhone = $this->member(['first_name' => 'بی‌شماره', 'gender' => 'm', 'birth_date' => '1360-'.$this->todayMd]);
-        $this->postJson('/api/greetings/sms', ['person_id' => $noPhone->person_id, 'message' => 'مبارک'])->assertStatus(422);
+        $this->postJson('/api/greetings/sms', ['person_id' => $noPhone->person_id, 'template' => 'warm'])->assertStatus(422);
 
         // سقف روزانه فرستنده
         config(['pedigree.member_sms.daily_per_user' => 1]);
-        $fresh = $this->member(['first_name' => 'نگار', 'gender' => 'f', 'birth_date' => '1385-'.$this->todayMd, 'phone' => '09125556666']);
-        $this->postJson('/api/greetings/sms', ['person_id' => $fresh->person_id, 'message' => 'مبارک'])->assertStatus(429)->assertJsonPath('code', 'sms_limit');
+        $this->postJson('/api/greetings/sms', ['person_id' => $stranger->person_id, 'template' => 'warm'])->assertStatus(429)->assertJsonPath('code', 'sms_limit');
 
-        // تاریخچه من
         $this->getJson('/api/greetings')->assertOk()->assertJsonPath('history.0.status', 'sent')
-            ->assertJsonPath('eligibility.eligible', true);
+            ->assertJsonPath('eligibility.eligible', true)->assertJsonCount(4, 'templates');
+    }
+
+    public function test_nobody_can_opt_out_of_birthday_notifications_or_greetings(): void
+    {
+        $id = $this->birthdayUser->person_id;
+        $this->actingAs($this->birthdayUser, 'sanctum')->patchJson("/api/persons/{$id}", ['accept_greeting_sms' => false])->assertOk();
+        $this->assertArrayNotHasKey('accept_greeting_sms', $this->birthdayUser->person->fresh()->getAttributes());
+
+        $super = User::factory()->withPerson()->create(['role' => User::ROLE_SUPER_ADMIN]);
+        $keys = collect($this->actingAs($super, 'sanctum')->getJson('/api/admin/settings')->json('data'))->flatMap(fn ($g) => array_column($g['fields'], 'key'));
+        $this->assertNotContains('pedigree.birthdays.notify', $keys);
+        $this->assertNotContains('pedigree.member_sms.enabled', $keys);
+        $this->assertNotContains('pedigree.member_sms.auto_enabled', $keys);
+        $this->putJson('/api/admin/settings', ['values' => ['pedigree.birthdays.notify' => false]])->assertStatus(422);
     }
 
     public function test_provider_failure_is_recorded_and_reported(): void
     {
         $this->providerResponse = Http::response(['return' => ['status' => 418, 'message' => 'اعتبار کافی نیست']], 200);
         $this->actingAs($this->sender, 'sanctum')
-            ->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'message' => 'مبارک'])
+            ->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => 'warm'])
             ->assertStatus(503)->assertJsonPath('code', 'sms_failed');
         $this->assertSame('failed', SmsMessage::first()->status);
 
@@ -186,17 +202,19 @@ class GreetingSmsTest extends TestCase
     public function test_automatic_greetings_from_members(): void
     {
         $this->actingAs($this->sender, 'sanctum')->putJson('/api/greetings/auto', [
-            'auto' => true, 'scope' => 'd1', 'template' => '{name} جان تولدت مبارک',
-        ])->assertOk()->assertJsonPath('auto.auto', true);
-        // بدون {name} پذیرفته نمی‌شود
-        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1', 'template' => 'تولدت مبارک'])->assertStatus(422);
+            'auto' => true, 'scope' => 'd1', 'template' => 'short', 'note' => 'داداش علی',
+        ])->assertOk()->assertJsonPath('auto.auto', true)->assertJsonPath('auto.template', 'short');
+        // متن آزاد پذیرفته نمی‌شود
+        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1', 'template' => '{name} تولدت مبارک'])->assertStatus(422);
 
         // «رضا» (غیرخویشاوند) هم امروز تولد دارد ولی در دامنه d1 نیست
         $this->other->person->forceFill(['birth_date' => '1365-'.$this->todayMd, 'phone' => '09127778888'])->save();
 
         $this->artisan('pedigree:birthdays', ['--force' => true])->assertSuccessful();
         Http::assertSentCount(1);
-        Http::assertSent(fn (Request $r) => $r['receptor'] === '09121112222' && str_starts_with($r['message'], 'مریم جان تولدت مبارک'));
+        Http::assertSent(fn (Request $r) => $r['receptor'] === '09121112222'
+            && str_starts_with($r['message'], '🌹 مریم احمدی عزیز، تولدت مبارک!')
+            && str_contains($r['message'], "از طرف برادر عزیزت، علی احمدی\nداداش علی"));
         $this->assertTrue(SmsMessage::first()->auto);
 
         // اجرای دوباره در همان روز: تکرار نمی‌شود
@@ -205,17 +223,7 @@ class GreetingSmsTest extends TestCase
 
         // دامنه کاربر از سقف مدیر بیشتر نمی‌شود
         config(['pedigree.member_sms.auto_max_scope' => 'd1']);
-        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'all', 'template' => '{name} مبارک'])->assertOk()->assertJsonPath('auto.scope', 'd1');
-    }
-
-    public function test_only_the_person_can_turn_off_greeting_sms(): void
-    {
-        $recipient = $this->birthdayUser->person;
-        // برادر (ویرایشگر درجه یک) نمی‌تواند برای او خاموش کند
-        $this->actingAs($this->sender, 'sanctum')->patchJson("/api/persons/{$recipient->id}", ['accept_greeting_sms' => false])->assertOk();
-        $this->assertTrue($recipient->fresh()->accept_greeting_sms);
-        $this->actingAs($this->birthdayUser, 'sanctum')->patchJson("/api/persons/{$recipient->id}", ['accept_greeting_sms' => false])->assertOk()
-            ->assertJsonPath('data.accept_greeting_sms', false);
+        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'all', 'template' => 'warm'])->assertOk()->assertJsonPath('auto.scope', 'd1');
     }
 
     public function test_spouse_of_birthday_person_sees_relation_in_list(): void

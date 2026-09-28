@@ -92,7 +92,7 @@ class RelationshipCalculator
         $signature = implode('>', $keys);
 
         $description = $this->describe($steps);
-        $label = self::NAMED[$signature] ?? $this->generational($keys) ?? $description;
+        $label = self::NAMED[$signature] ?? $this->generational($keys) ?? $this->composed($steps) ?? $description;
 
         // خواهر/برادر ناتنی
         if (count($steps) === 1 && in_array($keys[0], ['brother', 'sister'], true) && ($steps[0]['half'] ?? false)) {
@@ -120,7 +120,7 @@ class RelationshipCalculator
         }
         $steps = $this->collapseSiblings($this->toSteps($path));
         $keys = array_map(fn ($s) => $s['type'], $steps);
-        $label = self::NAMED[implode('>', $keys)] ?? $this->generational($keys) ?? $this->describe($steps);
+        $label = self::NAMED[implode('>', $keys)] ?? $this->generational($keys) ?? $this->composed($steps) ?? $this->describe($steps);
         if (count($steps) === 1 && in_array($keys[0], ['brother', 'sister'], true) && ($steps[0]['half'] ?? false)) {
             $label .= ' ناتنی';
         }
@@ -326,7 +326,9 @@ class RelationshipCalculator
                 && $next['to']->id !== $cur['from']->id) {
                 $a = $cur['from'];
                 $b = $next['to'];
-                $half = ! ($a->father_id && $a->father_id === $b->father_id && $a->mother_id && $a->mother_id === $b->mother_id);
+                // ناتنی فقط وقتی یکی از والدینِ ثبت‌شده متفاوت است (والد نامعلوم دلیل ناتنی بودن نیست)
+                $half = ($a->father_id && $b->father_id && $a->father_id !== $b->father_id)
+                    || ($a->mother_id && $b->mother_id && $a->mother_id !== $b->mother_id);
                 $out[] = ['type' => $next['type'] === 'son' ? 'brother' : 'sister', 'from' => $a, 'to' => $b, 'half' => $half];
                 $i++;
 
@@ -336,6 +338,40 @@ class RelationshipCalculator
         }
 
         return $out;
+    }
+
+    /**
+     * نام مرکب از بلندترین بخشِ نام‌دار ابتدای مسیر: «دخترِ پسرخاله»، «همسرِ پسرعمو»، «پسرِ برادرزن»
+     * (خواناتر از زنجیره کامل «دخترِ پسرِ خواهرِ مادر»)
+     */
+    private function composed(array $steps): ?string
+    {
+        $keys = array_map(fn ($s) => $s['type'], $steps);
+        for ($k = count($keys) - 1; $k >= 1; $k--) {
+            $prefix = implode('>', array_slice($keys, 0, $k));
+            if (isset(self::NAMED[$prefix])) {
+                $base = preg_replace('/\s*\(.*\)$/u', '', self::NAMED[$prefix]);
+                $rest = $this->describe(array_slice($steps, $k));
+
+                return $rest.'ِ '.$base;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * نسبت b با a به زبان روزمره برای متن پیامک: «پسرخاله»، «دخترِ پسرخاله»، «همسر»
+     * (بدون توضیح داخل پرانتز؛ null اگر نسبتی پیدا نشود)
+     */
+    public function plainLabel(Person $a, Person $b): ?string
+    {
+        $result = $this->calculate($a, $b);
+        if (! ($result['found'] ?? false)) {
+            return null;
+        }
+
+        return trim(preg_replace('/\s*\([^)]*\)/u', '', (string) $result['label'])) ?: null;
     }
 
     /** اصطلاحات نسلی: جد، نتیجه، نبیره ... */

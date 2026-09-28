@@ -56,12 +56,12 @@ class GreetingController extends Controller
             'eligibility' => $eligibility,
             'birthdays' => $rows,
             'auto' => $this->greetings->autoPreferences($user) + [
-                'allowed' => (bool) config('pedigree.member_sms.auto_enabled', true),
                 'max_scope' => (string) config('pedigree.member_sms.auto_max_scope', 'd2'),
                 'send_hour' => (int) config('pedigree.member_sms.send_hour', 9),
             ],
+            'templates' => GreetingService::templates(),
             'default_template' => GreetingService::DEFAULT_TEMPLATE,
-            'accept_greeting_sms' => (bool) ($me?->accept_greeting_sms ?? true),
+            'note_max' => GreetingService::NOTE_MAX,
             'history' => SmsMessage::with('recipient')->where('sender_user_id', $user->id)->latest('id')->limit(30)->get()
                 ->map(fn (SmsMessage $m) => [
                     'id' => $m->id,
@@ -74,17 +74,14 @@ class GreetingController extends Controller
         ]);
     }
 
-    /** ارسال پیامک تبریک */
+    /** ارسال پیامک تبریک (قالب ثابت + یادداشت کوتاه اختیاری) */
     public function send(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'person_id' => ['required', 'uuid'],
-            'message' => ['required', 'string', 'max:2000'],
-        ]);
+        $data = $this->validateGreeting($request);
         $person = Person::query()->findOrFail($data['person_id']);
         Gate::authorize('view', $person);
 
-        $record = $this->greetings->send($request->user(), $person, $data['message']);
+        $record = $this->greetings->send($request->user(), $person, $data['template'], $data['note'] ?? null);
 
         return response()->json([
             'message' => 'پیامک تبریک برای '.$person->first_name.' ارسال شد.',
@@ -93,36 +90,28 @@ class GreetingController extends Controller
         ], 201);
     }
 
-    /** پیش‌نمایش متن نهایی (با نام فرستنده) */
+    /** پیش‌نمایش متن نهایی (با نام‌ها، عنوان‌ها و نسبت فامیلی) */
     public function preview(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'person_id' => ['required', 'uuid'],
-            'message' => ['required', 'string', 'max:2000'],
-        ]);
+        $data = $this->validateGreeting($request);
         $person = Person::query()->findOrFail($data['person_id']);
         Gate::authorize('view', $person);
-        $text = $this->greetings->compose($request->user(), $person, $data['message']);
+        $text = $this->greetings->compose($request->user(), $person, $data['template'], $data['note'] ?? null);
 
         return response()->json(['text' => $text, 'length' => mb_strlen($text), 'parts' => $this->parts($text)]);
     }
 
-    /** تنظیم تبریک خودکار */
+    /** تنظیم تبریک خودکار (قالب ثابت + یادداشت کوتاه) */
     public function updateAuto(Request $request): JsonResponse
     {
         $user = $request->user();
         $data = $request->validate([
             'auto' => ['required', 'boolean'],
             'scope' => ['required', Rule::in(['all', 'd4', 'd3', 'd2', 'd1'])],
-            'template' => ['required', 'string', 'max:2000'],
+            'template' => ['required', Rule::in(array_keys(GreetingService::TEMPLATES))],
+            'note' => ['nullable', 'string', 'max:200'],
         ]);
-        if ($data['auto'] && ! config('pedigree.member_sms.auto_enabled', true)) {
-            throw new DomainException('تبریک خودکار از طرف مدیر سایت غیرفعال است.');
-        }
-        if (! str_contains($data['template'], '{name}')) {
-            throw new DomainException('در متن، {name} را بگذارید تا نام هر شخص جایش نوشته شود.');
-        }
-        $template = $this->greetings->cleanMessage($data['template']);
+        $note = $this->greetings->cleanNote($data['note'] ?? null);
         if ($data['auto']) {
             $eligibility = $this->greetings->eligibility($user);
             if (! $eligibility['eligible']) {
@@ -131,13 +120,27 @@ class GreetingController extends Controller
         }
 
         $prefs = $user->preferences ?? [];
-        $prefs['birthday_sms'] = ['auto' => $data['auto'], 'scope' => $this->greetings->effectiveScope($data['scope']), 'template' => $template];
+        $prefs['birthday_sms'] = [
+            'auto' => $data['auto'],
+            'scope' => $this->greetings->effectiveScope($data['scope']),
+            'template' => $data['template'],
+            'note' => $note,
+        ];
         $user->preferences = $prefs;
         $user->save();
 
         return response()->json([
             'message' => $data['auto'] ? 'تبریک خودکار روشن شد.' : 'تبریک خودکار خاموش شد.',
             'auto' => $this->greetings->autoPreferences($user),
+        ]);
+    }
+
+    private function validateGreeting(Request $request): array
+    {
+        return $request->validate([
+            'person_id' => ['required', 'uuid'],
+            'template' => ['required', Rule::in(array_keys(GreetingService::TEMPLATES))],
+            'note' => ['nullable', 'string', 'max:200'],
         ]);
     }
 

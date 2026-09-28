@@ -15,6 +15,7 @@ const NAV = [
   { path: '/', label: 'خانه', icon: 'home', match: (p) => p === '/' },
   { path: '/tree', label: 'درخت', icon: 'tree', match: (p) => p.startsWith('/tree') },
   { path: '/map', label: 'نقشه', icon: 'pin', match: (p) => p.startsWith('/map'), when: () => store.config.map?.enabled !== false },
+  { path: '/messages', label: 'پیام‌ها', icon: 'chat', match: (p) => p.startsWith('/messages'), counter: (c) => c?.messages || 0 },
   { path: '/approvals', label: 'تأییدها', icon: 'shield', match: (p) => p.startsWith('/approvals'), counter: (c) => (c?.votes || 0) + (c?.links || 0) },
   { path: '/notifications', label: 'اعلان‌ها', icon: 'bell', match: (p) => p.startsWith('/notifications'), counter: (c) => c?.notifications || 0 },
 ];
@@ -74,7 +75,7 @@ export function renderHeader() {
     const mobileItems = [
       byPath('/'),
       byPath('/tree'),
-      { path: '/search', label: 'جستجو', icon: 'search', match: (p) => p.startsWith('/search') },
+      byPath('/messages'),
       byPath('/approvals'),
       { path: '/account', label: 'من', icon: 'user', match: (p) => p.startsWith('/account') },
     ];
@@ -95,7 +96,9 @@ export function renderHeader() {
       { label: 'درخت من', icon: 'tree', onClick: () => navigate(`/tree/${u.person.id}?mode=hourglass`) },
       { label: 'نیاکان من', icon: 'ancestors', onClick: () => navigate(`/tree/${u.person.id}?mode=ancestors`) },
       store.config.map?.enabled !== false ? { label: 'نقشه خاندان', icon: 'pin', onClick: () => navigate('/map') } : null,
+      { label: 'پیام‌ها', icon: 'chat', onClick: () => navigate('/messages') },
       { label: 'تبریک تولد', icon: 'cake', onClick: () => navigate('/greetings') },
+      { label: 'جستجوی پیشرفته', icon: 'search', onClick: () => navigate('/search') },
       'sep',
       { label: 'تنظیمات حساب', icon: 'settings', onClick: () => navigate('/account') },
       u.is_admin ? { label: 'مدیریت', icon: 'crown', onClick: () => navigate('/admin') } : null,
