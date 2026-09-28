@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResetScopedServices;
 use App\Http\Middleware\ResolveViewer;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
             'admin' => EnsureAdmin::class,
+            'super-admin' => EnsureSuperAdmin::class,
             'viewer' => ResolveViewer::class,
         ]);
 

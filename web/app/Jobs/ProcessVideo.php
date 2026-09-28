@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Process\Exception\ProcessFailedException;
 use Symfony\Component\Process\Process;
 use Throwable;
 
@@ -18,7 +19,8 @@ use Throwable;
  * فشرده‌سازی ویدیو در پس‌زمینه با ffmpeg.
  *
  * - تبدیل به MP4 (H.264 + AAC) که روی همه مرورگرها و گوشی‌ها پخش می‌شود
- * - مثل تلگرام: ضلع کوچک‌تر حداکثر 720 پیکسل، حداکثر ۳۰ فریم، CRF 26 با سقف بیت‌ریت
+ * - مثل تلگرام: ضلع کوچک‌تر حداکثر 720 پیکسل، حداکثر ۳۰ فریم، CRF 26 با سقف بیت‌ریت، preset کند (فشرده‌تر)
+ * - هر ظرفی (MOV آیفون، MKV، AVI، WMV، FLV، 3GP، MPEG-TS ...) و هر کدکی (HEVC، VP9 ...) به MP4 تبدیل می‌شود
  *   (معمولاً ۵ تا ۱۰ برابر کم‌حجم‌تر از فایل گوشی، بدون افت محسوس)
  * - اگر فایل اصلی از قبل بهینه بوده و خروجی بزرگ‌تر شده، همان اصلی نگه داشته می‌شود
  * - فایل اصلی آپلودشده پس از تبدیل پاک می‌شود
@@ -73,7 +75,16 @@ class ProcessVideo implements ShouldQueue
 
             // ۲. فشرده‌سازی به سبک تلگرام: ضلع کوچک‌تر حداکثر ۷۲۰، حداکثر ۳۰ فریم، H.264 با CRF و سقف بیت‌ریت
             $output = $workDir.'/out.mp4';
-            $this->run(self::encodeCommand($config, $probe, $source, $output));
+            try {
+                $this->run(self::encodeCommand($config, $probe, $source, $output));
+            } catch (ProcessFailedException $e) {
+                // فایل قابل تبدیل نیست (تکرار فایده‌ای ندارد)
+                Log::warning('Video transcode failed', ['media' => $media->id, 'error' => mb_substr($e->getProcess()->getErrorOutput(), 0, 500)]);
+                $media->processing = 'failed';
+                $media->save();
+
+                return;
+            }
 
             // اگر ویدیوی اصلی از قبل بهینه بوده و خروجی بزرگ‌تر شده، همان اصلی (بدون متادیتا) نگه داشته می‌شود
             clearstatcache();
@@ -111,7 +122,7 @@ class ProcessVideo implements ShouldQueue
                 }
                 $posters = $images->poster($frame);
                 foreach ($posters as $name => $binary) {
-                    $variants[$name] = "{$folder}/{$media->id}_{$name}.webp";
+                    $variants[$name] = "{$folder}/{$media->id}_{$name}.jpg";
                     $disk->put($variants[$name], $binary);
                 }
             } catch (Throwable $e) {
@@ -152,6 +163,7 @@ class ProcessVideo implements ShouldQueue
     {
         $short = max(240, (int) ($config['max_height'] ?? 720));
         $crf = min(35, max(18, (int) ($config['crf'] ?? 26)));
+        $preset = in_array($config['preset'] ?? null, ['veryfast', 'faster', 'fast', 'medium', 'slow', 'slower'], true) ? $config['preset'] : 'slow';
         // سقف بیت‌ریت متناسب با وضوح (کیلوبیت)
         $maxrate = $short >= 1080 ? 4500 : ($short >= 720 ? 2200 : 1100);
 
@@ -168,7 +180,9 @@ class ProcessVideo implements ShouldQueue
             '-threads', (string) max(1, (int) ($config['threads'] ?? 2)),
             '-map', '0:v:0', '-map', '0:a:0?', '-sn', '-dn', '-map_metadata', '-1',
             '-vf', implode(',', $filters),
-            '-c:v', 'libx264', '-preset', 'medium', '-crf', (string) $crf,
+            '-c:v', 'libx264', '-preset', $preset, '-crf', (string) $crf,
+            // aq-mode 3: کیفیت بهتر در صحنه‌های تیره (فیلم‌های قدیمی خانوادگی) با همان حجم
+            '-aq-mode', '3',
             '-maxrate', "{$maxrate}k", '-bufsize', ($maxrate * 2).'k',
             '-pix_fmt', 'yuv420p', '-profile:v', 'high',
             '-c:a', 'aac', '-b:a', '96k', '-ac', '2',
@@ -199,7 +213,8 @@ class ProcessVideo implements ShouldQueue
     {
         return [
             '-protocol_whitelist', 'file',
-            '-format_whitelist', 'mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi',
+            // بدون hls و concat (که می‌توانند فایل‌های دیگر سرور را بخوانند)
+            '-format_whitelist', 'mov,mp4,m4a,3gp,3g2,mj2,matroska,webm,avi,asf,flv,mpeg,mpegts,ogg',
         ];
     }
 

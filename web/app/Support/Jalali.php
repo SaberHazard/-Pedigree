@@ -43,7 +43,8 @@ final class Jalali
     /** تاریخ امروز به شمسی */
     public static function today(?\DateTimeInterface $now = null): array
     {
-        $now ??= new \DateTimeImmutable('now', new \DateTimeZone('Asia/Tehran'));
+        // ساعت برنامه (Carbon) تا در تست‌ها و همه‌جا یکسان باشد
+        $now = \DateTimeImmutable::createFromInterface($now ?? now())->setTimezone(new \DateTimeZone('Asia/Tehran'));
 
         return self::fromGregorian((int) $now->format('Y'), (int) $now->format('n'), (int) $now->format('j'));
     }

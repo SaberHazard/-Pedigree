@@ -60,7 +60,7 @@ class SocialAvatarService
                 $profile = $this->fetcher->fetch($network, $value);
                 $thumb = $profile['image'] ? $this->images->thumbnailFromBinary($profile['image'], 256) : null;
 
-                return ['name' => $profile['name'], 'image' => $thumb ? 'data:image/webp;base64,'.base64_encode($thumb) : null, 'error' => null];
+                return ['name' => $profile['name'], 'image' => $thumb ? 'data:image/jpeg;base64,'.base64_encode($thumb) : null, 'error' => null];
             } catch (DomainException $e) {
                 return ['name' => null, 'image' => null, 'error' => $e->getMessage()];
             } catch (Throwable) {

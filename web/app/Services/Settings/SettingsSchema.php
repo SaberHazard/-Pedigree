@@ -212,13 +212,11 @@ final class SettingsSchema
             'media' => [
                 'label' => 'عکس و ویدیو',
                 'icon' => 'image',
-                'description' => 'عکس‌ها خودکار به WebP (حداکثر ۲۵۶۰ پیکسل، بدون اطلاعات مکانی) و ویدیوها مثل تلگرام به MP4 با ضلع کوچک‌تر ۷۲۰ و حداکثر ۳۰ فریم تبدیل می‌شوند؛ معمولاً ۵ تا ۱۰ برابر کم‌حجم‌تر بدون افت محسوس. فایل اصلی پس از تبدیل پاک می‌شود. عکس‌های بزرگ پیش از آپلود در خود مرورگر هم کوچک می‌شوند.',
+                'description' => 'هر عکسی با هر قالبی (JPG، PNG، HEIC آیفون، WebP، TIFF ...) به JPEG کم‌حجم (حداکثر ۲۵۶۰ پیکسل، بدون اطلاعات مکانی) و هر ویدیویی (MOV، MKV، AVI ...) مثل تلگرام به MP4 با ضلع کوچک‌تر ۷۲۰ و حداکثر ۳۰ فریم تبدیل می‌شود؛ معمولاً ۵ تا ۱۰ برابر کم‌حجم‌تر بدون افت محسوس. فایل اصلی پس از تبدیل پاک می‌شود. عکس‌های بزرگ پیش از آپلود در خود مرورگر هم کوچک می‌شوند.',
                 'fields' => [
-                    'pedigree.media.image.max_upload_kb' => ['label' => 'بیشترین حجم هر عکس (کیلوبایت)', 'type' => 'int', 'min' => 512, 'max' => 102400, 'help' => '۲۰۴۸۰ = ۲۰ مگابایت'],
-                    'pedigree.media.image.quality' => ['label' => 'کیفیت عکس ذخیره‌شده (WebP)', 'type' => 'int', 'min' => 70, 'max' => 95, 'help' => '۸۵ از نظر چشمی بدون افت است'],
                     'pedigree.media.video.enabled' => ['label' => 'آپلود ویدیو مجاز باشد', 'type' => 'bool'],
-                    'pedigree.media.video.max_upload_kb' => ['label' => 'بیشترین حجم هر ویدیو هنگام آپلود (کیلوبایت)', 'type' => 'int', 'min' => 10240, 'max' => 4194304, 'help' => '۵۱۲۰۰۰ = ۵۰۰ مگابایت؛ سقف PHP و وب‌سرور هم باید به همین اندازه باشد'],
-                    'pedigree.media.video.max_duration' => ['label' => 'بیشترین مدت ویدیو (ثانیه)', 'type' => 'int', 'min' => 10, 'max' => 14400, 'help' => 'بیشتر از این بریده می‌شود'],
+                    'pedigree.media.video.max_upload_mb' => ['label' => 'بیشترین حجم هر ویدیو (مگابایت)', 'type' => 'int', 'min' => 10, 'max' => 4096, 'help' => 'سقف آپلود PHP و وب‌سرور (Nginx) هم باید دست‌کم همین اندازه باشد'],
+                    'pedigree.media.video.max_duration' => ['label' => 'بیشترین مدت ویدیو (ثانیه)', 'type' => 'int', 'min' => 10, 'max' => 14400, 'help' => 'بیشتر از این بریده می‌شود؛ ۳۶۰۰ = یک ساعت'],
                     'pedigree.media.video.max_height' => ['label' => 'وضوح ویدیو', 'type' => 'select', 'options' => [
                         '480' => '۴۸۰p — کم‌حجم‌ترین',
                         '720' => '۷۲۰p — مثل تلگرام (پیشنهادی)',
@@ -229,6 +227,15 @@ final class SettingsSchema
                         '26' => 'متعادل (پیشنهادی)',
                         '28' => 'صرفه‌جویی بیشتر در فضا',
                     ]],
+                    'pedigree.media.video.preset' => ['label' => 'سرعت تبدیل ویدیو', 'type' => 'select', 'options' => [
+                        'slow' => 'کند ولی کم‌حجم‌ترین (پیشنهادی)',
+                        'medium' => 'متعادل',
+                        'veryfast' => 'سریع (حجم بیشتر؛ برای سرور ضعیف)',
+                    ]],
+                    'pedigree.media.image.quality' => ['label' => 'کیفیت عکس JPEG', 'type' => 'int', 'min' => 70, 'max' => 95, 'help' => '۸۴ از نظر چشمی بدون افت است'],
+                    'pedigree.media.daily_uploads_per_user' => ['label' => 'سقف آپلود هر عضو در روز', 'type' => 'int', 'min' => 5, 'max' => 5000],
+                    'pedigree.media.daily_videos_per_user' => ['label' => 'سقف آپلود ویدیوی هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 500],
+                    'pedigree.media.video.queue_max' => ['label' => 'بیشترین ویدیوی در صف تبدیل (کل سایت)', 'type' => 'int', 'min' => 3, 'max' => 1000, 'help' => 'جلوگیری از پر شدن پردازنده سرور'],
                 ],
             ],
 

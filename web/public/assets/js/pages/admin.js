@@ -13,6 +13,7 @@ import { avatar } from '../components/avatar.js';
 import { personRow, pickPerson } from '../components/person-search.js';
 import { actionLabel } from '../components/labels.js';
 import { adminSettings, adminSmsReport } from '../components/admin-settings.js';
+import { adminTemplates } from '../components/admin-templates.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
 
@@ -23,12 +24,13 @@ export default function adminPage(container, { params }) {
   }
   const body = h('div');
   const superAdmin = store.user.role === 'super_admin';
-  const active = params.tab === 'settings' && !superAdmin ? 'users' : params.tab || 'users';
+  const active = ['settings', 'templates'].includes(params.tab) && !superAdmin ? 'users' : params.tab || 'users';
   container.append(h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('h1', null, icon('crown'), ' مدیریت')),
     tabs([
       { value: 'users', label: 'کاربران', icon: 'users' },
       superAdmin ? { value: 'settings', label: 'تنظیمات و اتصال‌ها (API)', icon: 'key' } : null,
+      superAdmin ? { value: 'templates', label: 'قالب پیامک‌ها', icon: 'edit' } : null,
       { value: 'sms', label: 'پیامک‌ها', icon: 'mail' },
       { value: 'activity', label: 'لاگ فعالیت‌ها', icon: 'history' },
       { value: 'trash', label: 'سطل زباله', icon: 'trash' },
@@ -40,7 +42,7 @@ export default function adminPage(container, { params }) {
 
   function show(tab) {
     body.replaceChildren(loader());
-    ({ users, activity, trash, tools, settings: () => adminSettings(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
+    ({ users, activity, trash, tools, settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
   }
 
   // ------------------------------------------------------------ کاربران

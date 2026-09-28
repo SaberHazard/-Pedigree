@@ -98,7 +98,7 @@ export function renderHeader() {
       store.config.map?.enabled !== false ? { label: 'نقشه خاندان', icon: 'pin', onClick: () => navigate('/map') } : null,
       { label: 'پیام‌ها', icon: 'chat', onClick: () => navigate('/messages') },
       { label: 'دستیار هوشمند', icon: 'bot', onClick: () => navigate('/assistant') },
-      { label: 'تبریک تولد', icon: 'cake', onClick: () => navigate('/greetings') },
+      { label: 'تبریک مناسبت‌ها', icon: 'cake', onClick: () => navigate('/greetings') },
       { label: 'جستجوی پیشرفته', icon: 'search', onClick: () => navigate('/search') },
       'sep',
       { label: 'تنظیمات حساب', icon: 'settings', onClick: () => navigate('/account') },

@@ -174,14 +174,16 @@ return [
         'disk' => env('PEDIGREE_MEDIA_DISK', 'media'),
 
         'image' => [
-            'max_upload_kb' => (int) env('PEDIGREE_IMAGE_MAX_KB', 20480),
+            // فقط سقف ایمنی (در پنل مدیریت نیست): هر عکسی به JPEG کم‌حجم تبدیل می‌شود
+            'max_upload_kb' => (int) env('PEDIGREE_IMAGE_MAX_KB', 51200),
             // سقف تعداد پیکسل (مگاپیکسل) پیش از باز کردن تصویر؛ جلوی «بمب فشرده‌سازی» را می‌گیرد
             'max_megapixels' => (int) env('PEDIGREE_IMAGE_MAX_MP', 60),
-            'mimes' => ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
-            // حداکثر ابعاد نسخه اصلی ذخیره‌شده (بزرگ‌تر از این کوچک می‌شود)
+            // برای عکس‌های HEIC آیفون (بسته libheif-examples)؛ TIFF، PSD، JPEG XL و ... با ffmpeg
+            'heif_convert' => env('HEIF_CONVERT_PATH', 'heif-convert'),
+            // حداکثر ابعاد نسخه اصلی ذخیره‌شده (بزرگ‌تر از این کوچک می‌شود؛ مثل عکس HD تلگرام)
             'max_dimension' => 2560,
-            // کیفیت WebP؛ ۸۵ از نظر چشمی بدون افت است و حجم را چند برابر کم می‌کند
-            'quality' => 85,
+            // کیفیت JPEG پیشرونده؛ ۸۴ از نظر چشمی بدون افت است و حجم را چند برابر کم می‌کند
+            'quality' => (int) env('PEDIGREE_IMAGE_QUALITY', 84),
             'variants' => [
                 'thumb' => ['size' => 320, 'crop' => true],
                 'medium' => ['size' => 1280, 'crop' => false],
@@ -190,8 +192,8 @@ return [
 
         'video' => [
             'enabled' => (bool) env('PEDIGREE_VIDEO_ENABLED', true),
-            'max_upload_kb' => (int) env('PEDIGREE_VIDEO_MAX_KB', 512000),
-            'mimes' => ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska', 'video/3gpp', 'video/x-msvideo'],
+            // سقف حجم هر ویدیو (مگابایت) — از پنل مدیریت قابل تغییر
+            'max_upload_mb' => (int) env('PEDIGREE_VIDEO_MAX_MB', (int) round(((int) env('PEDIGREE_VIDEO_MAX_KB', 512000)) / 1024)),
             // مسیر ffmpeg؛ اگر روی سرور نصب نباشد ویدیو بدون فشرده‌سازی ذخیره می‌شود
             'ffmpeg' => env('FFMPEG_PATH', 'ffmpeg'),
             'ffprobe' => env('FFPROBE_PATH', 'ffprobe'),
@@ -203,11 +205,19 @@ return [
             'threads' => (int) env('PEDIGREE_VIDEO_THREADS', 2),
             // CRF پایین‌تر = کیفیت بیشتر و حجم بیشتر (۲۳ تا ۲۸ مناسب است؛ ۲۶ شبیه تلگرام)
             'crf' => (int) env('PEDIGREE_VIDEO_CRF', 26),
-            'timeout' => 1800,
+            // سرعت فشرده‌سازی: slow = حجم کمتر با همان کیفیت (کندتر)، medium = متعادل، veryfast = سریع
+            'preset' => env('PEDIGREE_VIDEO_PRESET', 'slow'),
+            'timeout' => 7200,
+            // بیشترین تعداد ویدیوی در صف تبدیل (کل سایت)؛ جلوی پر شدن پردازنده را می‌گیرد
+            'queue_max' => (int) env('PEDIGREE_VIDEO_QUEUE_MAX', 30),
         ],
 
         // مدت اعتبار لینک امضاشده فایل‌ها (ساعت)
         'url_ttl_hours' => 24,
+
+        // سقف آپلود هر عضو در روز (ضد سوءاستفاده)
+        'daily_uploads_per_user' => (int) env('PEDIGREE_DAILY_UPLOADS', 100),
+        'daily_videos_per_user' => (int) env('PEDIGREE_DAILY_VIDEOS', 20),
     ],
 
     /*

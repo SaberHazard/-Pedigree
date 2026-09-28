@@ -65,7 +65,7 @@ class SocialAvatarTest extends TestCase
             ->assertJsonPath('data.value', 'ali_rezaei')
             ->assertJsonPath('data.url', 'https://t.me/ali_rezaei')
             ->assertJsonPath('data.name', 'Ali Rezaei');
-        $this->assertStringStartsWith('data:image/webp;base64,', $res->json('data.image'));
+        $this->assertStringStartsWith('data:image/jpeg;base64,', $res->json('data.image'));
 
         $this->getJson('/api/social/preview?network=instagram&value=@ali.r')->assertOk()
             ->assertJsonPath('data.name', 'Ali Rezaei')->assertJsonPath('data.url', 'https://www.instagram.com/ali.r/');

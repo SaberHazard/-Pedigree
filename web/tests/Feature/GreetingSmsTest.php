@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Marriage;
 use App\Models\Person;
 use App\Models\SmsMessage;
+use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Services\Occasions\BirthdayService;
 use App\Support\Jalali;
@@ -52,6 +53,11 @@ class GreetingSmsTest extends TestCase
         $this->sender = $this->member(['first_name' => 'علی', 'last_name' => 'احمدی', 'gender' => 'm'], $father);
         $this->birthdayUser = $this->member(['first_name' => 'مریم', 'gender' => 'f', 'birth_date' => '1370-'.$this->todayMd, 'phone' => '09121112222'], $father);
         $this->other = $this->member(['first_name' => 'رضا', 'gender' => 'm']);
+    }
+
+    private function tpl(string $slug): int
+    {
+        return (int) SmsTemplate::where('slug', $slug)->value('id');
     }
 
     private function member(array $attrs, ?User $father = null): User
@@ -111,7 +117,7 @@ class GreetingSmsTest extends TestCase
         $this->assertContains('عکس پروفایل', array_column($res->json('eligibility.missing'), 'label'));
         $this->assertFalse(collect($res->json('birthdays'))->firstWhere('person.id', $this->birthdayUser->person_id)['can_sms']);
 
-        $this->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => 'warm'])
+        $this->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => $this->tpl('warm')])
             ->assertStatus(403)->assertJsonPath('code', 'sms_incomplete')
             ->assertJsonFragment(['message' => $res->json('eligibility.message')]);
         Http::assertNothingSent();
@@ -125,14 +131,14 @@ class GreetingSmsTest extends TestCase
         $this->sender->person->forceFill(['education_level' => 'bachelor', 'education_field_group' => 'engineering'])->save();
         $this->actingAs($this->sender, 'sanctum');
 
-        $preview = $this->postJson('/api/greetings/preview', ['person_id' => $recipient->id, 'template' => 'warm', 'note' => 'علی کوچولو'])->assertOk();
+        $preview = $this->postJson('/api/greetings/preview', ['person_id' => $recipient->id, 'template' => $this->tpl('warm'), 'note' => 'علی کوچولو'])->assertOk();
         $expected = "🎂 دکتر مریم احمدی عزیز، زادروزت خجسته باد! سالی سرشار از سلامتی و شادی برایت آرزومندم.\n"
             ."از طرف برادر عزیزت، مهندس علی احمدی\n"
             ."علی کوچولو\n"
             .'شجره احمدی';
         $this->assertSame($expected, $preview->json('text'));
 
-        $res = $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'warm', 'note' => 'علی کوچولو'])->assertCreated();
+        $res = $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => $this->tpl('warm'), 'note' => 'علی کوچولو'])->assertCreated();
         // شماره گیرنده به فرستنده برنمی‌گردد
         $this->assertStringNotContainsString('09121112222', $res->getContent());
         Http::assertSent(fn (Request $r) => str_contains($r->url(), 'sms/send.json')
@@ -143,32 +149,33 @@ class GreetingSmsTest extends TestCase
         // متن آزاد پذیرفته نمی‌شود؛ فقط قالب‌های ثابت
         $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'my own text'])->assertStatus(422);
         // هر نفر سالی یک بار
-        $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => 'short'])->assertStatus(422)->assertJsonPath('code', 'sms_recipient');
+        $this->postJson('/api/greetings/sms', ['person_id' => $recipient->id, 'template' => $this->tpl('short')])->assertStatus(422)->assertJsonPath('code', 'sms_recipient');
         // کسی که امروز تولدش نیست
-        $this->postJson('/api/greetings/sms', ['person_id' => $this->other->person_id, 'template' => 'warm'])->assertStatus(422);
+        $this->postJson('/api/greetings/sms', ['person_id' => $this->other->person_id, 'template' => $this->tpl('warm')])->assertStatus(422);
 
         // یادداشت: کوتاه، بدون عدد و لینک
         $another = $this->member(['first_name' => 'سارا', 'gender' => 'f', 'birth_date' => '1380-'.$this->todayMd, 'phone' => '09123334444']);
         foreach (['شماره‌ام ۰۹۱۲۳۴۵۶۷۸۹', 'call 0912', 'site.ir', 'https://x.y', '@myid', str_repeat('ب', 31)] as $bad) {
-            $this->postJson('/api/greetings/preview', ['person_id' => $another->person_id, 'template' => 'warm', 'note' => $bad])->assertStatus(422);
+            $this->postJson('/api/greetings/preview', ['person_id' => $another->person_id, 'template' => $this->tpl('warm'), 'note' => $bad])->assertStatus(422);
         }
 
         // غیرخویشاوند: فقط «از طرف ...»
         $stranger = $this->member(['first_name' => 'نگار', 'last_name' => 'کریمی', 'gender' => 'f', 'birth_date' => '1385-'.$this->todayMd, 'phone' => '09125556666']);
-        $text = $this->postJson('/api/greetings/preview', ['person_id' => $stranger->person_id, 'template' => 'respect'])->json('text');
+        $text = $this->postJson('/api/greetings/preview', ['person_id' => $stranger->person_id, 'template' => $this->tpl('respect')])->json('text');
         $this->assertStringContainsString("از طرف مهندس علی احمدی\n", $text);
         $this->assertStringStartsWith('🎉 نگار کریمی گرامی', $text);
 
         // گیرنده بدون موبایل
         $noPhone = $this->member(['first_name' => 'بی‌شماره', 'gender' => 'm', 'birth_date' => '1360-'.$this->todayMd]);
-        $this->postJson('/api/greetings/sms', ['person_id' => $noPhone->person_id, 'template' => 'warm'])->assertStatus(422);
+        $this->postJson('/api/greetings/sms', ['person_id' => $noPhone->person_id, 'template' => $this->tpl('warm')])->assertStatus(422);
 
         // سقف روزانه فرستنده
         config(['pedigree.member_sms.daily_per_user' => 1]);
-        $this->postJson('/api/greetings/sms', ['person_id' => $stranger->person_id, 'template' => 'warm'])->assertStatus(429)->assertJsonPath('code', 'sms_limit');
+        $this->postJson('/api/greetings/sms', ['person_id' => $stranger->person_id, 'template' => $this->tpl('warm')])->assertStatus(429)->assertJsonPath('code', 'sms_limit');
 
         $this->getJson('/api/greetings')->assertOk()->assertJsonPath('history.0.status', 'sent')
-            ->assertJsonPath('eligibility.eligible', true)->assertJsonCount(4, 'templates');
+            ->assertJsonPath('eligibility.eligible', true)->assertJsonCount(4, 'occasions.0.templates')
+            ->assertJsonPath('history.0.kind', 'birthday');
     }
 
     public function test_nobody_can_opt_out_of_birthday_notifications_or_greetings(): void
@@ -189,7 +196,7 @@ class GreetingSmsTest extends TestCase
     {
         $this->providerResponse = Http::response(['return' => ['status' => 418, 'message' => 'اعتبار کافی نیست']], 200);
         $this->actingAs($this->sender, 'sanctum')
-            ->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => 'warm'])
+            ->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => $this->tpl('warm')])
             ->assertStatus(503)->assertJsonPath('code', 'sms_failed');
         $this->assertSame('failed', SmsMessage::first()->status);
 
@@ -202,8 +209,8 @@ class GreetingSmsTest extends TestCase
     public function test_automatic_greetings_from_members(): void
     {
         $this->actingAs($this->sender, 'sanctum')->putJson('/api/greetings/auto', [
-            'auto' => true, 'scope' => 'd1', 'template' => 'short', 'note' => 'داداش علی',
-        ])->assertOk()->assertJsonPath('auto.auto', true)->assertJsonPath('auto.template', 'short');
+            'auto' => true, 'scope' => 'd1', 'template' => $this->tpl('short'), 'note' => 'داداش علی',
+        ])->assertOk()->assertJsonPath('auto.auto', true)->assertJsonPath('auto.template', $this->tpl('short'));
         // متن آزاد پذیرفته نمی‌شود
         $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1', 'template' => '{name} تولدت مبارک'])->assertStatus(422);
 
@@ -223,7 +230,7 @@ class GreetingSmsTest extends TestCase
 
         // دامنه کاربر از سقف مدیر بیشتر نمی‌شود
         config(['pedigree.member_sms.auto_max_scope' => 'd1']);
-        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'all', 'template' => 'warm'])->assertOk()->assertJsonPath('auto.scope', 'd1');
+        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'all', 'template' => $this->tpl('warm')])->assertOk()->assertJsonPath('auto.scope', 'd1');
     }
 
     public function test_spouse_of_birthday_person_sees_relation_in_list(): void

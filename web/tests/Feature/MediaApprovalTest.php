@@ -53,7 +53,7 @@ class MediaApprovalTest extends TestCase
         $model = Media::find($media['id']);
         Storage::disk('media')->assertExists($model->path);
         Storage::disk('media')->assertExists($model->variants['thumb']);
-        $this->assertSame('image/webp', $model->mime);
+        $this->assertSame('image/jpeg', $model->mime);
 
         // دیگران (به جز رأی‌دهندگان) فایل در انتظار را نمی‌بینند
         $stranger = User::factory()->withPerson()->create()->refresh();
@@ -118,7 +118,7 @@ class MediaApprovalTest extends TestCase
         $this->actingAs($user, 'sanctum');
         $media = $this->postJson("/api/persons/{$user->person_id}/media", ['file' => $this->image()])->json('data');
 
-        $this->get($media['urls']['thumb'])->assertOk()->assertHeader('Content-Type', 'image/webp');
+        $this->get($media['urls']['thumb'])->assertOk()->assertHeader('Content-Type', 'image/jpeg');
         // بدون امضا دسترسی نیست
         $this->get('/m/'.$media['id'].'/thumb')->assertForbidden();
     }

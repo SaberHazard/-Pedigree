@@ -24,7 +24,11 @@ class MediaFileController extends Controller
         $disk = Storage::disk($media->disk);
         abort_unless($disk->exists($path), 404);
 
-        $mime = str_ends_with($path, '.webp') ? 'image/webp' : $media->mime;
+        $mime = match (strtolower(pathinfo($path, PATHINFO_EXTENSION))) {
+            'webp' => 'image/webp',
+            'jpg', 'jpeg' => 'image/jpeg',
+            default => $media->mime,
+        };
         $headers = [
             'Content-Type' => $mime,
             'Cache-Control' => 'private, max-age=86400',

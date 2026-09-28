@@ -11,14 +11,17 @@ use App\Models\Person;
 use App\Rules\PartialDateRule;
 use App\Services\AuditLogger;
 use App\Services\Media\ApprovalService;
+use App\Services\Media\MediaFormats;
 use App\Services\Media\MediaService;
 use App\Support\PartialDate;
+use App\Support\PersianText;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * عکس‌ها و ویدیوها: آپلود، گالری، رأی‌گیری، عکس پروفایل
@@ -80,9 +83,11 @@ class MediaController extends Controller
     {
         Gate::authorize('uploadMedia', $person);
         $request->validate([
-            'file' => ['required', 'file', 'max:'.(int) config('pedigree.media.image.max_upload_kb'),
-                'mimetypes:'.implode(',', config('pedigree.media.image.mimes'))],
+            'file' => ['required', 'file', 'max:'.(int) config('pedigree.media.image.max_upload_kb')],
         ]);
+        if (MediaFormats::detectImage((string) $request->file('file')->getRealPath()) === null) {
+            throw ValidationException::withMessages(['file' => 'فایل انتخاب‌شده عکس نیست.']);
+        }
 
         $media = $this->media->store($person, $request->file('file'), $request->user(), ['caption' => 'عکس پروفایل'], true);
 
@@ -196,12 +201,12 @@ class MediaController extends Controller
 
     private function validateUpload(Request $request): array
     {
-        $imageMimes = config('pedigree.media.image.mimes');
-        $videoMimes = config('pedigree.media.video.enabled') ? config('pedigree.media.video.mimes') : [];
-        $maxKb = max((int) config('pedigree.media.image.max_upload_kb'), $videoMimes ? (int) config('pedigree.media.video.max_upload_kb') : 0);
+        $videoOn = (bool) config('pedigree.media.video.enabled');
+        $imageKb = (int) config('pedigree.media.image.max_upload_kb');
+        $videoKb = (int) config('pedigree.media.video.max_upload_mb') * 1024;
 
         $data = $request->validate([
-            'file' => ['required', 'file', 'max:'.$maxKb, 'mimetypes:'.implode(',', array_merge($imageMimes, $videoMimes))],
+            'file' => ['required', 'file', 'max:'.max($imageKb, $videoOn ? $videoKb : 0)],
             'caption' => ['nullable', 'string', 'max:300'],
             'description' => ['nullable', 'string', 'max:5000'],
             'taken_at' => ['nullable', new PartialDateRule],
@@ -210,10 +215,20 @@ class MediaController extends Controller
             'category' => ['nullable', Rule::in([Media::CATEGORY_GALLERY, Media::CATEGORY_STORY])],
         ], [], ['file' => 'فایل']);
 
-        // محدودیت حجم جداگانه برای عکس
+        // نوع فایل از محتوا (نه پسوند): هر عکسی به JPEG و هر ویدیویی به MP4 تبدیل می‌شود
         $file = $request->file('file');
-        if (str_starts_with((string) $file->getMimeType(), 'image/') && $file->getSize() > (int) config('pedigree.media.image.max_upload_kb') * 1024) {
+        $kind = MediaFormats::classify((string) $file->getRealPath(), $file->getMimeType());
+        if ($kind === null) {
+            throw ValidationException::withMessages(['file' => 'این نوع فایل پشتیبانی نمی‌شود؛ فقط عکس ('.MediaFormats::IMAGE_LABEL.') یا ویدیو.']);
+        }
+        if ($kind === 'video' && ! $videoOn) {
+            throw new DomainException('آپلود ویدیو فعلاً غیرفعال است.');
+        }
+        if ($kind === 'image' && $file->getSize() > $imageKb * 1024) {
             throw new DomainException('حجم عکس بیش از حد مجاز است.');
+        }
+        if ($kind === 'video' && $file->getSize() > $videoKb * 1024) {
+            throw new DomainException(PersianText::toPersianDigits('حجم ویدیو بیش از '.(int) config('pedigree.media.video.max_upload_mb').' مگابایت است.'));
         }
 
         $data['taken_at'] = PartialDate::normalize($data['taken_at'] ?? null);

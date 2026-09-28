@@ -104,7 +104,7 @@ class VideoProcessingTest extends TestCase
         $this->assertStringNotContainsString('secret-trip', $tags);
 
         // فقط یک ویدیو (فایل اصلی آپلودشده پاک شده) + پوستر و بندانگشتی
-        $videos = array_filter(Storage::disk('media')->allFiles(), fn ($f) => ! str_ends_with($f, '.webp'));
+        $videos = array_filter(Storage::disk('media')->allFiles(), fn ($f) => ! str_ends_with($f, '.jpg'));
         $this->assertSame([$media->path], array_values($videos));
 
         @unlink($source);

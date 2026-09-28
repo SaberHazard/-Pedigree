@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\ActivityController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
 use App\Http\Controllers\Api\Admin\SettingsController;
 use App\Http\Controllers\Api\Admin\SmsReportController;
+use App\Http\Controllers\Api\Admin\SmsTemplateController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
@@ -183,5 +184,16 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::get('settings', [SettingsController::class, 'index']);
         Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1,settings-update');
         Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1,settings-test');
+
+        // قالب‌های ثابت پیامک تبریک (فقط مدیر کل)
+        Route::middleware('super-admin')->group(function () {
+            Route::get('sms-templates', [SmsTemplateController::class, 'index']);
+            Route::post('sms-templates', [SmsTemplateController::class, 'store'])->middleware('throttle:30,1,tpl-store');
+            Route::post('sms-templates/preview', [SmsTemplateController::class, 'preview'])->middleware('throttle:120,1,tpl-preview');
+            Route::post('sms-templates/reorder', [SmsTemplateController::class, 'reorder'])->middleware('throttle:30,1,tpl-reorder');
+            Route::post('sms-templates/defaults', [SmsTemplateController::class, 'restoreDefaults'])->middleware('throttle:5,1,tpl-defaults');
+            Route::put('sms-templates/{template}', [SmsTemplateController::class, 'update'])->whereNumber('template')->middleware('throttle:60,1,tpl-update');
+            Route::delete('sms-templates/{template}', [SmsTemplateController::class, 'destroy'])->whereNumber('template');
+        });
     });
 });

@@ -127,13 +127,13 @@ export function gallery(person, { onChange } = {}) {
   // ------------------------------------------------------------ آپلود
   let dropzone = null;
   if (canUpload) {
-    const accept = [...(cfg.image_mimes || ['image/*']), ...(cfg.video_enabled ? cfg.video_mimes || ['video/*'] : [])].join(',');
+    const accept = cfg.accept || 'image/*,video/*';
     const input = h('input', { type: 'file', accept, multiple: true, hidden: true, onchange: () => handleFiles([...input.files]) });
     const progress = h('div', { class: 'col', style: { marginTop: '10px' } });
     dropzone = h('div', { class: 'dropzone', role: 'button', tabindex: 0, onclick: () => input.click(), onkeydown: (e) => e.key === 'Enter' && input.click() },
       icon('upload'),
       h('div', { class: 'bold' }, 'افزودن عکس یا ویدیو'),
-      h('div', { class: 'small' }, `کشیدن و رها کردن فایل یا کلیک • عکس تا ${fileSize((cfg.image_max_kb || 20480) * 1024)}${cfg.video_enabled ? ` • ویدیو تا ${fileSize((cfg.video_max_kb || 512000) * 1024)}` : ''}`),
+      h('div', { class: 'small' }, `کشیدن و رها کردن فایل یا کلیک • هر قالب عکس (حتی HEIC آیفون)${cfg.video_enabled ? ` • ویدیو تا ${fileSize((cfg.video_max_kb || 512000) * 1024)}` : ''}`),
       h('div', { class: 'tiny', style: { marginTop: '6px' } }, 'عکس‌ها و ویدیوها مثل تلگرام بدون افت محسوس کیفیت فشرده می‌شوند. فایل‌هایی که برای دیگران آپلود می‌کنید پس از تأیید بستگان نمایش داده می‌شوند.'),
       input,
     );
@@ -149,8 +149,8 @@ export function gallery(person, { onChange } = {}) {
         const row = h('div', { class: 'card', style: { padding: '10px 14px' } }, label, h('div', { class: 'progress', style: { marginTop: '6px' } }, bar));
         progress.append(row);
         // پیش از آپلود: بررسی حجم و کوچک کردن عکس‌های بزرگ در خود مرورگر
-        const isVideo = file.type.startsWith('video/');
-        const maxKb = isVideo ? cfg.video_max_kb || 512000 : cfg.image_max_kb || 20480;
+        const isVideo = file.type.startsWith('video/') || /\.(mkv|avi|wmv|flv|3gp|mts|m2ts|ts|mov)$/i.test(file.name);
+        const maxKb = isVideo ? cfg.video_max_kb || 512000 : cfg.image_max_kb || 51200;
         const reject = (message) => {
           label.textContent = `${file.name}: ${message}`;
           label.style.color = 'var(--danger)';

@@ -7,12 +7,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\MediaResource;
 use App\Models\Person;
 use App\Services\Access\PersonAccess;
+use App\Services\Media\MediaFormats;
 use App\Services\Social\SocialAvatarService;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * شبکه‌های اجتماعی پروفایل:
@@ -43,9 +45,11 @@ class SocialController extends Controller
         Gate::authorize('uploadMedia', $person);
         $data = $request->validate([
             'network' => ['required', 'string', Rule::in(array_keys(SocialNetworks::all()))],
-            'file' => ['nullable', 'file', 'max:'.(int) config('pedigree.media.image.max_upload_kb'),
-                'mimetypes:'.implode(',', config('pedigree.media.image.mimes'))],
+            'file' => ['nullable', 'file', 'max:'.(int) config('pedigree.media.image.max_upload_kb')],
         ]);
+        if ($request->hasFile('file') && MediaFormats::detectImage((string) $request->file('file')->getRealPath()) === null) {
+            throw ValidationException::withMessages(['file' => 'فایل انتخاب‌شده عکس نیست.']);
+        }
         $value = $person->social[$data['network']] ?? null;
         // شماره واتس‌اپ/تلگرام مثل موبایل است؛ کسی که آن را نمی‌بیند برایش عکس نمی‌گذارد
         if ($value !== null && SocialNetworks::isPhone($data['network'], $value) && ! $access->canViewContact($request->user(), $person)) {

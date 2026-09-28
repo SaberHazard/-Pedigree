@@ -171,7 +171,7 @@ export function socialProfiles(person, opts = {}) {
 /** دریافت دوباره عکس از شبکه یا آپلود دستی عکس آن شبکه (مثلاً واتس‌اپ) */
 function photoMenu(person, s, onChange) {
   const def = networks()[s.network] || {};
-  const file = h('input', { type: 'file', accept: 'image/jpeg,image/png,image/webp', hidden: true });
+  const file = h('input', { type: 'file', accept: 'image/*,.heic,.heif', hidden: true });
   const uploadBtn = h('button', { class: 'icon-btn sm', type: 'button', title: `آپلود عکس پروفایل ${def.label}`, onclick: () => file.click() }, icon('upload'));
   file.addEventListener('change', async () => {
     const f = file.files?.[0];
