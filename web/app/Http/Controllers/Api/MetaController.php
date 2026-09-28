@@ -97,6 +97,10 @@ class MetaController extends Controller
             'history_public' => (bool) config('pedigree.permissions.history_public', true),
             'assistant' => ['enabled' => app(AssistantService::class)->configured(), 'restore' => app(PhotoRestorer::class)->enabled()],
             'group' => ['enabled' => (bool) config('pedigree.group.enabled', true), 'name' => (string) config('pedigree.group.name')],
+            'messaging' => ['enabled' => (bool) config('pedigree.messaging.enabled', true)],
+            'announcement' => config('pedigree.announcement.enabled') && trim((string) config('pedigree.announcement.text')) !== ''
+                ? ['text' => (string) config('pedigree.announcement.text'), 'level' => (string) config('pedigree.announcement.level', 'info')]
+                : null,
         ]);
     }
 }

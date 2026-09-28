@@ -2134,3 +2134,23 @@ textarea.input.grp-input { resize: none; min-height: 42px; height: 42px; max-hei
 .game-feedback.ok { background: color-mix(in srgb, var(--success, #16a34a) 12%, var(--surface)); }
 .game-feedback.no { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); }
 @media (max-width: 480px) { .game-options { grid-template-columns: 1fr; } .game-options.two { grid-template-columns: 1fr 1fr; } }
+.announce { display: flex; gap: 10px; align-items: flex-start; line-height: 1.9; white-space: pre-line; }
+.announce.info { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.announce.success { border-color: color-mix(in srgb, var(--success, #16a34a) 45%, var(--border)); background: color-mix(in srgb, var(--success, #16a34a) 8%, var(--surface)); }
+.announce.warning { border-color: var(--warning); background: var(--warning-soft); }
+
+/* ------------------------------------------------------------ پنل مدیریت: نمای کلی */
+.admin-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.admin-stats .card.stat { padding: 12px; }
+.admin-stats .card.stat[role=button] { cursor: pointer; }
+.admin-stats .card.stat.warn { border-color: var(--warning); }
+.admin-stats b { font-size: 1.15rem; }
+.health-list { display: flex; flex-direction: column; gap: 6px; }
+.health-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+.health-row.bad { background: var(--warning-soft); }
+.health-dot { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; }
+.health-row.ok .health-dot { color: var(--success, #16a34a); }
+.health-row.bad .health-dot { color: var(--warning); }
+.health-row.info .health-dot { color: var(--muted); }
+.health-dot .icon { width: 17px; height: 17px; }
+.report-body { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }

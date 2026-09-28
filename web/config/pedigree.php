@@ -398,8 +398,16 @@ return [
     |--------------------------------------------------------------------------
     */
     'messaging' => [
+        'enabled' => (bool) env('PEDIGREE_MESSAGING_ENABLED', true),
         // سقف پیام هر عضو در روز
         'daily_limit' => 500,
+    ],
+
+    // اطلاعیه بالای صفحه اول همه اعضا (از پنل مدیریت)
+    'announcement' => [
+        'enabled' => false,
+        'text' => null,
+        'level' => 'info',
     ],
 
     /*

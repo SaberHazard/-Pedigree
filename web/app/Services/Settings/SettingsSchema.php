@@ -154,6 +154,45 @@ final class SettingsSchema
                 ],
             ],
 
+            'features' => [
+                'label' => 'بخش‌های سایت',
+                'icon' => 'settings',
+                'description' => 'روشن یا خاموش کردن بخش‌های سایت و سقف‌های آن‌ها. اعلان تولد و پیامک تبریک قابل خاموش کردن نیست.',
+                'fields' => [
+                    'pedigree.messaging.enabled' => ['label' => 'پیام‌رسان خصوصی اعضا', 'type' => 'bool'],
+                    'pedigree.messaging.daily_limit' => ['label' => 'سقف پیام خصوصی هر عضو در روز', 'type' => 'int', 'min' => 10, 'max' => 5000],
+                    'pedigree.comments.enabled' => ['label' => 'نوشتن نظر و خاطره درباره اشخاص', 'type' => 'bool'],
+                    'pedigree.ratings.enabled' => ['label' => 'امتیاز دادن به ویژگی‌های اشخاص', 'type' => 'bool'],
+                    'pedigree.permissions.history_public' => ['label' => 'تاریخچه تغییرات پروفایل‌ها برای همه اعضا', 'type' => 'bool'],
+                ],
+            ],
+            'group' => [
+                'label' => 'گروه خاطرات خاندان',
+                'icon' => 'users',
+                'description' => 'گفتگوی همه اعضا با متن، ایموجی و عکس و فیلم قدیمی. پیامِ فقط ایموجی پذیرفته نمی‌شود. گزارش‌ها و اعضای محدودشده در تب «گروه خاندان» همین پنل هستند.',
+                'fields' => [
+                    'pedigree.group.enabled' => ['label' => 'گروه خاندان فعال باشد', 'type' => 'bool'],
+                    'pedigree.group.name' => ['label' => 'نام گروه', 'type' => 'text', 'max' => 60],
+                    'pedigree.group.slow_mode_seconds' => ['label' => 'حداقل فاصله دو پیام یک نفر (ثانیه)', 'type' => 'int', 'min' => 0, 'max' => 600],
+                    'pedigree.group.per_minute' => ['label' => 'سقف پیام هر عضو در دقیقه', 'type' => 'int', 'min' => 1, 'max' => 120],
+                    'pedigree.group.daily_messages' => ['label' => 'سقف پیام هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 5000],
+                    'pedigree.group.daily_media' => ['label' => 'سقف عکس و فیلم هر عضو در روز', 'type' => 'int', 'min' => 0, 'max' => 500],
+                    'pedigree.group.allow_links' => ['label' => 'فرستادن لینک مجاز باشد', 'type' => 'bool', 'help' => 'خاموش بماند تا تبلیغ و لینک فیشینگ فرستاده نشود'],
+                    'pedigree.group.daily_prompt' => ['label' => '«سؤال روز» برای زنده کردن خاطرات', 'type' => 'bool'],
+                    'pedigree.group.prompt_hour' => ['label' => 'ساعت سؤال روز (وقت تهران)', 'type' => 'int', 'min' => 0, 'max' => 23],
+                ],
+            ],
+            'announcement' => [
+                'label' => 'اطلاعیه سایت',
+                'icon' => 'bell',
+                'description' => 'پیامی که بالای صفحه اول همه اعضا نمایش داده می‌شود. برای فرستادن اعلان روی گوشی همه، از تب «نمای کلی» اعلان همگانی بفرستید.',
+                'fields' => [
+                    'pedigree.announcement.enabled' => ['label' => 'اطلاعیه نمایش داده شود', 'type' => 'bool'],
+                    'pedigree.announcement.text' => ['label' => 'متن اطلاعیه', 'type' => 'text', 'max' => 500],
+                    'pedigree.announcement.level' => ['label' => 'رنگ', 'type' => 'select', 'options' => ['info' => 'آبی (خبر)', 'success' => 'سبز (خبر خوش)', 'warning' => 'نارنجی (مهم)']],
+                ],
+            ],
+
             'push' => [
                 'label' => 'اعلان روی گوشی (Firebase)',
                 'icon' => 'phone',

@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 /*
@@ -21,6 +22,9 @@ Schedule::command('pedigree:group-prompt')->hourlyAt(7)->withoutOverlapping(10);
 
 // پاک‌سازی کدهای پیامکی قدیمی و توکن‌های منقضی
 Schedule::command('pedigree:prune')->dailyAt('03:30');
+
+// نشانه زنده بودن زمان‌بند برای «سلامت سرور» در پنل مدیریت
+Schedule::call(fn () => Cache::put('scheduler:heartbeat', now()->toIso8601String(), 86400))->everyFiveMinutes()->name('scheduler-heartbeat');
 
 // برای هاست‌هایی که supervisor ندارند: پردازش صف (فشرده‌سازی ویدیو) با cron
 if (config('pedigree.queue_via_scheduler')) {

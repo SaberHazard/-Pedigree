@@ -7,13 +7,14 @@ import { get, patch, post, download } from '../core/api.js';
 import { store } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { fa, fullName, timeAgo, dateTime } from '../core/format.js';
-import { tabs, toast, toastError, loader, emptyState, confirmDialog, withLoading } from '../core/ui.js';
+import { tabs, toast, toastError, loader, emptyState, confirmDialog, withLoading, dropdown } from '../core/ui.js';
 import { saveFile } from '../core/native.js';
 import { avatar } from '../components/avatar.js';
 import { personRow, pickPerson } from '../components/person-search.js';
 import { actionLabel } from '../components/labels.js';
 import { adminSettings, adminSmsReport } from '../components/admin-settings.js';
 import { adminTemplates } from '../components/admin-templates.js';
+import { adminOverview, adminGroup } from '../components/admin-overview.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
 
@@ -24,11 +25,13 @@ export default function adminPage(container, { params }) {
   }
   const body = h('div');
   const superAdmin = store.user.role === 'super_admin';
-  const active = ['settings', 'templates'].includes(params.tab) && !superAdmin ? 'users' : params.tab || 'users';
+  const active = ['settings', 'templates'].includes(params.tab) && !superAdmin ? 'overview' : params.tab || 'overview';
   container.append(h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('h1', null, icon('crown'), ' مدیریت')),
     tabs([
+      { value: 'overview', label: 'نمای کلی', icon: 'shield' },
       { value: 'users', label: 'کاربران', icon: 'users' },
+      { value: 'group', label: 'گروه خاندان', icon: 'flag' },
       superAdmin ? { value: 'settings', label: 'تنظیمات و اتصال‌ها (API)', icon: 'key' } : null,
       superAdmin ? { value: 'templates', label: 'قالب پیامک‌ها', icon: 'edit' } : null,
       { value: 'sms', label: 'پیامک‌ها', icon: 'mail' },
@@ -40,9 +43,15 @@ export default function adminPage(container, { params }) {
   ));
   show(active);
 
+  function openTab(tab) {
+    history.replaceState(null, '', `#/admin/${tab}`);
+    container.querySelector('.tabs')?.setActive?.(tab);
+    show(tab);
+  }
+
   function show(tab) {
     body.replaceChildren(loader());
-    ({ users, activity, trash, tools, settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
+    ({ users, activity, trash, tools, overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
   }
 
   // ------------------------------------------------------------ کاربران
@@ -66,12 +75,36 @@ export default function adminPage(container, { params }) {
             h('td', null, role),
             h('td', null, h('span', { class: `chip ${blocked ? 'danger' : 'success'}` }, blocked ? 'مسدود' : 'فعال')),
             h('td', { class: 'small muted' }, u.last_login_at ? timeAgo(u.last_login_at) : 'هرگز'),
-            h('td', null, u.id === store.user.id ? '' : h('button', { class: `btn sm ${blocked ? 'success' : 'danger'}`, type: 'button', onclick: () => update(u, { status: blocked ? 'active' : 'blocked' }) }, blocked ? 'فعال‌سازی' : 'مسدودسازی')),
+            h('td', { class: 'nowrap' }, u.id === store.user.id ? '' : h('div', { class: 'row', style: { gap: '4px' } },
+              h('button', { class: `btn sm ${blocked ? 'success' : 'danger'}`, type: 'button', onclick: () => update(u, { status: blocked ? 'active' : 'blocked' }) }, blocked ? 'فعال‌سازی' : 'مسدودسازی'),
+              moreMenu(u),
+            )),
           );
         })),
       ), h('div', { class: 'muted small', style: { padding: '10px' } }, `${fa(res.meta.total)} کاربر`));
     } catch (e) {
       table.replaceChildren(emptyState('alert', e.message));
+    }
+  }
+
+  /** کارهای بیشتر: خروج از همه دستگاه‌ها، محدود کردن در گروه خاندان */
+  function moreMenu(u) {
+    const btn = h('button', { class: 'icon-btn', type: 'button', title: 'کارهای بیشتر', onclick: () => dropdown(btn, [
+      { label: 'خروج از همه دستگاه‌ها', icon: 'logout', onClick: () => act(`/api/admin/users/${u.id}/logout-all`, {}, `«${u.person ? fullName(u.person) : 'این کاربر'}» از همه دستگاه‌ها خارج شود؟`) },
+      { label: 'سکوت ۷ روزه در گروه خاندان', icon: 'ban', onClick: () => act(`/api/admin/users/${u.id}/group-mute`, { days: 7 }, 'این عضو ۷ روز نتواند در گروه پیام بدهد؟') },
+      { label: 'سکوت دائم در گروه خاندان', icon: 'ban', danger: true, onClick: () => act(`/api/admin/users/${u.id}/group-mute`, { days: null }, 'این عضو تا اطلاع بعدی نتواند در گروه پیام بدهد؟') },
+      { label: 'برداشتن سکوت گروه', icon: 'check', onClick: () => act(`/api/admin/users/${u.id}/group-mute`, { days: 0 }) },
+    ]) }, icon('more'));
+    return btn;
+  }
+
+  async function act(url, payload, question) {
+    if (question && !(await confirmDialog(question, { danger: true }))) return;
+    try {
+      const res = await post(url, payload);
+      toast(res.message || 'انجام شد.');
+    } catch (e) {
+      toastError(e);
     }
   }
 

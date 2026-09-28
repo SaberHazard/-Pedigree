@@ -27,6 +27,7 @@ class MessageController extends Controller
     /** فهرست گفتگوهای من با آخرین پیام و تعداد نخوانده */
     public function index(Request $request): JsonResponse
     {
+        $this->assertEnabled();
         $user = $request->user();
         $conversations = Conversation::query()->for($user)->whereNotNull('last_message_at')
             ->orderByDesc('last_message_at')->limit(100)->get();
@@ -67,6 +68,7 @@ class MessageController extends Controller
     /** شروع (یا ادامه) گفتگو با صاحب یک پروفایل */
     public function start(Request $request): JsonResponse
     {
+        $this->assertEnabled();
         $data = $request->validate(['person_id' => ['required', 'uuid']]);
         $person = Person::query()->findOrFail($data['person_id']);
         $other = User::query()->where('person_id', $person->id)->first();
@@ -82,6 +84,7 @@ class MessageController extends Controller
     /** پیام‌های یک گفتگو (۵۰ تایی؛ before برای قدیمی‌تر، after برای تازه‌ها) — پیام‌های طرف مقابل خوانده می‌شوند */
     public function show(Request $request, int $conversation): JsonResponse
     {
+        $this->assertEnabled();
         $user = $request->user();
         $conv = $this->conversationFor($user, $conversation);
         $data = $request->validate([
@@ -115,6 +118,7 @@ class MessageController extends Controller
 
     public function send(Request $request, int $conversation): JsonResponse
     {
+        $this->assertEnabled();
         $data = $request->validate(['body' => ['required', 'string', 'max:'.(MessagingService::MAX_LENGTH * 2)]]);
         $conv = $this->conversationFor($request->user(), $conversation);
         $message = $this->messaging->send($request->user(), $conv, $data['body']);
@@ -138,6 +142,7 @@ class MessageController extends Controller
     /** مسدود کردن / رفع مسدودی طرف مقابل */
     public function block(Request $request, int $conversation): JsonResponse
     {
+        $this->assertEnabled();
         $user = $request->user();
         $conv = $this->conversationFor($user, $conversation);
         $blocked = $request->validate(['blocked' => ['required', 'boolean']])['blocked'];
@@ -157,6 +162,13 @@ class MessageController extends Controller
     }
 
     // ------------------------------------------------------------------ کمکی‌ها
+
+    private function assertEnabled(): void
+    {
+        if (! config('pedigree.messaging.enabled', true)) {
+            throw new DomainException('پیام‌رسان خصوصی فعلاً غیرفعال است.', 403, 'messaging_off');
+        }
+    }
 
     private function conversationFor(User $user, int $id): Conversation
     {

@@ -420,5 +420,5 @@ function saveLocalPref(key, value) {
 
 /** دکمه «پیام» فقط برای عضو فعالِ دیگر (نه خودم، نه مهمان) */
 function canMessage(person) {
-  return Boolean(store.user && person.account?.active && store.user.person?.id !== person.id);
+  return Boolean(store.config.messaging?.enabled !== false && store.user && person.account?.active && store.user.person?.id !== person.id);
 }

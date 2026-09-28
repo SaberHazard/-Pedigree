@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\ActivityController;
+use App\Http\Controllers\Api\Admin\OverviewController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
 use App\Http\Controllers\Api\Admin\SettingsController;
 use App\Http\Controllers\Api\Admin\SmsReportController;
@@ -200,6 +201,11 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::get('settings', [SettingsController::class, 'index']);
         Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1,settings-update');
         Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1,settings-test');
+
+        // نمای کلی، سلامت سرور و ابزارهای کنترلی
+        Route::get('overview', [OverviewController::class, 'index'])->middleware('throttle:30,1,admin-overview');
+        Route::post('users/{user}/logout-all', [OverviewController::class, 'logoutEverywhere'])->middleware('throttle:20,1,admin-logout');
+        Route::post('broadcast', [OverviewController::class, 'broadcast'])->middleware(['super-admin', 'throttle:3,60,admin-broadcast']);
 
         // گروه خاندان: سنجاق، گزارش‌ها، سکوت
         Route::post('group/messages/{message}/pin', [GroupController::class, 'pin'])->whereNumber('message');

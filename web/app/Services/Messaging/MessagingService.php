@@ -98,6 +98,10 @@ class MessagingService
     /** تعداد پیام‌های خوانده‌نشده کاربر */
     public function unreadCount(User $user): int
     {
+        if (! config('pedigree.messaging.enabled', true)) {
+            return 0;
+        }
+
         return DirectMessage::query()
             ->whereIn('conversation_id', Conversation::query()->for($user)->select('id'))
             ->where('sender_id', '!=', $user->id)

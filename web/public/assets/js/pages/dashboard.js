@@ -37,6 +37,12 @@ export default async function dashboard(container) {
     ),
   ));
 
+  // اطلاعیه مدیر سایت
+  const note = store.config.announcement;
+  if (note?.text) {
+    page.append(h('div', { class: `card announce ${note.level || 'info'} mt`, role: 'status' }, icon(note.level === 'warning' ? 'alert' : 'bell'), h('div', { class: 'grow', dir: 'auto' }, note.text)));
+  }
+
   // تأییدهای در انتظار
   const c = user.counters || {};
   if ((c.votes || 0) + (c.links || 0) > 0) {
