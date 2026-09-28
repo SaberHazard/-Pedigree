@@ -367,7 +367,7 @@ export default async function groupPage(container, { query }) {
   async function send() {
     const body = input.value.trim();
     if (!body) return;
-    if (!/[\p{L}\p{N}]/u.test(body)) return toast('فقط ایموجی نمی‌شود فرستاد؛ دست‌کم یک کلمه هم بنویسید.', 'warning');
+    if (!/[\p{L}\p{N}]/u.test(body)) return toast('فقط ایموجی نمی‌شود فرستاد؛ باید متن یا کلمه‌ای هم اضافه شود.', 'warning');
     sendBtn.disabled = true;
     try {
       const res = await post('/api/group/messages', { body, reply_to: replyTo?.id || null });
@@ -485,7 +485,7 @@ export default async function groupPage(container, { query }) {
       actions: [{ label: 'انصراف' }, { label: 'فرستادن به گروه', class: 'primary', icon: 'send', onClick: async () => {
         const text = caption.value.trim();
         if (!/[\p{L}\p{N}]/u.test(text)) {
-          toast('برای خاطره چند کلمه توضیح بنویسید.', 'warning');
+          toast('برای خاطره باید متن یا کلمه‌ای هم اضافه شود (فقط ایموجی کافی نیست).', 'warning');
           return false;
         }
         const form = new FormData();

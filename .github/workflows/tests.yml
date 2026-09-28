@@ -60,8 +60,8 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: gd, sqlite3, pdo_sqlite, pdo_mysql, pdo_pgsql, mbstring, fileinfo, intl
           coverage: none
-      - name: Install ffmpeg (video pipeline test)
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Install ffmpeg and heif-convert (video and HEIC/AVIF pipeline tests)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg libheif-examples && (sudo apt-get install -y -qq libheif-plugin-x265 libheif-plugin-libde265 || true)
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Code style (Pint)

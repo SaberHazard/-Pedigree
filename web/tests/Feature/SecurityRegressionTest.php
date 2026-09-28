@@ -34,6 +34,12 @@ class SecurityRegressionTest extends TestCase
             "/api/tree/{$pid}/ancestors?depth[]=3",
             '/api/social/preview?network[]=x&value[]=y',
             '/api/notifications?page[]=1',
+            '/api/group/messages?after[]=1&since[]=x&around[]=2',
+            '/api/group/messages?since=not-a-date&after=1',
+            '/api/games/question?type[]=who',
+            '/api/admin/sms-templates?x[]=1',
+            '/api/admin/group/reports?x[]=1',
+            '/api/greetings?occasion[]=nowruz',
         ] as $url) {
             $this->assertLessThan(500, $this->getJson($url)->status(), $url);
         }

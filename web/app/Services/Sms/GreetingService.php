@@ -228,7 +228,7 @@ class GreetingService
     {
         $from = $sender->person;
         $relation = $from ? $this->relations->plainLabel($recipient, $from) : null;
-        $fromName = $from ? self::displayName($from) : $sender->displayName();
+        $fromName = self::safe($from ? self::displayName($from) : $sender->displayName());
         $digits = fn ($v) => $v === null || $v === '' ? null : PersianText::toPersianDigits((string) $v);
         [$year] = $this->birthdays->today();
         $birthYear = (int) substr((string) $recipient->birth_date, 0, 4);
@@ -240,7 +240,7 @@ class GreetingService
         $education = $recipient->education_level ? config('pedigree.profile.education_levels.'.$recipient->education_level) : null;
         $anniversary = $occasion === 'anniversary' ? $this->calendar->anniversaryFor($recipient) : null;
 
-        return [
+        $values = [
             'to_full_name' => self::displayName($recipient),
             'to_first_name' => $recipient->first_name,
             'to_last_name' => $recipient->last_name,
@@ -275,6 +275,33 @@ class GreetingService
             'today' => $digits($this->calendar->todayText()),
             'year' => $digits($year),
         ];
+
+        // هر مقداری که از پروفایل‌ها می‌آید پاک‌سازی می‌شود تا کسی با گذاشتن لینک یا شماره در نام/لقب خود،
+        // از خط رسمی سایت پیامک فریبنده نفرستد
+        foreach ($values as $key => $value) {
+            if (! in_array($key, ['from_line', 'from_line_formal', 'site_name', 'note'], true)) {
+                $values[$key] = self::safe($value);
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * پاک‌سازی مقدار متغیر پیامک: بدون لینک، دامنه، شناسه @، شماره تلفن یا کد (۵ رقم پشت سر هم)، نویسه‌های کنترلی؛ حداکثر ۶۰ نویسه
+     */
+    public static function safe(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $value = preg_replace('/[\x00-\x1F\x7F\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', ' ', $value) ?? '';
+        // هر «چیز.دامنه» با هر پسوند لاتین (evil.ru، bit.ly)، حتی به شکل‌های پنهان‌شده «evil[.]ru»، «evil (.) ru» یا «evil نقطه ru»
+        $value = preg_replace('~(\b[a-z][a-z0-9+.-]{1,15}:/+\S*|www\.\S*|\bt\.me/\S*|@[\w.]{2,}|\b[\w-]{2,}\s*(?:\.|\[\.\]|\(\.\)|．|。|٫|\s(?:dot|نقطه)\s)\s*[a-z]{2,24}\b\S*)~iu', '', $value) ?? '';
+        $value = preg_replace('/[0-9\x{06F0}-\x{06F9}\x{0660}-\x{0669}][0-9\x{06F0}-\x{06F9}\x{0660}-\x{0669}\s\-]{3,}[0-9\x{06F0}-\x{06F9}\x{0660}-\x{0669}]/u', '', $value) ?? '';
+        $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+
+        return $value === '' ? null : mb_substr($value, 0, 60);
     }
 
     /** نام کامل با عنوان علمی: «مهندس مریم احمدی» */

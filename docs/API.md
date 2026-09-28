@@ -262,8 +262,8 @@
 
 | روش | مسیر | توضیح |
 |---|---|---|
-| GET | `/persons/{id}/media?type=image&category=story` | گالری یا استوری‌ها (تأییدشده‌ها + در انتظارهای قابل مشاهده برای شما) |
-| POST | `/persons/{id}/media` | آپلود: `file`, `caption`, `description`, `taken_at`, `as_avatar`, `category` (gallery/story) |
+| GET | `/persons/{id}/media?type=image&category=story` | گالری، استوری‌ها یا خاطرات گروه (`memory`؛ عکس‌هایی که شخص در گروه گذاشته یا در آن‌ها نشان‌گذاری شده) — تأییدشده‌ها + در انتظارهای قابل مشاهده برای شما |
+| POST | `/persons/{id}/media` | آپلود: `file`, `caption`, `description`, `taken_at`, `as_avatar`, `category` (gallery/story). تقریباً هر قالب عکس (HEIC، AVIF، TIFF، PSD ...) به JPEG و هر قالب فیلم به MP4 تبدیل می‌شود؛ خطاها: `video_queue_full` (۵۰۳)، سقف روزانه (۴۲۹)، فیلم غیرقابل‌پخش (۴۲۲) |
 | POST | `/persons/{id}/avatar` | آپلود عکس پروفایل: `file` |
 | PUT | `/persons/{id}/avatar` | انتخاب عکس پروفایل از عکس‌های تأییدشده: `{media_id}` |
 | GET | `/media/{id}` | |
@@ -293,17 +293,22 @@
 | POST | `/notifications/{id}/read`، `/notifications/read-all` |
 | GET | `/export/gedcom?mode=descendants|ancestors|hourglass|all&person={id}&depth=10` |
 
-## تبریک تولد و پیامک از پنل سایت
+## تبریک مناسبت‌ها و پیامک از پنل سایت
 
-متن پیامک ثابت است: یکی از قالب‌های آماده + نام کامل گیرنده و فرستنده با عنوان «دکتر/مهندس» + نسبت فامیلی محاسبه‌شده
-+ یادداشت کوتاه اختیاری (حداکثر ۳۰ نویسه، بدون عدد و لینک) + نام سایت. دریافت پیامک تبریک و اعلان تولد قابل خاموش کردن نیست.
+متن پیامک ثابت است: یکی از قالب‌هایی که **فقط مدیر کل** می‌نویسد (با متغیرها) + نام کامل گیرنده و فرستنده با عنوان
+«دکتر/مهندس» + نسبت فامیلی محاسبه‌شده + یادداشت کوتاه اختیاری (حداکثر ۳۰ نویسه، بدون عدد و لینک) + نام سایت.
+مقدار فیلدهای پروفایل پیش از رفتن در پیامک پاک‌سازی می‌شود (بدون لینک، دامنه، ‎@شناسه و عدد ۵ رقمی به بالا).
+دریافت پیامک تبریک و اعلان تولد قابل خاموش کردن نیست.
+
+مناسبت‌ها (`occasion`): `birthday` (امروز و دیروز و هفته پیش رو)، `anniversary` (سالگرد ازدواج؛ امروز و دیروز)،
+`nowruz` (۲۵ اسفند تا ۱۳ فروردین)، `yalda` (۳۰ آذر و ۱ دی).
 
 | روش | مسیر | توضیح |
 |---|---|---|
-| GET | `/greetings` | `eligibility{eligible, reason (provider/incomplete/no_profile), message, percent, required, missing[{key,label}], limits{daily_left,...}}`، `birthdays[{person, in_days (-1..7), age, degree, relation, can_sms, problem, greeted, is_me}]`، `templates[{id,label,text}]`، `default_template`، `note_max`، `auto{auto, scope, template, note, max_scope, send_hour}`، `history[]` |
-| POST | `/greetings/preview` | `{person_id, template, note?}` → `{text, length, parts}` متن نهایی (۹۰ در دقیقه) |
-| POST | `/greetings/sms` | `{person_id, template, note?}` ← ارسال (۱۰ در دقیقه). خطاها با `code`: `sms_incomplete`، `sms_provider`، `sms_recipient`، `sms_limit`، `sms_recipient_limit`، `sms_global_limit`، `sms_failed` |
-| PUT | `/greetings/auto` | `{auto, scope (d1..d4/all), template, note?}` |
+| GET | `/greetings` | `eligibility{eligible, reason (provider/incomplete/no_profile), message, percent, required, missing[{key,label}], limits{daily_left,...}}`، `occasions[{key, label, emoji, open, window, templates[{id,label,text}]}]`، `birthdays[{person, in_days (-1..7), age, degree, relation, can_sms, problem, greeted, is_me}]`، `anniversaries[]`، `relatives[]` (در نوروز و یلدا، بستگان تا درجه ۴)، `note_max`، `auto{auto, scope, template, note, max_scope, send_hour}`، `history[{..., kind}]` |
+| POST | `/greetings/preview` | `{person_id, occasion?, template (id), note?}` → `{text, length, parts}` متن نهایی (۹۰ در دقیقه) |
+| POST | `/greetings/sms` | `{person_id, occasion? (پیش‌فرض birthday), template (id), note?}` ← ارسال (۱۰ در دقیقه). خطاها با `code`: `sms_incomplete`، `sms_provider`، `sms_recipient`، `sms_limit`، `sms_recipient_limit`، `sms_global_limit`، `sms_failed` |
+| PUT | `/greetings/auto` | `{auto, scope (d1..d4/all), template, note?}` (تبریک خودکار تولد) |
 
 اعلان تولد با `kind: birthday` و `link: #/greetings?person={id}` در `/notifications` می‌آید.
 
@@ -321,12 +326,34 @@
 | DELETE | `/direct-messages/{id}` | حذف پیام خودم برای هر دو طرف |
 | POST | `/messages/{id}/block` | `{blocked: true/false}` — مسدودسازی دوطرفه |
 
+## گروه خاطرات خاندان
+
+همه اعضای فعال. متن پیام‌ها در پایگاه داده رمزنگاری‌شده است. اگر مدیر گروه را خاموش کند همه مسیرها `404` می‌دهند.
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/group` | `{name, members, can_post, problem, is_admin, reactions[], max_length, allow_links, video_enabled, read_id, unread, pinned[]}` |
+| GET | `/group/messages?before=&after=&around=&since=` | ۵۰ پیام (قدیمی‌تر از `before`، تازه‌تر از `after`، اطراف `around`)؛ `updated[]` (پیام‌های ویرایش/حذف/واکنش‌خورده از `since`)، `has_more`، `server_time`، `unread` |
+| POST | `/group/messages` | `{body, reply_to?}` → `201` — ۳۰ در دقیقه. خطاها: `emoji_only` (۴۲۲؛ «باید متن یا کلمه‌ای هم اضافه شود»)، `links` (۴۲۲)، `duplicate`، `slow_mode` (۴۲۹)، `group_limit` (۴۲۹)، `group_blocked` (۴۰۳) |
+| POST | `/group/media` | multipart: `file` (عکس یا فیلم)، `caption` (الزامی، فقط ایموجی نه)، `taken_at?`، `tags[]?` (شناسه اشخاص داخل عکس، تا ۱۵) — عکس/فیلم در پروفایل فرستنده (دسته `memory`) هم می‌ماند؛ ۱۰ در دقیقه و سقف روزانه |
+| POST | `/group/read` | `{up_to}` → `{unread}` |
+| POST | `/group/messages/{id}/react` | `{emoji}` یکی از ۷ واکنش؛ `null` = برداشتن |
+| POST | `/group/messages/{id}/report` | `{reason?}` — ۱۰ در دقیقه |
+| DELETE | `/group/messages/{id}` | حذف پیام خود (مدیر: هر پیام) |
+
+## بازی‌ها
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/games/question?type=who\|kin\|older` | `{type, question, image, options[{id, label, image?}], answer, explain, person_id}` — ۶۰ در دقیقه؛ خطای `game_empty` (۴۲۲) وقتی داده کافی نیست |
+
 ## دستیار هوش مصنوعی
 
 | روش | مسیر | توضیح |
 |---|---|---|
-| GET | `/assistant` | `{enabled, provider, remaining, max_chars}` |
-| POST | `/assistant/chat` | `{messages: [{role: user/assistant, content}]}` (کل گفتگو تا اینجا، آخری از کاربر؛ سرور چیزی ذخیره نمی‌کند) → `{reply, remaining}` — ۸ در دقیقه. خطاها با `code`: `ai_off` (۵۰۳)، `ai_quota` (۴۲۹)، `ai_busy`، `ai_auth`، `ai_model`، `ai_rejected`، `ai_blocked`، `ai_empty`، `ai_down` |
+| GET | `/assistant` | `{enabled, provider, remaining, max_chars, modes[{key, label, emoji, starter}], restore{enabled, remaining, modes}}` |
+| POST | `/assistant/chat` | `{messages: [{role: user/assistant, content}], mode?}` (کل گفتگو تا اینجا، آخری از کاربر؛ سرور چیزی ذخیره نمی‌کند). `mode`: `chat`، `memory`، `mushaere`، `twenty`، `riddle`، `quiz`، `story`، `proverb` → `{reply, remaining}` — ۸ در دقیقه. خطاها با `code`: `ai_off` (۵۰۳)، `ai_quota` (۴۲۹)، `ai_busy`، `ai_auth`، `ai_model`، `ai_rejected`، `ai_blocked`، `ai_empty`، `ai_down` |
+| POST | `/media/{id}/restore` | `{mode: restore\|colorize\|both}` → `201 {data: Media, remaining, message}` نسخه بازسازی/رنگی‌شده در همان پروفایل — ۴ در دقیقه و سقف روزانه |
 
 ## مدیریت (فقط مدیران)
 
@@ -342,3 +369,22 @@
 | GET | `/admin/settings` — (مدیر کل) گروه‌های تنظیمات؛ کلیدها فقط با `is_set` و `hint` |
 | PUT | `/admin/settings` — `{values: {"pedigree.sms.drivers.kavenegar.api_key": "...", ...}, clear: [keys]}`؛ کلید خالی = بدون تغییر |
 | POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social|ai, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر؛ `ai` یک پیام کوتاه با سرویس هوش مصنوعی انتخاب‌شده) |
+| GET | `/admin/overview` — `{stats{members, active_30d, persons, images, videos, storage_bytes, pending_media, video_queue, messages_today, group_today, open_reports, sms_today, ai_today, ...}, checks[{key, ok, label, value, fix}]}` (سلامت سرور) |
+| POST | `/admin/users/{id}/logout-all` — خروج کاربر از همه دستگاه‌ها (خروج مدیران فقط با مدیر کل) |
+| POST | `/admin/broadcast` — (مدیر کل) `{title, body}` اعلان به همه اعضا؛ ۳ بار در ساعت |
+| GET | `/admin/group/reports` — `{data[{message, author, reports[{by, reason}]}], muted[]}` |
+| POST | `/admin/group/reports/{messageId}/resolve` — `{action: dismiss|delete|mute, days?}` (`days` خالی با `mute` = دائم) |
+| POST | `/admin/group/messages/{id}/pin` — `{pinned: bool}` (حداکثر ۵) |
+| POST | `/admin/users/{id}/group-mute` — `{days}`: `0` برداشتن، `null` دائم، `1..365` روز |
+
+### قالب‌های پیامک (فقط مدیر کل؛ برای بقیه `403`)
+
+| روش | مسیر |
+|---|---|
+| GET | `/admin/sms-templates` — `{data[{id, occasion, title, body, active, default, sort_order, updated_at}], occasions[{key, label, emoji, window}], variables[{key, token, label, group, occasions, sample}], limits{body_max, title_max, per_occasion}}` |
+| POST | `/admin/sms-templates` — `{occasion, title, body, active}`؛ متن با متغیرهای فارسی (`{نام_کامل_گیرنده}`) یا انگلیسی (`{to_full_name}`)؛ متغیر ناشناخته، متن بدون نام فرستنده یا بیش از ۵۰۰ نویسه → `422` |
+| PUT | `/admin/sms-templates/{id}` — همان فیلدها (آخرین قالب فعال تولد را نمی‌شود خاموش یا حذف کرد) |
+| DELETE | `/admin/sms-templates/{id}` |
+| POST | `/admin/sms-templates/reorder` — `{occasion, ids[]}` |
+| POST | `/admin/sms-templates/preview` — `{occasion, body, person_id?, note?}` → `{text, length, parts}` (با مقادیر نمونه، یا مشخصات واقعی `person_id` و خود مدیر به عنوان فرستنده؛ متن نامعتبر → `422`) |
+| POST | `/admin/sms-templates/defaults` — بازگردانی متن‌های پیش‌فرض (قالب‌های ساخته‌شده توسط مدیر دست نمی‌خورند) |

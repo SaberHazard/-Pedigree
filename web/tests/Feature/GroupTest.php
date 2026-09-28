@@ -64,15 +64,17 @@ class GroupTest extends TestCase
         $this->say($this->sara, 'آره یادمه 😂❤️', ['reply_to' => $id])->assertCreated()
             ->assertJsonPath('data.reply_to.id', $id);
 
-        // پاسخ = اعلان برای نویسنده پیام اصلی
+        // پاسخ = اعلان برای نویسنده پیام اصلی (پاسخ‌های پشت سر هم فقط یک اعلان در ۵ دقیقه)
         $this->assertSame('group_reply', $this->ali->notifications()->first()->data['kind']);
+        $this->say($this->sara, 'راستی آن سال برف آمد ❄️', ['reply_to' => $id])->assertCreated();
+        $this->assertSame(1, $this->ali->notifications()->count());
 
         // متن در پایگاه داده رمزنگاری‌شده است
         $this->assertStringNotContainsString('یادمه', DB::table('group_messages')->pluck('body')->implode(' '));
 
         // شمارنده نخوانده و خواندن
-        $this->actingAs($this->ali, 'sanctum')->getJson('/api/auth/me')->assertJsonPath('data.counters.group', 1);
-        $last = $this->getJson('/api/group/messages')->assertOk()->assertJsonCount(2, 'data')->json('data.1.id');
+        $this->actingAs($this->ali, 'sanctum')->getJson('/api/auth/me')->assertJsonPath('data.counters.group', 2);
+        $last = $this->getJson('/api/group/messages')->assertOk()->assertJsonCount(3, 'data')->json('data.2.id');
         $this->postJson('/api/group/read', ['up_to' => $last])->assertJsonPath('unread', 0);
     }
 
@@ -82,6 +84,10 @@ class GroupTest extends TestCase
         $this->say($this->ali, 'ببینید https://spam.example/x')->assertStatus(422)->assertJsonPath('code', 'links');
         $this->say($this->ali, 'عضو کانال شوید t.me/spam')->assertStatus(422);
         $this->say($this->ali, 'سایت ما: shop-cheap.ir')->assertStatus(422);
+        $this->say($this->ali, 'جایزه: prize-win[.]ru')->assertStatus(422)->assertJsonPath('code', 'links');
+        $this->say($this->ali, 'hxxps://x.y')->assertStatus(422);
+        // متن عادی با نقطه مشکلی ندارد
+        $this->say($this->ali, 'ساعت ۵.۳۰ عصر خانه پدربزرگ. یادتان هست؟')->assertCreated();
         // تکراری
         $this->say($this->ali, 'سلام خوبید؟')->assertCreated();
         $this->say($this->ali, 'سلام خوبید؟')->assertStatus(422)->assertJsonPath('code', 'duplicate');

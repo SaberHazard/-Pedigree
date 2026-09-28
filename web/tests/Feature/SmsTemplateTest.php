@@ -6,6 +6,7 @@ use App\Models\Marriage;
 use App\Models\SmsMessage;
 use App\Models\SmsTemplate;
 use App\Models\User;
+use App\Services\Sms\GreetingService;
 use App\Support\Jalali;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -204,5 +205,29 @@ class SmsTemplateTest extends TestCase
         $this->postJson('/api/greetings/sms', ['person_id' => $this->recipient->person_id, 'occasion' => 'yalda'])->assertStatus(422);
         SmsTemplate::where('occasion', 'yalda')->update(['active' => true]);
         $this->postJson('/api/greetings/sms', ['person_id' => $this->recipient->person_id, 'occasion' => 'yalda'])->assertCreated();
+    }
+
+    /** کسی نتواند با گذاشتن لینک یا شماره در نام و لقب خودش، از خط رسمی سایت پیامک فریبنده بفرستد */
+    public function test_profile_values_cannot_smuggle_links_or_numbers_into_sms(): void
+    {
+        $this->sender->person->forceFill(['first_name' => 'علی bit.ly/prize', 'nickname' => 'زنگ بزن ۰۹۱۲۳۴۵۶۷۸۹ @scam'])->save();
+        $this->actingAs($this->super, 'sanctum');
+        $warm = SmsTemplate::where('slug', 'warm')->first();
+        $this->putJson("/api/admin/sms-templates/{$warm->id}", ['occasion' => 'birthday', 'title' => 'گرم', 'body' => "{نام_کامل_گیرنده} تولدت مبارک\n{از_طرف} ({لقب_فرستنده})", 'active' => true])->assertOk();
+
+        $text = $this->actingAs($this->sender->refresh(), 'sanctum')
+            ->postJson('/api/greetings/preview', ['person_id' => $this->recipient->person_id, 'template' => $warm->id])->assertOk()->json('text');
+        $this->assertStringNotContainsString('bit.ly', $text);
+        $this->assertStringNotContainsString('۰۹۱۲', $text);
+        $this->assertStringNotContainsString('@scam', $text);
+        $this->assertStringContainsString('از طرف برادر عزیزت، علی احمدی (زنگ بزن)', $text);
+
+        // دامنه با هر پسوند و شکل‌های پنهان‌شده
+        foreach (['evil.ru', 'evil[.]ru', 'evil (.) ru', 'evil dot ru', 'evil نقطه ru', 'hxxps://x', 'shop.example.co.uk/a'] as $trick) {
+            $this->assertSame('علی', GreetingService::safe("علی {$trick}"), $trick);
+        }
+        // مقدار عادی دست نمی‌خورد
+        $this->assertSame('مهندس عمران، کارمند شهرداری', GreetingService::safe('مهندس عمران، کارمند شهرداری'));
+        $this->assertSame('متولد ۱۳۴۵', GreetingService::safe('متولد ۱۳۴۵'));
     }
 }

@@ -19,6 +19,7 @@ use App\Support\PersianText;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -93,7 +94,7 @@ class GroupService
         if (! $user->person) {
             throw new DomainException('حساب شما به پروفایلی در شجره‌نامه وصل نیست.');
         }
-        $caption = $this->cleanBody($caption, 'برای خاطره چند کلمه توضیح بنویسید (فقط ایموجی کافی نیست).');
+        $caption = $this->cleanBody($caption, 'برای خاطره باید متن یا کلمه‌ای هم اضافه شود (فقط ایموجی کافی نیست).');
         if (mb_strlen($caption) > 300) {
             throw new DomainException('توضیح عکس حداکثر ۳۰۰ نویسه باشد.');
         }
@@ -154,9 +155,9 @@ class GroupService
         }
         // فقط ایموجی (یا علامت) پذیرفته نیست: دست‌کم یک حرف یا عدد لازم است
         if (! preg_match('/[\p{L}\p{N}]/u', $body)) {
-            throw new DomainException($emojiOnlyMessage ?? 'فقط ایموجی نمی‌شود فرستاد؛ دست‌کم یک کلمه هم بنویسید.', 422, 'emoji_only');
+            throw new DomainException($emojiOnlyMessage ?? 'فقط ایموجی نمی‌شود فرستاد؛ باید متن یا کلمه‌ای هم اضافه شود.', 422, 'emoji_only');
         }
-        if (! config('pedigree.group.allow_links') && preg_match('~(https?://|www\.|\bt\.me/|\b[a-z0-9-]{2,}\.(com|ir|net|org|me|io|app|info|xyz|site|online|top|link|click)\b)~iu', $body)) {
+        if (! config('pedigree.group.allow_links') && preg_match('~(\b[a-z][a-z0-9+.-]{1,15}://|www\.|\bt\.me/|\b[a-z0-9-]{2,}\s*(\.|\[\.\]|\(\.\))\s*(com|ir|net|org|me|io|app|info|xyz|site|online|top|link|click|ly|co|ru|de|uk|cc|tk|to|gg|in|us|tv|ai|sh|gl|gd|ws|su|tr|ae|eu|biz|pro|dev|shop|store|club|live|news|blog|space|fun|website|page|icu|vip|win|bid|cam|lol)\b)~iu', $body)) {
             throw new DomainException('فرستادن لینک در گروه خاندان مجاز نیست.', 422, 'links');
         }
         // بیش از ۲۰ تکرار پشت سر هم یک نویسه (مثل «ههههههه...» طولانی) کوتاه می‌شود
@@ -216,7 +217,9 @@ class GroupService
 
     private function notifyReply(User $from, ?GroupMessage $reply, GroupMessage $message): void
     {
-        if ($reply && $reply->user_id && $reply->user_id !== $from->id) {
+        // هر نفر برای یک نفر حداکثر هر ۵ دقیقه یک اعلان پاسخ (جلوگیری از مزاحمت با پاسخ‌های پشت سر هم)
+        if ($reply && $reply->user_id && $reply->user_id !== $from->id
+            && Cache::add("grp-reply:{$from->id}:{$reply->user_id}", 1, 300)) {
             $reply->user?->notify(new GroupReply($from, $message));
         }
     }

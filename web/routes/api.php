@@ -40,7 +40,7 @@ use Illuminate\Support\Facades\Route;
 | احراز هویت: کوکی سشن (وب) یا هدر Authorization: Bearer <token> (موبایل)
 */
 
-Route::get('bootstrap', [MetaController::class, 'bootstrap']);
+Route::get('bootstrap', [MetaController::class, 'bootstrap'])->middleware('throttle:120,1,bootstrap');
 
 // ------------------------------------------------------------------ ورود
 Route::prefix('auth')->group(function () {
