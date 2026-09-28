@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\GreetingController;
+use App\Http\Controllers\Api\GroupController;
 use App\Http\Controllers\Api\KinController;
 use App\Http\Controllers\Api\LinkRequestController;
 use App\Http\Controllers\Api\MapController;
@@ -155,6 +156,16 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::delete('direct-messages/{message}', [MessageController::class, 'destroy'])->whereNumber('message');
 
     // تبریک تولد و پیامک از پنل سایت
+    // گروه خاطرات خاندان
+    Route::get('group', [GroupController::class, 'index']);
+    Route::get('group/messages', [GroupController::class, 'messages']);
+    Route::post('group/messages', [GroupController::class, 'send'])->middleware('throttle:30,1,group-send');
+    Route::post('group/media', [GroupController::class, 'sendMedia'])->middleware(['throttle:uploads', 'throttle:10,1,group-media']);
+    Route::post('group/read', [GroupController::class, 'read'])->middleware('throttle:60,1,group-read');
+    Route::post('group/messages/{message}/react', [GroupController::class, 'react'])->whereNumber('message');
+    Route::post('group/messages/{message}/report', [GroupController::class, 'report'])->whereNumber('message')->middleware('throttle:10,1,group-report');
+    Route::delete('group/messages/{message}', [GroupController::class, 'destroy'])->whereNumber('message');
+
     // دستیار هوش مصنوعی
     Route::get('assistant', [AssistantController::class, 'index']);
     Route::post('assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:8,1,assistant-chat');
@@ -184,6 +195,12 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::get('settings', [SettingsController::class, 'index']);
         Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1,settings-update');
         Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1,settings-test');
+
+        // گروه خاندان: سنجاق، گزارش‌ها، سکوت
+        Route::post('group/messages/{message}/pin', [GroupController::class, 'pin'])->whereNumber('message');
+        Route::get('group/reports', [GroupController::class, 'reports']);
+        Route::post('group/reports/{message}/resolve', [GroupController::class, 'resolve'])->whereNumber('message');
+        Route::post('users/{user}/group-mute', [GroupController::class, 'mute']);
 
         // قالب‌های ثابت پیامک تبریک (فقط مدیر کل)
         Route::middleware('super-admin')->group(function () {

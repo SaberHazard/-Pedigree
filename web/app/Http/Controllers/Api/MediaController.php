@@ -42,7 +42,7 @@ class MediaController extends Controller
 
         $request->validate([
             'type' => ['nullable', 'string', Rule::in([Media::TYPE_IMAGE, Media::TYPE_VIDEO])],
-            'category' => ['nullable', 'string', Rule::in([Media::CATEGORY_GALLERY, Media::CATEGORY_STORY, Media::CATEGORY_SOCIAL])],
+            'category' => ['nullable', 'string', Rule::in([Media::CATEGORY_GALLERY, Media::CATEGORY_STORY, Media::CATEGORY_SOCIAL, Media::CATEGORY_MEMORY])],
         ]);
         $items = Media::query()
             ->with(['uploader.person', 'votes.user.person', 'person'])

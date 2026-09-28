@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\LinkRequest;
 use App\Models\MediaVote;
 use App\Models\User;
+use App\Services\Group\GroupService;
 use App\Services\Messaging\MessagingService;
 use App\Services\People\LinkService;
 use App\Services\Tree\NodePresenter;
@@ -54,6 +55,7 @@ class UserResource extends JsonResource
                 'votes' => $pendingVotes,
                 'links' => $pendingLinks,
                 'messages' => app(MessagingService::class)->unreadCount($user),
+                'group' => app(GroupService::class)->unreadCount($user),
             ],
         ];
     }

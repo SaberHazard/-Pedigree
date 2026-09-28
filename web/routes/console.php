@@ -16,6 +16,9 @@ Schedule::command('pedigree:resolve-votes')->dailyAt('03:00');
 // اعلان تولدهای امروز و پیامک‌های تبریک خودکار (هر ساعت؛ خودش ساعت تنظیم‌شده را رعایت می‌کند)
 Schedule::command('pedigree:birthdays')->hourlyAt(5)->withoutOverlapping(30);
 
+// «سؤال روز» گروه خاندان برای زنده کردن خاطرات
+Schedule::command('pedigree:group-prompt')->hourlyAt(7)->withoutOverlapping(10);
+
 // پاک‌سازی کدهای پیامکی قدیمی و توکن‌های منقضی
 Schedule::command('pedigree:prune')->dailyAt('03:30');
 

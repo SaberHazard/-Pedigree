@@ -6,6 +6,7 @@ use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -48,6 +49,9 @@ class Media extends Model
     /** عکس پروفایل یک شبکه اجتماعی (اینستاگرام، واتس‌اپ، تلگرام ...) */
     public const CATEGORY_SOCIAL = 'social';
 
+    /** خاطره‌ای که در «گروه خاندان» گذاشته شده (در پروفایل خود فرستنده هم می‌ماند) */
+    public const CATEGORY_MEMORY = 'memory';
+
     protected $fillable = ['caption', 'description', 'taken_at', 'category'];
 
     protected function casts(): array
@@ -66,6 +70,12 @@ class Media extends Model
     public function person(): BelongsTo
     {
         return $this->belongsTo(Person::class)->withTrashed();
+    }
+
+    /** اشخاصی که در این عکس/فیلم هستند */
+    public function taggedPeople(): BelongsToMany
+    {
+        return $this->belongsToMany(Person::class, 'media_tags', 'media_id', 'person_id')->withTimestamps();
     }
 
     public function uploader(): BelongsTo

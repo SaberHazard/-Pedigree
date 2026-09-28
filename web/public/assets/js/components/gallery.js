@@ -46,7 +46,7 @@ export function gallery(person, { onChange } = {}) {
       const item = h('div', { class: `g-item ${m.status === 'pending' ? 'pending' : ''}`, title: m.caption || '' },
         m.urls?.thumb ? h('img', { src: m.urls.thumb, alt: m.caption || '', loading: 'lazy' }) : h('div', { class: 'g-play', style: { background: 'var(--surface-3)', color: 'var(--muted)' } }, icon('video')),
         m.type === 'video' ? h('div', { class: 'g-play' }, icon('play'), m.duration ? h('span', { class: 'chip', style: { position: 'absolute', bottom: '8px', insetInlineEnd: '8px' } }, duration(m.duration)) : null) : null,
-        m.status !== 'approved' ? h('span', { class: `chip ${cls} g-badge` }, label) : m.is_avatar ? h('span', { class: 'chip primary g-badge' }, 'پروفایل') : null,
+        m.status !== 'approved' ? h('span', { class: `chip ${cls} g-badge` }, label) : m.is_avatar ? h('span', { class: 'chip primary g-badge' }, 'پروفایل') : m.category === 'memory' ? h('span', { class: 'chip g-badge', title: 'در گروه خاندان گذاشته شده' }, '📜 خاطره') : null,
         m.caption ? h('div', { class: 'g-caption ellipsis' }, m.caption) : null,
       );
       item.addEventListener('click', () => (idx >= 0 ? openLightbox(viewable, idx) : null));

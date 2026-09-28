@@ -15,6 +15,7 @@ const NAV = [
   { path: '/', label: 'خانه', icon: 'home', match: (p) => p === '/' },
   { path: '/tree', label: 'درخت', icon: 'tree', match: (p) => p.startsWith('/tree') },
   { path: '/map', label: 'نقشه', icon: 'pin', match: (p) => p.startsWith('/map'), when: () => store.config.map?.enabled !== false },
+  { path: '/group', label: 'گروه', icon: 'users', match: (p) => p.startsWith('/group'), counter: (c) => c?.group || 0, when: () => store.config.group?.enabled !== false },
   { path: '/messages', label: 'پیام‌ها', icon: 'chat', match: (p) => p.startsWith('/messages'), counter: (c) => c?.messages || 0 },
   { path: '/approvals', label: 'تأییدها', icon: 'shield', match: (p) => p.startsWith('/approvals'), counter: (c) => (c?.votes || 0) + (c?.links || 0) },
   { path: '/notifications', label: 'اعلان‌ها', icon: 'bell', match: (p) => p.startsWith('/notifications'), counter: (c) => c?.notifications || 0 },
@@ -75,11 +76,11 @@ export function renderHeader() {
     const mobileItems = [
       byPath('/'),
       byPath('/tree'),
+      store.config.group?.enabled !== false ? byPath('/group') : byPath('/approvals'),
       byPath('/messages'),
-      byPath('/approvals'),
       { path: '/account', label: 'من', icon: 'user', match: (p) => p.startsWith('/account') },
     ];
-    bottom.replaceChildren(...mobileItems.map((i) => link(i, true)));
+    bottom.replaceChildren(...mobileItems.filter(Boolean).map((i) => link(i, true)));
 
     const unread = counters.notifications || 0;
     fill(bell, icon('bell'), unread ? h('span', { class: 'badge' }, fa(unread > 99 ? '99+' : unread)) : null);
@@ -96,6 +97,7 @@ export function renderHeader() {
       { label: 'درخت من', icon: 'tree', onClick: () => navigate(`/tree/${u.person.id}?mode=hourglass`) },
       { label: 'نیاکان من', icon: 'ancestors', onClick: () => navigate(`/tree/${u.person.id}?mode=ancestors`) },
       store.config.map?.enabled !== false ? { label: 'نقشه خاندان', icon: 'pin', onClick: () => navigate('/map') } : null,
+      { label: `تأییدها${(u.counters?.votes || 0) + (u.counters?.links || 0) ? ` (${fa((u.counters.votes || 0) + (u.counters.links || 0))})` : ''}`, icon: 'shield', onClick: () => navigate('/approvals') },
       { label: 'پیام‌ها', icon: 'chat', onClick: () => navigate('/messages') },
       { label: 'دستیار هوشمند', icon: 'bot', onClick: () => navigate('/assistant') },
       { label: 'تبریک مناسبت‌ها', icon: 'cake', onClick: () => navigate('/greetings') },

@@ -95,6 +95,7 @@ class MetaController extends Controller
             ],
             'history_public' => (bool) config('pedigree.permissions.history_public', true),
             'assistant' => ['enabled' => app(AssistantService::class)->configured()],
+            'group' => ['enabled' => (bool) config('pedigree.group.enabled', true), 'name' => (string) config('pedigree.group.name')],
         ]);
     }
 }

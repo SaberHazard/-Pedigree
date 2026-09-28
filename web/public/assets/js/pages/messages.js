@@ -52,8 +52,18 @@ export default async function messagesPage(container, { params }) {
   }
 
   function renderList() {
+    const groupUnread = store.user?.counters?.group || 0;
+    const groupItem = store.config.group?.enabled !== false
+      ? h('a', { class: `msg-item group ${groupUnread ? 'unread' : ''}`, href: '#/group' },
+        h('span', { class: 'grp-avatar sm' }, icon('users')),
+        h('div', { class: 'grow', style: { minWidth: 0 } },
+          h('b', { class: 'ellipsis' }, store.config.group?.name || 'گروه خاندان'),
+          h('div', { class: 'muted small ellipsis' }, 'گفتگوی همه اعضا و خاطره‌های قدیمی')),
+        groupUnread ? h('span', { class: 'badge' }, fa(groupUnread > 99 ? '99+' : groupUnread)) : null)
+      : null;
     listBox.replaceChildren(
       h('div', { class: 'msg-list-head' }, h('h2', null, icon('chat'), ' پیام‌ها')),
+      groupItem,
       conversations.length
         ? h('div', { class: 'msg-items' }, ...conversations.map((c) => h('a', {
           class: `msg-item ${current?.id === c.id ? 'active' : ''} ${c.unread ? 'unread' : ''}`,

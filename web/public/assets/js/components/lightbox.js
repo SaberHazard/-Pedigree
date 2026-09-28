@@ -48,7 +48,7 @@ export function openLightbox(items, index = 0) {
     const m = items[i];
     const res = await fetch(m.urls.original, { credentials: 'same-origin' });
     const blob = await res.blob();
-    const ext = m.type === 'video' ? 'mp4' : 'webp';
+    const ext = m.type === 'video' ? 'mp4' : (m.mime === 'image/webp' ? 'webp' : 'jpg');
     await saveFile(blob, `${(m.caption || 'media').replace(/[\\/:*?"<>|]/g, '')}.${ext}`);
   }
 

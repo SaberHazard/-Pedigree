@@ -49,6 +49,8 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'otp_verified_at' => 'datetime',
             'password_changed_at' => 'datetime',
+            'group_muted_until' => 'datetime',
+            'group_read_id' => 'integer',
         ];
     }
 

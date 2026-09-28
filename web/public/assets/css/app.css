@@ -2044,3 +2044,67 @@ textarea.input.tpl-editor { min-height: 150px; line-height: 1.9; }
 .field-error { color: var(--danger); font-size: 0.82rem; margin-top: 6px; }
 .scroll-x { overflow-x: auto; }
 .tpl .tpl-text { font-size: 0.84rem; white-space: pre-line; color: var(--text-2); margin-top: 3px; line-height: 1.8; }
+
+/* ------------------------------------------------------------ گروه خاطرات خاندان */
+.page.group-page { max-width: 900px; padding-bottom: calc(14px + var(--bottom-nav-h)); height: calc(100dvh - var(--header-h, 64px)); display: flex; }
+.grp-shell { flex: 1; display: flex; flex-direction: column; padding: 0; overflow: hidden; min-height: 0; }
+.grp-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.grp-avatar { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, var(--accent), var(--primary)); }
+.grp-avatar.sm { width: 34px; height: 34px; }
+.grp-avatar .icon { width: 20px; height: 20px; }
+.grp-pinned { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: var(--primary-soft); color: var(--primary); font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+.grp-pinned button { border: 0; background: none; color: inherit; text-align: start; cursor: pointer; font: inherit; min-width: 0; }
+.grp-thread { flex: 1; overflow-y: auto; min-height: 0; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface-2); }
+.grp-more { align-self: center; }
+.grp-empty { margin: auto; }
+.grp-msg { display: flex; align-items: flex-end; gap: 6px; max-width: min(84%, 600px); transition: background 0.4s; border-radius: 16px; }
+.grp-msg.mine { align-self: flex-start; }
+.grp-msg.theirs { align-self: flex-end; flex-direction: row; }
+.grp-msg.flash .grp-bubble, .grp-prompt.flash { box-shadow: 0 0 0 3px var(--accent); }
+.grp-ava { flex: none; text-decoration: none !important; }
+.grp-col { display: flex; flex-direction: column; min-width: 0; }
+.grp-msg.mine .grp-col { align-items: flex-start; }
+.grp-msg.theirs .grp-col { align-items: flex-end; }
+.grp-bubble { position: relative; padding: 7px 11px 5px; border-radius: 16px; background: var(--surface); border: 1px solid var(--border); min-width: 90px; max-width: 100%; }
+.grp-msg.mine .grp-bubble { background: var(--primary-soft); border-color: transparent; border-start-start-radius: 4px; }
+.grp-msg.theirs .grp-bubble { border-start-end-radius: 4px; }
+.grp-msg.pinned .grp-bubble { border-color: var(--accent); }
+.grp-name { font-size: 0.78rem; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+.grp-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; font-size: 0.95rem; }
+.grp-text.deleted { font-style: italic; color: var(--muted); }
+.grp-quote { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: start; border: 0; border-inline-start: 3px solid var(--primary); background: color-mix(in srgb, var(--primary) 8%, transparent); border-radius: 8px; padding: 3px 8px; margin-bottom: 4px; font: inherit; font-size: 0.78rem; color: inherit; cursor: pointer; max-width: 100%; }
+.grp-quote span { max-width: 100%; color: var(--text-2); }
+.grp-meta { display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 0.66rem; color: var(--muted); margin-top: 2px; }
+.grp-meta .icon { width: 12px; height: 12px; }
+.grp-menu { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 2px; line-height: 1; }
+.grp-menu .icon { width: 16px; height: 16px; }
+.grp-media-wrap { margin: 2px 0 4px; }
+.grp-media { position: relative; display: block; width: min(360px, 62vw); max-height: 420px; border: 0; padding: 0; border-radius: 12px; overflow: hidden; background: var(--surface-3); cursor: zoom-in; }
+.grp-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.grp-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: rgba(0, 0, 0, 0.25); }
+.grp-play .icon { width: 46px; height: 46px; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5)); }
+.grp-media-wait { padding: 18px; border-radius: 12px; background: var(--surface-3); font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.grp-tags { gap: 4px; margin-top: 6px; }
+.grp-tags .chip { font-size: 0.72rem; text-decoration: none; }
+.grp-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.grp-react { border: 1px solid var(--border); background: var(--surface); border-radius: 99px; padding: 1px 8px; font-size: 0.8rem; cursor: pointer; }
+.grp-react.mine { border-color: var(--primary); background: var(--primary-soft); }
+.grp-prompt { align-self: center; max-width: min(92%, 620px); text-align: center; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border)); border-radius: 18px; padding: 12px 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.grp-prompt-body { font-weight: 600; line-height: 1.9; }
+.grp-compose { border-top: 1px solid var(--border); padding: 8px 10px; background: var(--surface); }
+.grp-reply-bar { display: flex; align-items: center; gap: 8px; padding: 4px 8px 8px; color: var(--primary); }
+textarea.input.grp-input { resize: none; min-height: 42px; height: 42px; max-height: 150px; line-height: 1.6; flex: 1; }
+.grp-upload-preview { width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; background: var(--surface-3); display: block; }
+.grp-upload .progress { margin-top: 10px; }
+.msg-item.group { border: 1px dashed var(--border); margin-bottom: 4px; }
+@media (max-width: 900px) {
+  .page.group-page { padding: 10px 10px calc(10px + var(--bottom-nav-h)); }
+  .grp-thread { padding: 10px 8px; }
+  .grp-msg { max-width: 92%; }
+}
+@media (min-width: 901px) and (max-width: 1180px) {
+  .main-nav a span:not(.badge) { display: none; }
+}
+.grp-react-pop { position: fixed; z-index: 120; display: flex; gap: 2px; padding: 4px 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 99px; box-shadow: var(--shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.18)); animation: pageIn 0.18s var(--ease); }
+.grp-react-pop button { border: 0; background: none; font-size: 1.35rem; padding: 4px 5px; border-radius: 50%; cursor: pointer; transition: transform 0.15s var(--ease-spring); }
+.grp-react-pop button:hover { transform: scale(1.25); background: var(--surface-3); }
