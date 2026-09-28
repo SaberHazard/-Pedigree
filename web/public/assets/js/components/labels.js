@@ -55,6 +55,9 @@ export const ACTIONS = {
   'rating.updated': 'به ویژگی‌ها امتیاز داد',
   'account.username_changed': 'نام کاربری را تغییر داد',
   'auth.claimed': 'حساب خود را با پیامک تأیید کرد',
+  'settings.updated': 'تنظیمات سایت / کلیدهای API را تغییر داد',
+  'sms.greeting_sent': 'پیامک تبریک تولد فرستاد برای',
+  'sms.greeting_auto': 'پیامک تبریک خودکار فرستاد برای',
 };
 
 export const actionLabel = (a) => ACTIONS[a] || a;

@@ -34,6 +34,7 @@ route('/person/:id/:tab', () => import('./pages/person.js'), { public: true });
 route('/approvals', () => import('./pages/approvals.js'));
 route('/map', () => import('./pages/map.js'), { layout: 'full' });
 route('/notifications', () => import('./pages/notifications.js'));
+route('/greetings', () => import('./pages/greetings.js'));
 route('/account', () => import('./pages/account.js'));
 route('/admin', () => import('./pages/admin.js'));
 route('/admin/:tab', () => import('./pages/admin.js'));

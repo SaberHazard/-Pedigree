@@ -41,7 +41,8 @@ class MapController extends Controller
         foreach ($homes as $person) {
             if (! $user->isAdmin() && $person->id !== $user->person_id && $person->location_visibility !== 'all') {
                 $max = KinshipDegrees::levelMax($person->location_visibility ?: 'd1');
-                $degree = $kin[$person->id]['degree'] ?? null;
+                // درجه بیننده از دید صاحب خانه (عروس/داماد برای پدرزن و مادرشوهر درجه یک است)
+                $degree = $kin[$person->id]['reverse'] ?? null;
                 if ($max === 0 || $degree === null || ($max !== null && $degree > $max)) {
                     continue;
                 }

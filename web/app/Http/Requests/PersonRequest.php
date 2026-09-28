@@ -190,6 +190,7 @@ class PersonRequest extends FormRequest
                 }
             }],
             'contact_visibility' => ['sometimes', Rule::in(KinshipDegrees::LEVELS)],
+            'accept_greeting_sms' => ['sometimes', 'boolean'],
 
             // ویژگی‌های دیگر
             'blood_type' => ['nullable', Rule::in(config('pedigree.profile.blood_types', []))],
@@ -264,6 +265,7 @@ class PersonRequest extends FormRequest
             'landline' => 'تلفن ثابت', 'website' => 'وب‌سایت', 'social' => 'شبکه‌های اجتماعی', 'blood_type' => 'گروه خونی',
             'education_field_group' => 'گروه رشته', 'honorific_mode' => 'عنوان خودکار',
             'contact_visibility' => 'نمایش شماره و راه‌های ارتباطی', 'location_visibility' => 'نمایش نشانی',
+            'accept_greeting_sms' => 'دریافت پیامک تبریک',
             'languages' => 'زبان‌ها', 'interests' => 'علاقه‌مندی‌ها', 'custom_fields' => 'ویژگی‌های دیگر',
             'custom_fields.*.label' => 'عنوان ویژگی', 'custom_fields.*.value' => 'مقدار ویژگی',
         ];

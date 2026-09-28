@@ -48,6 +48,24 @@ export default async function dashboard(container) {
     ));
   }
 
+  // تولدهای امروز (با دکمه تبریک پیامکی)
+  const birthdays = h('div');
+  page.append(birthdays);
+  get('/api/greetings').then((res) => {
+    const today = (res.birthdays || []).filter((r) => r.in_days === 0 && !r.is_me);
+    const mine = (res.birthdays || []).find((r) => r.in_days === 0 && r.is_me);
+    if (!today.length && !mine) return;
+    birthdays.replaceChildren(h('section', { class: 'card mt birthday-card' },
+      h('div', { class: 'card-title' }, h('h3', null, '🎂 تولدهای امروز'), h('a', { class: 'btn ghost sm', href: '#/greetings' }, 'همه', icon('chevron-left'))),
+      mine ? h('p', { class: 'bold', style: { margin: '0 0 8px' } }, `🎉 ${me.first_name} عزیز، تولدتان مبارک!`) : null,
+      h('div', { class: 'row wrap', style: { gap: '10px' } }, ...today.slice(0, 8).map((r) => h('a', { class: 'bd-chip', href: `#/greetings?person=${r.person.id}` },
+        avatar(r.person, 'sm'),
+        h('span', null, h('b', null, fullName(r.person)), h('span', { class: 'muted tiny' }, [r.age ? `${fa(r.age)} سالگی` : null, r.relation].filter(Boolean).join(' • '))),
+        h('span', { class: 'btn primary xs' }, icon('mail'), 'تبریک'),
+      ))),
+    ));
+  }).catch(() => {});
+
   // دعوت به پرسش‌نامه تکمیل پروفایل (اگر پروفایل هنوز کامل نیست)
   const interview = h('div');
   page.append(interview);

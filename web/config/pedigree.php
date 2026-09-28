@@ -89,25 +89,32 @@ return [
     | melipayamak, ippanel (فراز اس‌ام‌اس/ippanel), ghasedak
     */
     'sms' => [
+        // پنل ارسال کد ورود
         'driver' => env('SMS_DRIVER', 'log'),
+        // پنل ارسال پیامک‌های تبریک اعضا (خالی = همان پنل کد ورود)
+        'message_driver' => env('SMS_MESSAGE_DRIVER', ''),
 
         'drivers' => [
             'kavenegar' => [
                 'api_key' => env('KAVENEGAR_API_KEY'),
                 // نام قالب «تأیید» که در پنل کاوه‌نگار ساخته‌اید (با متغیر %token)
                 'template' => env('KAVENEGAR_OTP_TEMPLATE', 'verify'),
+                // خط ارسال پیامک عادی (تبریک)؛ خالی = خط پیش‌فرض حساب
+                'sender' => env('KAVENEGAR_SENDER'),
             ],
             'smsir' => [
                 'api_key' => env('SMSIR_API_KEY'),
                 'template_id' => env('SMSIR_OTP_TEMPLATE_ID'),
                 // نام پارامتر داخل قالب sms.ir
                 'parameter' => env('SMSIR_OTP_PARAMETER', 'CODE'),
+                'line_number' => env('SMSIR_LINE_NUMBER'),
             ],
             'melipayamak' => [
                 'username' => env('MELIPAYAMAK_USERNAME'),
                 'password' => env('MELIPAYAMAK_PASSWORD'),
                 // کد متن (bodyId) الگوی خدماتی
                 'body_id' => env('MELIPAYAMAK_BODY_ID'),
+                'from' => env('MELIPAYAMAK_FROM'),
             ],
             'ippanel' => [
                 'api_key' => env('IPPANEL_API_KEY'),
@@ -118,6 +125,7 @@ return [
             'ghasedak' => [
                 'api_key' => env('GHASEDAK_API_KEY'),
                 'template' => env('GHASEDAK_OTP_TEMPLATE'),
+                'line_number' => env('GHASEDAK_LINE_NUMBER'),
             ],
         ],
 
@@ -308,17 +316,17 @@ return [
             'rubika' => ['label' => 'روبیکا', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_.]{3,40}', 'url' => 'https://rubika.ir/{h}', 'hosts' => ['rubika.ir']],
             'soroush' => ['label' => 'سروش پلاس', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://splus.ir/{h}', 'hosts' => ['splus.ir', 'sapp.ir']],
             'linkedin' => ['label' => 'لینکدین', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_\-]{3,100}', 'url' => 'https://www.linkedin.com/in/{h}/', 'hosts' => ['linkedin.com'], 'prefix' => 'in'],
-            'x' => ['label' => 'ایکس (توییتر)', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{1,15}', 'url' => 'https://x.com/{h}', 'hosts' => ['x.com', 'twitter.com']],
+            'x' => ['label' => 'ایکس (توییتر)', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{1,15}', 'url' => 'https://x.com/{h}', 'hosts' => ['x.com', 'twitter.com'], 'fetch' => true],
             'threads' => ['label' => 'تردز', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._]{1,30}', 'url' => 'https://www.threads.net/@{h}', 'hosts' => ['threads.net', 'threads.com']],
             'tiktok' => ['label' => 'تیک‌تاک', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._]{2,24}', 'url' => 'https://www.tiktok.com/@{h}', 'hosts' => ['tiktok.com']],
-            'youtube' => ['label' => 'یوتیوب', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._\-]{3,100}', 'url' => 'https://www.youtube.com/@{h}', 'hosts' => ['youtube.com']],
-            'aparat' => ['label' => 'آپارات', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,60}', 'url' => 'https://www.aparat.com/{h}', 'hosts' => ['aparat.com']],
+            'youtube' => ['label' => 'یوتیوب', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9._\-]{3,100}', 'url' => 'https://www.youtube.com/@{h}', 'hosts' => ['youtube.com'], 'fetch' => true],
+            'aparat' => ['label' => 'آپارات', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,60}', 'url' => 'https://www.aparat.com/{h}', 'hosts' => ['aparat.com'], 'fetch' => true],
             'facebook' => ['label' => 'فیس‌بوک', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9.]{3,80}', 'url' => 'https://www.facebook.com/{h}', 'hosts' => ['facebook.com', 'fb.com']],
             'snapchat' => ['label' => 'اسنپ‌چت', 'kind' => 'handle', 'pattern' => '[A-Za-z][A-Za-z0-9._\-]{2,14}', 'url' => 'https://www.snapchat.com/add/{h}', 'hosts' => ['snapchat.com'], 'prefix' => 'add'],
             'pinterest' => ['label' => 'پینترست', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,30}', 'url' => 'https://www.pinterest.com/{h}/', 'hosts' => ['pinterest.com']],
             'github' => ['label' => 'گیت‌هاب', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9](?:[A-Za-z0-9\-]{0,38})', 'url' => 'https://github.com/{h}', 'hosts' => ['github.com'], 'fetch' => true],
             'virasty' => ['label' => 'ویراستی', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9_]{3,40}', 'url' => 'https://virasty.com/{h}', 'hosts' => ['virasty.com']],
-            'bluesky' => ['label' => 'بلواسکای', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9](?:[A-Za-z0-9.\-]{1,251})', 'url' => 'https://bsky.app/profile/{h}', 'hosts' => ['bsky.app'], 'prefix' => 'profile'],
+            'bluesky' => ['label' => 'بلواسکای', 'kind' => 'handle', 'pattern' => '[A-Za-z0-9](?:[A-Za-z0-9.\-]{1,251})', 'url' => 'https://bsky.app/profile/{h}', 'hosts' => ['bsky.app'], 'prefix' => 'profile', 'fetch' => true],
         ],
         // اگر شخص در سایت عکس پروفایل ندارد، عکس کدام شبکه به ترتیب جای آن نمایش داده شود
         'social_avatar_priority' => ['instagram', 'whatsapp', 'telegram', 'github'],
@@ -357,6 +365,39 @@ return [
     */
     /*
     |--------------------------------------------------------------------------
+    | پیامک تبریک اعضا (از پنل پیامکی سایت)
+    |--------------------------------------------------------------------------
+    | همه این مقدارها از پنل مدیریت ← «تنظیمات و اتصال‌ها» هم قابل تغییرند.
+    */
+    'member_sms' => [
+        'enabled' => (bool) env('PEDIGREE_MEMBER_SMS', true),
+        // فقط اعضایی که پروفایلشان حداقل این درصد کامل است
+        'min_completeness' => (int) env('PEDIGREE_MEMBER_SMS_MIN_PROFILE', 95),
+        'auto_enabled' => true,
+        // دامنه تبریک خودکار: all | d4 | d3 | d2 | d1
+        'auto_max_scope' => 'd2',
+        'send_hour' => 9,
+        'daily_per_user' => 10,
+        'monthly_per_user' => 60,
+        'daily_per_recipient' => 5,
+        'global_daily' => 300,
+        'max_length' => 250,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | اعلان تولد
+    |--------------------------------------------------------------------------
+    */
+    'birthdays' => [
+        'notify' => true,
+        // all = همه اعضا (جز خود شخص) | d4..d1 = فقط بستگان تا آن درجه
+        'scope' => 'all',
+        'notify_hour' => 8,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | دریافت عکس پروفایل از شبکه‌های اجتماعی
     |--------------------------------------------------------------------------
     | سرور فقط به دامنه‌های ثابت همین شبکه‌ها وصل می‌شود (نه هر آدرسی که کاربر بدهد)،
@@ -379,11 +420,18 @@ return [
             'graph_token' => env('PEDIGREE_INSTAGRAM_TOKEN'),
             'graph_user_id' => env('PEDIGREE_INSTAGRAM_USER_ID'),
         ],
+        // اختیاری: کلیدهای رسمی ایکس و یوتیوب برای دریافت عکس پروفایل
+        'x' => ['bearer_token' => env('PEDIGREE_X_BEARER_TOKEN')],
+        'youtube' => ['api_key' => env('PEDIGREE_YOUTUBE_API_KEY')],
         // دامنه‌هایی که عکس از آن‌ها دانلود می‌شود (دقیق یا زیردامنه)
         'image_hosts' => [
             'telegram' => ['telesco.pe', 'cdn-telegram.org', 't.me'],
             'instagram' => ['cdninstagram.com', 'fbcdn.net'],
             'github' => ['avatars.githubusercontent.com'],
+            'bluesky' => ['cdn.bsky.app'],
+            'x' => ['pbs.twimg.com'],
+            'youtube' => ['yt3.ggpht.com', 'yt3.googleusercontent.com'],
+            'aparat' => ['aparat.com', 'aparatcdn.com', 'cloud.aparat.com'],
         ],
     ],
 

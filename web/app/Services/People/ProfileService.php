@@ -88,6 +88,23 @@ class ProfileService
         };
     }
 
+    /** برچسب فارسی بخش‌های «درصد تکمیل» (برای پیام‌های سرور) */
+    public const COMPLETENESS_LABELS = [
+        'avatar' => 'عکس پروفایل', 'birth_date' => 'تاریخ تولد', 'birth_place' => 'محل تولد', 'education_level' => 'تحصیلات',
+        'occupation' => 'شغل', 'location' => 'محل زندگی', 'summary' => 'بیوگرافی', 'biography' => 'زندگی‌نامه کامل',
+        'resume' => 'رزومه', 'father' => 'پدر', 'mother' => 'مادر', 'death_date' => 'تاریخ وفات', 'burial_place' => 'آرامگاه',
+        'contact' => 'راه ارتباطی', 'social' => 'شبکه‌های اجتماعی',
+    ];
+
+    /** درصد تکمیل یک پروفایل (همه داده لازم خودش بارگذاری می‌شود) */
+    public function completenessOf(Person $person): array
+    {
+        $texts = $person->texts()->get()->filter(fn ($t) => trim((string) $t->plain) !== '')->pluck('field')->all();
+        $avatar = $person->avatar;
+
+        return $this->completeness($person, $texts, $person->resumeItems()->count(), $avatar !== null && $avatar->isApproved());
+    }
+
     /**
      * درصد تکمیل پروفایل و فهرست بخش‌های خالی (برای تشویق به تکمیل)
      *

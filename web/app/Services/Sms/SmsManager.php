@@ -11,7 +11,9 @@ use App\Services\Sms\Drivers\SmsIrDriver;
 use InvalidArgumentException;
 
 /**
- * انتخاب پنل پیامکی بر اساس تنظیم SMS_DRIVER در فایل ‎.env
+ * انتخاب پنل پیامکی (پنل مدیریت ← تنظیمات و اتصال‌ها، یا SMS_DRIVER در ‎.env)
+ *  - driver: کد ورود
+ *  - message_driver: پیامک‌های تبریک اعضا
  */
 class SmsManager
 {
@@ -43,5 +45,30 @@ class SmsManager
     public function driverName(): string
     {
         return (string) config('pedigree.sms.driver', 'log');
+    }
+
+    /** پنل پیامک‌های متنی اعضا (تبریک تولد)؛ خالی = همان پنل کد ورود */
+    public function messageDriverName(): string
+    {
+        $name = (string) config('pedigree.sms.message_driver', '');
+
+        return $name !== '' && isset(self::DRIVERS[$name]) ? $name : $this->driverName();
+    }
+
+    public function messageDriver(): SmsDriver
+    {
+        return $this->driver($this->messageDriverName());
+    }
+
+    /** آیا پنل پیام‌ها واقعی است؟ (درایور آزمایشی log فقط در محیط توسعه و تست قابل قبول است) */
+    public function messagesReady(): bool
+    {
+        return $this->messageDriverName() !== 'log' || app()->environment('local', 'testing');
+    }
+
+    /** @return string[] */
+    public static function names(): array
+    {
+        return array_keys(self::DRIVERS);
     }
 }

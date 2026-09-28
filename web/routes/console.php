@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Schedule;
 // جمع‌بندی رأی‌گیری‌هایی که مهلتشان تمام شده
 Schedule::command('pedigree:resolve-votes')->dailyAt('03:00');
 
+// اعلان تولدهای امروز و پیامک‌های تبریک خودکار (هر ساعت؛ خودش ساعت تنظیم‌شده را رعایت می‌کند)
+Schedule::command('pedigree:birthdays')->hourlyAt(5)->withoutOverlapping(30);
+
 // پاک‌سازی کدهای پیامکی قدیمی و توکن‌های منقضی
 Schedule::command('pedigree:prune')->dailyAt('03:30');
 

@@ -163,7 +163,8 @@ class PersonAccess
         if ($max === 0 || $user->person === null) {
             return false;
         }
-        $degree = $this->degrees->degree($user->person, $target);
+        // دید صاحب شماره ملاک است: «بستگان درجه یکِ من» شامل عروس و داماد من هم می‌شود
+        $degree = $this->degrees->relativeDegree($target, $user->person);
 
         return $degree !== null && $degree <= $max;
     }

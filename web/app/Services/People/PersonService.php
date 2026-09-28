@@ -170,7 +170,7 @@ class PersonService
     private function guardPrivateFields(Person $person, array $data, User $actor): array
     {
         if (! $this->access->canManagePrivacy($actor, $person)) {
-            unset($data['contact_visibility'], $data['location_visibility']);
+            unset($data['contact_visibility'], $data['location_visibility'], $data['accept_greeting_sms']);
         }
         if (! $this->access->canViewLocation($actor, $person)) {
             unset($data['address'], $data['postal_code'], $data['home_lat'], $data['home_lng']);

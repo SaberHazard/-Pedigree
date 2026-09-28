@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\Social\SocialProfileFetcher;
 use App\Support\Countries;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
@@ -56,12 +57,13 @@ class MetaController extends Controller
                     'before' => config('pedigree.profile.honorifics.before', []),
                 ],
                 // شبکه‌های اجتماعی به ترتیب نمایش (بدون الگوها و دامنه‌ها)
-                'social_networks' => array_map(fn ($n) => [
+                'social_networks' => collect(SocialNetworks::all())->map(fn ($n, $key) => [
                     'label' => $n['label'],
                     'kind' => $n['kind'] ?? 'handle',
                     'url' => $n['url'],
-                    'fetch' => (bool) ($n['fetch'] ?? false),
-                ], SocialNetworks::all()),
+                    // دریافت خودکار عکس با تنظیمات فعلی ممکن است؟ (ایکس و یوتیوب فقط با کلید)
+                    'fetch' => app(SocialProfileFetcher::class)->supports($key),
+                ])->all(),
                 'social_avatar_priority' => config('pedigree.profile.social_avatar_priority', []),
                 'visibility_levels' => [
                     'all' => 'همه اعضای خاندان',

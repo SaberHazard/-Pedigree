@@ -16,8 +16,15 @@ use Illuminate\Database\Eloquent\Builder;
  *
  * محاسبه خونی: اگر نزدیک‌ترین جد مشترک u نسل بالاتر از اولی و d نسل بالاتر از دومی باشد:
  *   درجه = u + d − (هر دو بزرگ‌تر از صفر ؟ ۱ : ۰)
- * بستگان سببی (یک ازدواج در مسیر): همسر = ۱؛ بستگانِ همسر و همسرِ بستگان = درجه خونی + ۱
- * (پدرزن، خواهرشوهر، داماد، عروس، زن‌برادر = ۲؛ زن‌عمو و شوهرخاله = ۳).
+ * بستگان سببی (یک ازدواج در مسیر): همسر = ۱؛ عروس و داماد (همسرِ فرزند) = ۱؛
+ * بقیه بستگانِ همسر و همسرِ بستگان = درجه خونی + ۱ (پدرزن، مادرشوهر، خواهرشوهر، زن‌برادر = ۲؛
+ * زن‌عمو و شوهرخاله = ۳).
+ *
+ * نسبت سببی دوطرفه نیست: عروس برای پدرشوهر درجه ۱ است ولی پدرشوهر برای عروس درجه ۲.
+ * پس برای هر نفر دو عدد نگه داشته می‌شود:
+ *   degree  = آن نفر بستگان درجه چندِ مبدأ است (از دید مبدأ)
+ *   reverse = مبدأ بستگان درجه چندِ آن نفر است (از دید او)
+ * برای «چه کسانی شماره مرا ببینند» دید صاحب شماره ملاک است: relativeDegree().
  *
  * نتیجه برای هر مبدأ یک بار در طول درخواست محاسبه و کش می‌شود.
  */
@@ -36,7 +43,7 @@ class KinshipDegrees
     /** @var array<string, array{0:?string,1:?string}> شناسه ← [پدر، مادر] */
     private array $parents = [];
 
-    /** درجه خویشاوندی دو نفر (null = دورتر از درجه ۴ یا بدون نسبت) */
+    /** b از دید a بستگان درجه چند است؟ (null = دورتر از درجه ۴ یا بدون نسبت) */
     public function degree(Person $a, Person $b): ?int
     {
         if ($a->id === $b->id) {
@@ -44,6 +51,20 @@ class KinshipDegrees
         }
 
         return $this->from($a)[$b->id]['degree'] ?? null;
+    }
+
+    /**
+     * relative از دید owner بستگان درجه چند است؟ (برای دسترسی به شماره/نشانیِ owner)
+     * از فهرستِ بستگانِ خودِ relative حساب می‌شود تا برای یک بیننده و چندین صاحب پروفایل
+     * (مثلاً نقشه خاندان) فقط یک بار محاسبه شود.
+     */
+    public function relativeDegree(Person $owner, Person $relative): ?int
+    {
+        if ($owner->id === $relative->id) {
+            return 0;
+        }
+
+        return $this->from($relative)[$owner->id]['reverse'] ?? null;
     }
 
     /** بیشینه درجه‌ای که یک سطح نمایش اجازه می‌دهد (null = همه، ۰ = فقط خود) */
@@ -58,7 +79,7 @@ class KinshipDegrees
     /**
      * همه بستگانِ origin تا درجه max
      *
-     * @return array<string, array{degree:int, path:string[], inlaw:bool}> شناسه ← درجه و مسیر (از origin)
+     * @return array<string, array{degree:int, reverse:int, path:string[], inlaw:bool}> شناسه ← درجه از دو طرف و مسیر (از origin)
      */
     public function from(Person $origin, int $max = self::MAX): array
     {
@@ -70,39 +91,56 @@ class KinshipDegrees
         $this->parents[$origin->id] ??= [$origin->father_id, $origin->mother_id];
 
         $result = [];
-        $put = function (string $id, int $degree, array $path, bool $inlaw) use (&$result, $origin) {
-            if ($id === $origin->id) {
+        $put = function (string $id, int $degree, int $reverse, array $path, bool $inlaw) use (&$result, $origin, $max) {
+            if ($id === $origin->id || min($degree, $reverse) > $max) {
                 return;
             }
             $current = $result[$id] ?? null;
-            // درجه کمتر بهتر است؛ در درجه برابر، نسبت خونی بر سببی مقدم است
-            if ($current === null || $degree < $current['degree'] || ($degree === $current['degree'] && $current['inlaw'] && ! $inlaw)) {
-                $result[$id] = ['degree' => $degree, 'path' => $path, 'inlaw' => $inlaw];
+            if ($current === null) {
+                $result[$id] = ['degree' => $degree, 'reverse' => $reverse, 'path' => $path, 'inlaw' => $inlaw];
+
+                return;
             }
+            // درجه کمتر بهتر است؛ در درجه برابر، نسبت خونی بر سببی مقدم است (مسیر و نام نسبت از همان)
+            if ($degree < $current['degree'] || ($degree === $current['degree'] && $current['inlaw'] && ! $inlaw)) {
+                $result[$id]['degree'] = $degree;
+                $result[$id]['path'] = $path;
+                $result[$id]['inlaw'] = $inlaw;
+            }
+            $result[$id]['reverse'] = min($current['reverse'], $reverse);
         };
 
-        // ۱) بستگان خونی
+        // ۱) بستگان خونی (دوطرفه یکسان)
         $blood = $this->blood($origin->id, $max);
         foreach ($blood as $id => [$degree, $path]) {
-            $put($id, $degree, $path, false);
+            $put($id, $degree, $degree, $path, false);
         }
 
         // ۲) همسرِ خودش و همسرِ بستگان خونی (تا درجه max−۱)
-        $near = [$origin->id => [0, [$origin->id]]] + array_filter($blood, fn ($row) => $row[0] < $max);
+        // (فرزندان همیشه، چون همسرشان «عروس/داماد» درجه یک است)
+        $near = [$origin->id => [0, [$origin->id]]]
+            + array_filter($blood, fn ($row, $id) => $row[0] < $max || $this->isChildOf($id, $origin->id), ARRAY_FILTER_USE_BOTH);
         $mySpouses = [];
         foreach ($this->spousePairs(array_keys($near)) as [$personId, $spouseId]) {
             [$degree, $path] = $near[$personId];
             if ($personId === $origin->id) {
                 $mySpouses[] = $spouseId;
+                $put($spouseId, 1, 1, [...$path, $spouseId], false);
+
+                continue;
             }
-            $put($spouseId, $degree + 1, [...$path, $spouseId], $personId !== $origin->id);
+            // عروس و داماد از دید پدر و مادرِ همسرشان درجه یک‌اند؛ پدرشوهر/پدرزن از دید آن‌ها درجه دو
+            $forward = $this->isChildOf($personId, $origin->id) ? 1 : $degree + 1;
+            $put($spouseId, $forward, $degree + 1, [...$path, $spouseId], true);
         }
 
         // ۳) بستگان خونیِ همسر
         if ($max > 1) {
             foreach (array_unique($mySpouses) as $spouseId) {
                 foreach ($this->blood($spouseId, $max - 1) as $id => [$degree, $path]) {
-                    $put($id, $degree + 1, [$origin->id, ...$path], true);
+                    // پدر و مادرِ همسر: برای آن‌ها مبدأ عروس/داماد (درجه یک) است
+                    $reverse = $degree === 1 && $this->isChildOf($spouseId, $id) ? 1 : $degree + 1;
+                    $put($id, $degree + 1, $reverse, [$origin->id, ...$path], true);
                 }
             }
         }
@@ -169,6 +207,14 @@ class KinshipDegrees
         unset($found[$originId]);
 
         return $found;
+    }
+
+    /** آیا child فرزندِ parent است؟ (والدین قبلاً در پیمایش بارگذاری شده‌اند) */
+    private function isChildOf(string $child, string $parent): bool
+    {
+        $this->loadParents([$child]);
+
+        return in_array($parent, $this->parents[$child] ?? [], true);
     }
 
     private function loadParents(array $ids): void

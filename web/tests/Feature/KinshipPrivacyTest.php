@@ -99,10 +99,10 @@ class KinshipPrivacyTest extends TestCase
         }
         $this->assertNull($degrees->degree($me, $this->p['Stranger']->fresh()));
 
-        // نسبت متقارن است
+        // نسبت خونی متقارن است؛ برای پدرزن، داماد درجه یک است
         $fresh = new KinshipDegrees;
         $this->assertSame(3, $fresh->degree($this->p['Cousin']->fresh(), $me));
-        $this->assertSame(2, $fresh->degree($this->p['WF']->fresh(), $me));
+        $this->assertSame(1, $fresh->degree($this->p['WF']->fresh(), $me));
 
         // فهرست «چه کسانی» با نام نسبت
         $res = $this->actingAs($this->u['Me'], 'sanctum')->getJson("/api/persons/{$me->id}/kin?max=3")->assertOk();
@@ -117,6 +117,47 @@ class KinshipPrivacyTest extends TestCase
         $this->assertFalse($rows->has('CousinChild'));
         $this->assertFalse($rows->has('Me'));
         $this->assertSame(15, $res->json('total'));
+    }
+
+    public function test_son_and_daughter_in_law_are_first_degree_but_parents_in_law_second(): void
+    {
+        $degrees = app(KinshipDegrees::class);
+        $f = $this->p['F']->fresh();
+        $w = $this->p['W']->fresh();
+        $wf = $this->p['WF']->fresh();
+        $me = $this->p['Me']->fresh();
+
+        // W همسرِ پسرِ F است: برای F «عروس» (درجه ۱)؛ F برای W «پدرشوهر» (درجه ۲)
+        $this->assertSame(1, $degrees->degree($f, $w));
+        $this->assertSame(2, $degrees->degree($w, $f));
+        // Me شوهرِ دخترِ WF است: برای WF «داماد» (درجه ۱)؛ WF برای Me «پدرزن» (درجه ۲)
+        $this->assertSame(1, $degrees->degree($wf, $me));
+        $this->assertSame(2, $degrees->degree($me, $wf));
+        $this->assertSame(1, $degrees->relativeDegree($f, $w));
+        $this->assertSame(2, $degrees->relativeDegree($w, $f));
+        // زن‌برادر همچنان درجه ۲
+        $this->assertSame(2, $degrees->degree($me, $this->p['SibW']->fresh()));
+        $this->assertSame(2, $degrees->degree($f->fresh(), $this->p['Nephew']->fresh()));
+
+        // «فقط بستگان درجه ۱» پدر: عروسش شماره را می‌بیند
+        $f->forceFill(['phone' => '09121110000', 'contact_visibility' => 'd1'])->save();
+        $this->actingAs($this->u['W'], 'sanctum')->getJson("/api/persons/{$f->id}")->assertJsonPath('data.phone', '09121110000');
+        // ولی «فقط بستگان درجه ۱» عروس: پدرشوهرش (درجه ۲ از دید عروس) نمی‌بیند، شوهرش می‌بیند
+        $w->forceFill(['phone' => '09121110001', 'contact_visibility' => 'd1'])->save();
+        $this->actingAs($this->u['F'], 'sanctum')->getJson("/api/persons/{$w->id}")->assertJsonPath('data.phone', null);
+        $this->actingAs($this->u['Me'], 'sanctum')->getJson("/api/persons/{$w->id}")->assertJsonPath('data.phone', '09121110001');
+
+        // فهرست «بستگان درجه یکِ پدر»: عروس با برچسب «عروس»
+        $rows = collect($this->actingAs($this->u['F'], 'sanctum')->getJson("/api/persons/{$f->id}/kin?max=1")->json('data.0.people'))
+            ->keyBy('person.first_name');
+        $this->assertSame('عروس', $rows['W']['label']);
+        $this->assertTrue($rows['W']['inlaw']);
+        $this->assertFalse($rows->has('WF'));
+
+        // نقشه: خانه پدر با سطح d1 برای عروس دیده می‌شود
+        $f->forceFill(['home_lat' => 35.7, 'home_lng' => 51.4, 'location_visibility' => 'd1'])->save();
+        $homes = collect($this->actingAs($this->u['W'], 'sanctum')->getJson('/api/map')->json('data'))->where('kind', 'home');
+        $this->assertContains($f->id, $homes->pluck('person.id')->all());
     }
 
     public function test_phone_visibility_by_kinship_degree(): void

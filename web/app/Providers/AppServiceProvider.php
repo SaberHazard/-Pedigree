@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\Access\PersonAccess;
 use App\Services\Kinship;
 use App\Services\KinshipDegrees;
+use App\Services\Settings\SettingsStore;
 use App\Services\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -20,10 +21,13 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(PersonAccess::class);
         $this->app->scoped(KinshipDegrees::class);
         $this->app->singleton(SmsManager::class);
+        $this->app->singleton(SettingsStore::class);
     }
 
     public function boot(): void
     {
+        // تنظیمات و کلیدهای API ذخیره‌شده از پنل مدیریت (بر ‎.env مقدم‌اند)
+        $this->app->make(SettingsStore::class)->apply();
         $this->configureRateLimits();
     }
 

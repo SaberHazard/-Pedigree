@@ -60,7 +60,7 @@ class Person extends Model
         // پروفایل کامل
         'education_level', 'education_field', 'education_field_group', 'education_institution', 'academic_rank', 'workplace',
         'honorific_mode', 'country', 'province', 'city', 'address', 'postal_code', 'home_lat', 'home_lng', 'location_visibility',
-        'landline', 'website', 'social', 'contact_visibility',
+        'landline', 'website', 'social', 'contact_visibility', 'accept_greeting_sms',
         'blood_type', 'languages', 'interests', 'custom_fields',
     ];
 
@@ -87,6 +87,7 @@ class Person extends Model
             'birth_order' => 'integer',
             'social' => 'array',
             'social_avatars' => 'array',
+            'accept_greeting_sms' => 'boolean',
             'custom_fields' => 'array',
             'field_meta' => 'array',
             'burial_lat' => 'float',

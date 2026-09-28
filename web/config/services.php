@@ -40,6 +40,8 @@ return [
         'enabled' => (bool) env('FCM_ENABLED', false),
         // مسیر فایل JSON حساب سرویس (Service Account)
         'credentials' => env('FCM_CREDENTIALS', storage_path('app/private/firebase.json')),
+        // یا محتوای همان فایل (از پنل مدیریت ← تنظیمات و اتصال‌ها)
+        'credentials_json' => env('FCM_CREDENTIALS_JSON'),
     ],
 
 ];

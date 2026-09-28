@@ -9,7 +9,7 @@ import { navigate } from '../core/router.js';
 import { timeAgo } from '../core/format.js';
 import { emptyState, loader } from '../core/ui.js';
 
-const ICONS = { media_vote: 'thumbs-up', media_decided: 'image', profile_changed: 'edit', link_request: 'link', link_decided: 'link' };
+const ICONS = { birthday: 'cake', media_vote: 'thumbs-up', media_decided: 'image', profile_changed: 'edit', link_request: 'link', link_decided: 'link' };
 
 export default async function notificationsPage(container) {
   const list = h('div', { class: 'card', style: { padding: '6px' } }, loader());

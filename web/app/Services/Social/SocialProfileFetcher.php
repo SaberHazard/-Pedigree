@@ -13,21 +13,33 @@ use Illuminate\Support\Facades\RateLimiter;
  * - اینستاگرام: اگر توکن رسمی Graph API تنظیم شده باشد از «Business Discovery» (فقط حساب‌های
  *   تجاری/تولیدکننده)، وگرنه تلاش با پیش‌نمایش صفحه عمومی (اینستاگرام اغلب آن را فقط به کاربر
  *   واردشده نشان می‌دهد؛ در این صورت عکس را دستی آپلود کنید)
- * - گیت‌هاب: API عمومی
+ * - گیت‌هاب، بلواسکای و آپارات: API عمومی بدون کلید
+ * - ایکس (توییتر) و یوتیوب: API رسمی با کلیدی که مدیر در پنل وارد می‌کند
  * - واتس‌اپ: هیچ راه عمومی برای دیدن عکس پروفایل ندارد؛ فقط لینک مستقیم گفتگو
  *
  * آدرس‌ها همیشه از روی شناسه‌ای ساخته می‌شوند که قبلاً با الگوی سخت‌گیرانه بررسی شده است.
  */
 class SocialProfileFetcher
 {
-    public const FETCHABLE = ['instagram', 'telegram', 'github'];
+    public const FETCHABLE = ['instagram', 'telegram', 'github', 'bluesky', 'aparat', 'x', 'youtube'];
 
     public function __construct(private readonly SafeHttp $http) {}
 
-    public function canFetch(string $network, ?string $value): bool
+    /** این شبکه با تنظیمات فعلی قابل دریافت خودکار است؟ (ایکس و یوتیوب فقط با کلید) */
+    public function supports(string $network): bool
     {
         return (bool) config('pedigree.social.fetch_enabled', true)
             && in_array($network, self::FETCHABLE, true)
+            && match ($network) {
+                'x' => (bool) config('pedigree.social.x.bearer_token'),
+                'youtube' => (bool) config('pedigree.social.youtube.api_key'),
+                default => true,
+            };
+    }
+
+    public function canFetch(string $network, ?string $value): bool
+    {
+        return $this->supports($network)
             && $value !== null && $value !== ''
             && ! SocialNetworks::isPhone($network, $value)
             && SocialNetworks::normalize($network, $value) === $value;
@@ -51,7 +63,90 @@ class SocialProfileFetcher
             'telegram' => $this->telegram($handle),
             'instagram' => $this->instagram($handle),
             'github' => $this->github($handle),
+            'bluesky' => $this->bluesky($handle),
+            'aparat' => $this->aparat($handle),
+            'x' => $this->x($handle),
+            'youtube' => $this->youtube($handle),
         };
+    }
+
+    private function bluesky(string $handle): array
+    {
+        $actor = str_contains($handle, '.') ? $handle : $handle.'.bsky.social';
+        $data = $this->json('https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?'.http_build_query(['actor' => $actor]), ['public.api.bsky.app']);
+        $url = $data['avatar'] ?? null;
+
+        return [
+            'name' => is_string($data['displayName'] ?? null) && $data['displayName'] !== '' ? $data['displayName'] : null,
+            'image' => is_string($url) ? $this->image($url, 'bluesky') : null,
+        ];
+    }
+
+    private function aparat(string $handle): array
+    {
+        $data = $this->json('https://www.aparat.com/etc/api/profile/username/'.rawurlencode($handle), ['www.aparat.com']);
+        $profile = $data['profile'] ?? [];
+        $url = $profile['pic_b'] ?? $profile['pic_m'] ?? $profile['pic_s'] ?? null;
+
+        return [
+            'name' => is_string($profile['name'] ?? null) ? $profile['name'] : null,
+            'image' => is_string($url) ? $this->image($url, 'aparat') : null,
+        ];
+    }
+
+    private function x(string $handle): array
+    {
+        $data = $this->json(
+            'https://api.x.com/2/users/by/username/'.rawurlencode($handle).'?user.fields=profile_image_url,name',
+            ['api.x.com'],
+            ['Authorization' => 'Bearer '.config('pedigree.social.x.bearer_token')],
+        );
+        $user = $data['data'] ?? [];
+        $url = $user['profile_image_url'] ?? null;
+
+        return [
+            'name' => is_string($user['name'] ?? null) ? $user['name'] : null,
+            // «_normal» عکس ۴۸ پیکسلی است؛ نسخه بزرگ‌تر
+            'image' => is_string($url) ? $this->image(str_replace('_normal.', '_400x400.', $url), 'x') : null,
+        ];
+    }
+
+    private function youtube(string $handle): array
+    {
+        $data = $this->json('https://www.googleapis.com/youtube/v3/channels?'.http_build_query([
+            'part' => 'snippet',
+            'forHandle' => '@'.$handle,
+            'key' => (string) config('pedigree.social.youtube.api_key'),
+        ]), ['www.googleapis.com']);
+        $snippet = $data['items'][0]['snippet'] ?? null;
+        if (! is_array($snippet)) {
+            throw new DomainException('این کانال پیدا نشد.', 404);
+        }
+        $thumbs = $snippet['thumbnails'] ?? [];
+        $url = $thumbs['high']['url'] ?? $thumbs['medium']['url'] ?? $thumbs['default']['url'] ?? null;
+
+        return [
+            'name' => is_string($snippet['title'] ?? null) ? $snippet['title'] : null,
+            'image' => is_string($url) ? $this->image($url, 'youtube') : null,
+        ];
+    }
+
+    /** پاسخ JSON یک API (فقط از دامنه‌های مجاز) */
+    private function json(string $url, array $hosts, array $headers = []): array
+    {
+        $res = $this->http->get($url, $hosts, 512 * 1024, $headers + ['Accept' => 'application/json']);
+        if ($res['status'] === 404 || $res['status'] === 400) {
+            throw new DomainException('این حساب پیدا نشد.', 404);
+        }
+        if ($res['status'] === 401 || $res['status'] === 403) {
+            throw new DomainException('کلید API این شبکه نامعتبر است یا دسترسی ندارد.', 502);
+        }
+        if ($res['status'] !== 200) {
+            throw new DomainException('این شبکه پاسخ نداد (کد '.$res['status'].').', 502);
+        }
+        $data = json_decode($res['body'], true);
+
+        return is_array($data) ? $data : [];
     }
 
     private function telegram(string $handle): array

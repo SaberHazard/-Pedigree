@@ -46,7 +46,7 @@ class KinController extends Controller
         $groups = [];
         foreach ($kin as $id => $row) {
             $p = $people->get($id);
-            if ($p === null) {
+            if ($p === null || $row['degree'] > $max) {
                 continue;
             }
             $groups[$row['degree']][] = [

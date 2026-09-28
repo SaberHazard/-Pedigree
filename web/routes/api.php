@@ -3,11 +3,14 @@
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\ActivityController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
+use App\Http\Controllers\Api\Admin\SettingsController;
+use App\Http\Controllers\Api\Admin\SmsReportController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
+use App\Http\Controllers\Api\GreetingController;
 use App\Http\Controllers\Api\KinController;
 use App\Http\Controllers\Api\LinkRequestController;
 use App\Http\Controllers\Api\MapController;
@@ -139,6 +142,12 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('dashboard/stats', [DashboardController::class, 'stats']);
     Route::get('dashboard/events', [DashboardController::class, 'events']);
     Route::get('dashboard/activity', [DashboardController::class, 'activity']);
+    // تبریک تولد و پیامک از پنل سایت
+    Route::get('greetings', [GreetingController::class, 'index']);
+    Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1');
+    Route::post('greetings/preview', [GreetingController::class, 'preview'])->middleware('throttle:60,1');
+    Route::put('greetings/auto', [GreetingController::class, 'updateAuto'])->middleware('throttle:writes');
+
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
     Route::post('notifications/{id}/read', [NotificationController::class, 'markRead']);
@@ -154,5 +163,10 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::get('trash', [PersonAdminController::class, 'trash']);
         Route::post('trash/{id}/restore', [PersonAdminController::class, 'restore']);
         Route::post('persons/{person}/merge', [PersonAdminController::class, 'merge']);
+        Route::get('sms-messages', [SmsReportController::class, 'index']);
+        // تنظیمات و کلیدهای API (فقط مدیر کل)
+        Route::get('settings', [SettingsController::class, 'index']);
+        Route::put('settings', [SettingsController::class, 'update'])->middleware('throttle:30,1');
+        Route::post('settings/test', [SettingsController::class, 'test'])->middleware('throttle:10,1');
     });
 });

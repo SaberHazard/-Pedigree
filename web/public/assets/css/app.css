@@ -1840,3 +1840,55 @@ fieldset legend .icon { vertical-align: -3px; }
 .export-presets .chip.preset .icon { width: 14px; height: 14px; }
 .export-presets .chip.preset:hover { border-color: var(--primary); }
 .suggest-size { font-size: 0.82rem; background: var(--warning-soft); color: var(--text); border-radius: 12px; padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+/* تبریک تولد */
+.greetings .card-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bd-list { display: flex; flex-direction: column; gap: 8px; }
+.bd-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 14px; background: var(--surface-2); border: 1px solid transparent; }
+.bd-row.today { border-color: var(--accent-soft); background: linear-gradient(90deg, var(--accent-soft), var(--surface-2)); }
+.bd-row .btn { flex: none; }
+.sms-ok { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--success); border-color: var(--success-soft); }
+.sms-locked { border-color: var(--warning-soft); background: color-mix(in srgb, var(--warning-soft) 45%, var(--surface)); }
+.sms-locked .s-icon { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--warning-soft); color: var(--warning); flex: none; }
+.sms-progress { position: relative; height: 8px; border-radius: 99px; background: var(--surface-3); overflow: visible; max-width: 420px; }
+.sms-progress > div { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--warning), var(--success)); }
+.sms-progress > i { position: absolute; top: -4px; width: 2px; height: 16px; background: var(--text); border-radius: 2px; }
+.sms-preview { white-space: pre-wrap; background: var(--surface-2); border: 1px dashed var(--border-2); border-radius: 14px 14px 4px 14px; padding: 10px 12px; font-size: 0.9rem; min-height: 60px; }
+.compose-sms textarea { width: 100%; }
+.sms-history { display: flex; flex-direction: column; gap: 8px; }
+.sms-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px; border-radius: 12px; background: var(--surface-2); }
+.sms-body { white-space: pre-wrap; max-width: 520px; }
+.birthday-card { border-color: var(--accent-soft); }
+.bd-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); color: inherit; text-decoration: none; }
+.bd-chip > span:nth-child(2) { display: flex; flex-direction: column; line-height: 1.3; }
+.bd-chip:hover { border-color: var(--primary); text-decoration: none; }
+
+/* تنظیمات و اتصال‌ها */
+.settings-intro { display: flex; gap: 8px; align-items: flex-start; font-size: 0.88rem; margin-bottom: 12px; }
+.settings-intro code { direction: ltr; unicode-bidi: isolate; }
+.settings-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.settings-nav { position: sticky; top: calc(var(--header-h, 64px) + 12px); display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 6px; }
+.settings-nav a { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; color: inherit; text-decoration: none; font-size: 0.9rem; }
+.settings-nav a:hover { background: var(--surface-2); }
+.settings-nav a span { flex: 1; }
+.settings-nav .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-2); flex: none; }
+.settings-nav .dot.ok { background: var(--primary); }
+.settings-nav .dot.on { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.settings-list { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.settings-card { scroll-margin-top: calc(var(--header-h, 64px) + 12px); }
+.settings-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; }
+.settings-head h3 { margin: 0 0 4px; }
+.settings-head p { margin: 0; }
+.settings-head .s-icon { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
+.field.settings-actions { display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 8px; align-items: center; border-top: 1px dashed var(--border); padding-top: 12px; margin-bottom: 0; }
+.tiny-chip { font-size: 0.7rem; padding: 1px 7px; vertical-align: middle; }
+.test-result { flex-basis: 100%; font-size: 0.85rem; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.test-result.ok { background: var(--success-soft); color: var(--success); }
+.test-result.fail { background: var(--danger-soft); color: var(--danger); }
+.danger-text { color: var(--danger); }
+@media (max-width: 860px) {
+  .settings-layout { grid-template-columns: 1fr; }
+  .settings-nav { position: static; flex-direction: row; overflow-x: auto; scrollbar-width: none; }
+  .settings-nav a { flex: none; }
+  .settings-nav a span { flex: none; white-space: nowrap; }
+}

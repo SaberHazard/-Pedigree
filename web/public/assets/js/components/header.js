@@ -95,6 +95,7 @@ export function renderHeader() {
       { label: 'درخت من', icon: 'tree', onClick: () => navigate(`/tree/${u.person.id}?mode=hourglass`) },
       { label: 'نیاکان من', icon: 'ancestors', onClick: () => navigate(`/tree/${u.person.id}?mode=ancestors`) },
       store.config.map?.enabled !== false ? { label: 'نقشه خاندان', icon: 'pin', onClick: () => navigate('/map') } : null,
+      { label: 'تبریک تولد', icon: 'cake', onClick: () => navigate('/greetings') },
       'sep',
       { label: 'تنظیمات حساب', icon: 'settings', onClick: () => navigate('/account') },
       u.is_admin ? { label: 'مدیریت', icon: 'crown', onClick: () => navigate('/admin') } : null,

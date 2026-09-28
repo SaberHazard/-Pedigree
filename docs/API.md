@@ -197,7 +197,7 @@
 `{ "data": [{kind: home|burial, person: Node, lat, lng, city?, country?, place?}] }` — خانه‌ها طبق `location_visibility` هر شخص.
 
 ### `GET /persons/{id}/kin?max=4` — بستگان تا درجه ۴ (چه کسانی شماره/نشانی را می‌بینند)
-درجه: خونی = `بالا + پایین − ۱` (خواهر و برادر ۱، عمو و نوه ۲، عموزاده ۳)؛ همسر ۱؛ بستگان همسر و همسرِ بستگان = درجه + ۱.
+درجه (از دید شخص): خونی = `بالا + پایین − ۱` (خواهر و برادر ۱، عمو و نوه ۲، عموزاده ۳)؛ همسر ۱؛ **عروس و داماد ۱**؛ بقیه بستگان همسر (پدرزن، مادرشوهر ...) و همسرِ بستگان = درجه + ۱.
 ```json
 { "data": [{ "degree": 1, "count": 6, "people": [{ "person": Node, "label": "پدرزن", "inlaw": true, "has_account": true }] }], "max": 4, "total": 25 }
 ```
@@ -293,6 +293,18 @@
 | POST | `/notifications/{id}/read`، `/notifications/read-all` |
 | GET | `/export/gedcom?mode=descendants|ancestors|hourglass|all&person={id}&depth=10` |
 
+## تبریک تولد و پیامک از پنل سایت
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/greetings` | `eligibility{eligible, reason (disabled/provider/incomplete/no_profile), message, percent, required, missing[{key,label}], limits{daily_left,...}}`، `birthdays[{person, in_days (-1..7), age, degree, relation, can_sms, problem, greeted, is_me}]`، `auto{auto, scope, template, allowed, max_scope, send_hour}`، `accept_greeting_sms`، `history[]` |
+| POST | `/greetings/preview` | `{person_id, message}` → متن نهایی با نام فرستنده، تعداد نویسه و بخش |
+| POST | `/greetings/sms` | `{person_id, message}` ← ارسال (۱۰ در دقیقه). خطاها با `code`: `sms_incomplete`، `sms_recipient`، `sms_limit`، `sms_recipient_limit`، `sms_global_limit`، `sms_failed` |
+| PUT | `/greetings/auto` | `{auto, scope (d1..d4/all), template}` — متن باید `{name}` داشته باشد |
+
+`PATCH /persons/{id}` با `accept_greeting_sms` (فقط خود شخص) دریافت پیامک تبریک را روشن/خاموش می‌کند.
+اعلان تولد با `kind: birthday` و `link: #/greetings?person={id}` در `/notifications` می‌آید.
+
 ## مدیریت (فقط مدیران)
 
 | روش | مسیر |
@@ -303,3 +315,7 @@
 | GET | `/admin/trash` |
 | POST | `/admin/trash/{id}/restore` |
 | POST | `/admin/persons/{id}/merge` (`duplicate_id`) |
+| GET | `/admin/sms-messages?status=` — گزارش پیامک‌های تبریک + آمار |
+| GET | `/admin/settings` — (مدیر کل) گروه‌های تنظیمات؛ کلیدها فقط با `is_set` و `hint` |
+| PUT | `/admin/settings` — `{values: {"pedigree.sms.drivers.kavenegar.api_key": "...", ...}, clear: [keys]}`؛ کلید خالی = بدون تغییر |
+| POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر) |

@@ -106,6 +106,7 @@ class PersonResource extends JsonResource
             'email' => $contact ? $person->email : null,
             'landline' => $contact ? $person->landline : null,
             'contact_visibility' => $person->contact_visibility ?? 'all',
+            'accept_greeting_sms' => (bool) ($person->accept_greeting_sms ?? true),
             'contact_hidden' => ! $contact && ($person->phone_hash || $person->email || $person->landline || $hiddenSocial),
 
             // اطلاعات هویتی

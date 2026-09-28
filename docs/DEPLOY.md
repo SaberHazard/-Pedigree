@@ -55,6 +55,10 @@ KAVENEGAR_OTP_TEMPLATE=verify
 > ⚠️ از `APP_KEY` و `PEDIGREE_BLIND_INDEX_KEY` نسخه پشتیبان امن نگه دارید.
 > کد ملی، شماره شناسنامه و موبایل با این کلیدها رمزنگاری شده‌اند و بدون آن‌ها قابل بازیابی نیستند.
 
+> 💡 کلیدهای پنل پیامکی، Firebase، شبکه‌های اجتماعی و نقشه را می‌توانید به جای `.env` بعداً از
+> **پنل مدیریت ← تنظیمات و اتصال‌ها (API)** وارد کنید (رمزنگاری‌شده در پایگاه داده). فقط `APP_KEY`،
+> `PEDIGREE_BLIND_INDEX_KEY` و تنظیمات پایگاه داده باید در `.env` باشند.
+
 ## ۴. ساخت مدیر کل
 
 ```bash
@@ -75,6 +79,7 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 `storage/app/private/media` ذخیره می‌شوند و مستقیم در دسترس نیستند (فقط با لینک امضاشده).
 
 ## ۶. زمان‌بند (cron) — الزامی
+(اعلان تولدها و پیامک‌های تبریک خودکار، جمع‌بندی رأی‌ها، پاک‌سازی و صف همه با همین cron اجرا می‌شوند.)
 
 ```cron
 * * * * * cd /path/to/pedigree/web && php artisan schedule:run >> /dev/null 2>&1
