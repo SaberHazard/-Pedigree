@@ -229,6 +229,10 @@ server {
 
     location ~ /\.(?!well-known) { deny all; }
     limit_req_status 429;
+
+    # اگر PHP یا سرور موقتاً در دسترس نبود: صفحه فارسی ساده به جای صفحه خطای nginx (بدون هیچ جزئیات سرور)
+    error_page 502 503 504 /error.html;
+    location = /error.html { internal; }
 }
 ```
 

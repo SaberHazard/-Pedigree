@@ -2493,7 +2493,7 @@ html.side-menu-open, html.side-menu-open body { overflow: hidden; }
 }
 
 /* ---------- بینش‌های خاندان: آمار و بررسی داده‌ها ---------- */
-.ins-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.ins-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr)); gap: 10px; }
 .ins-tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
 .ins-tile-icon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
 .ins-tile-icon .icon { width: 22px; height: 22px; }
@@ -2504,14 +2504,15 @@ html.side-menu-open, html.side-menu-open body { overflow: hidden; }
 .ins-record-value { display: block; font-size: 0.85rem; color: var(--text-2); }
 .ins-person { font-weight: 700; color: var(--primary); text-decoration: none; }
 .ins-person:hover { text-decoration: underline; }
+.ins-chart, .ins-rank, .ins-tile, .tl-card, .tl-head { min-width: 0; }
 .ins-chart .card-title { margin-bottom: 10px; }
+.ins-table-toggle .table { display: block; overflow-x: auto; }
 .ins-cols { display: flex; align-items: stretch; gap: 2px; height: 180px; padding-top: 18px; border-bottom: 1px solid var(--border); }
 .ins-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; outline: none; cursor: default; }
 .ins-col-track { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; }
 .ins-col-bar { width: min(100%, 28px); background: var(--primary); border-radius: 4px 4px 0 0; min-height: 2px; transition: opacity 0.15s; }
 .ins-col-peak { font-size: 0.7rem; font-weight: 700; color: var(--text-2); margin-bottom: 2px; white-space: nowrap; }
-.ins-col-label { font-size: 0.66rem; color: var(--muted); white-space: nowrap; transform: translateY(2px); }
-.ins-cols:not(.compact) .ins-col:nth-child(even) .ins-col-label { visibility: hidden; }
+.ins-col-label { font-size: 0.66rem; color: var(--muted); white-space: nowrap; transform: translateY(2px); min-height: 1.1em; width: 0; display: flex; justify-content: center; }
 .ins-cols:hover .ins-col-bar { opacity: 0.55; }
 .ins-cols .ins-col:hover .ins-col-bar, .ins-cols .ins-col:focus-visible .ins-col-bar { opacity: 1; }
 .ins-col:hover::after, .ins-col:focus-visible::after {
@@ -2546,7 +2547,10 @@ html.side-menu-open, html.side-menu-open body { overflow: hidden; }
   .ins-issue { flex-wrap: wrap; }
   .ins-issue .btn { margin-inline-start: auto; }
   .ins-cols { height: 150px; }
-  .ins-tile-value { font-size: 1.15rem; }
+  .ins-tile-value { font-size: 1.1rem; }
+  .ins-tile { padding: 10px 12px; gap: 8px; align-items: flex-start; }
+  .ins-tile-icon { width: 34px; height: 34px; border-radius: 11px; }
+  .ins-tile-icon .icon { width: 18px; height: 18px; }
 }
 
 /* ---------- خط زمان زندگی ---------- */

@@ -1,3 +1,8 @@
+# اگر PHP موقتاً در دسترس نبود: صفحه فارسی ساده (بدون جزئیات سرور)
+ErrorDocument 502 /error.html
+ErrorDocument 503 /error.html
+ErrorDocument 504 /error.html
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

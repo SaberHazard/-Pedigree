@@ -463,3 +463,21 @@
 | POST | `/admin/sms-templates/reorder` — `{occasion, ids[]}` |
 | POST | `/admin/sms-templates/preview` — `{occasion, body, person_id?, note?}` → `{text, length, parts}` (با مقادیر نمونه، یا مشخصات واقعی `person_id` و خود مدیر به عنوان فرستنده؛ متن نامعتبر → `422`) |
 | POST | `/admin/sms-templates/defaults` — بازگردانی متن‌های پیش‌فرض (قالب‌های ساخته‌شده توسط مدیر دست نمی‌خورند) |
+
+## بینش‌های خاندان و ابزارهای هوشمند
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/insights/stats` | آمار خاندان: `totals{persons, living, deceased, male, female, marriages, divorces, members, generations}`، `lifespan{all, male, female, count}`، `births_by_decade[]`، `birth_months[]`، `family_size[{decade, avg, mothers}]`، `names{male, female, last}`، `places{birth, city}`، `occupations`، `education`، `records{oldest_living, longest_lived, most_children, most_grandchildren}` — کش ۱۰ دقیقه، `throttle:20,1` |
+| GET | `/insights/consistency` | بررسی داده‌ها: `issues[{code, level: error\|warning, person{id,name,gender}, other, message}]` (حداکثر ۵۰۰)، `total`، `counts{error, warning}`، `by_code`، `codes` (برچسب فارسی هر نوع)، `checked` |
+| GET | `/insights/ai` | وضعیت ابزارهای هوشمند: `biographer`, `photo_reader`, `tones`, `tasks`, `remaining` |
+| GET | `/persons/{id}/timeline` | خط زمان زندگی: `events[{date, year, kind, title, person?, age, approx, category?}]` — `kind`: birth, death, marriage, divorce, child, grandchild, sibling, parent_death, spouse_death, child_death, sibling_death, child_marriage, history؛ `category` برای history: iran, world, science, disaster |
+| POST | `/persons/{id}/ai/biography` | `{tone: warm\|formal\|story\|short}` ← `{text, remaining}` پیش‌نویس زندگی‌نامه (ذخیره نمی‌شود؛ فقط ویرایشگران پروفایل؛ ۴ در دقیقه) |
+| POST | `/media/{id}/ai/read` | `{task: describe\|transcribe}` ← `{text, can_save, remaining}` توضیح عکس و حدس دهه یا خواندن دست‌خط (هر کسی که عکس را می‌بیند؛ ۶ در دقیقه). خطای `ai_vision` یعنی مدل انتخاب‌شده عکس نمی‌پذیرد |
+
+## خطاها
+
+- هر خطای پیش‌بینی‌نشده: `500 {message: "... کد پیگیری: ABC123", code: "server_error", ref: "ABC123"}` — بدون هیچ جزئیات فنی.
+- `POST /client-errors` `{message, type?, source?, line?, page?}` ← `202` گزارش خطای مرورگر (فقط اعضا، ۱۰ در دقیقه، ذخیره پاک‌شده).
+- مدیر کل: `GET /admin/errors?status=open|resolved|all&source=server|client&q=REF`، `POST /admin/errors/{id}/resolve`،
+  `POST /admin/errors/resolve-all`، `DELETE /admin/errors/resolved`.

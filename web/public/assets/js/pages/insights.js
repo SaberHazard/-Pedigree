@@ -58,7 +58,7 @@ function statsView(d) {
   return h('div', { class: 'ins-stats' },
     h('div', { class: 'ins-tiles' },
       tile('users', 'نفر در شجره‌نامه', num(t.persons), `${num(t.living)} زنده • ${num(t.deceased)} درگذشته`),
-      tile('tree', 'نسل پشت سر هم', fa(t.generations)),
+      tile('tree', 'نسل پیاپی', fa(t.generations)),
       tile('heart', 'ازدواج ثبت‌شده', num(t.marriages), t.divorces ? `${num(t.divorces)} جدایی` : null),
       tile('user', 'عضو فعال سایت', num(t.members)),
       tile('baby', 'مرد / زن', `${num(t.male)} / ${num(t.female)}`),
@@ -94,6 +94,8 @@ function columns(title, subtitle, rows, fmt = num, compactLabels = false) {
   if (!rows.length) return h('div', { class: 'card' }, h('h3', null, title), emptyState('info', 'هنوز داده کافی ثبت نشده است.'));
   const max = Math.max(...rows.map((r) => r.value), 1);
   const peak = rows.reduce((a, b) => (b.value > a.value ? b : a), rows[0]);
+  // با ستون‌های زیاد فقط برچسب برخی نمایش داده می‌شود (بقیه در راهنمای شناور و جدول)
+  const step = compactLabels ? 1 : Math.max(1, Math.ceil(rows.length / 8));
   const table = h('table', { class: 'table ins-table' },
     h('thead', null, h('tr', null, h('th', null, 'دسته'), h('th', null, 'مقدار'))),
     h('tbody', null, ...rows.map((r) => h('tr', null, h('td', null, r.label), h('td', null, fmt(r.value))))));
@@ -101,11 +103,11 @@ function columns(title, subtitle, rows, fmt = num, compactLabels = false) {
   return h('div', { class: 'card ins-chart' },
     h('div', { class: 'card-title' }, h('div', null, h('h3', null, title), h('div', { class: 'tiny muted' }, subtitle))),
     h('div', { class: `ins-cols${compactLabels ? ' compact' : ''}`, role: 'img', 'aria-label': `${title}: بیشترین ${peak.label} با ${fmt(peak.value)}` },
-      ...rows.map((r) => h('div', { class: 'ins-col', tabindex: '0', 'data-tip': r.tip, 'aria-label': r.tip },
+      ...rows.map((r, i) => h('div', { class: 'ins-col', tabindex: '0', 'data-tip': r.tip, 'aria-label': r.tip },
         h('div', { class: 'ins-col-track' },
           r === peak ? h('span', { class: 'ins-col-peak' }, fmt(r.value)) : null,
           h('div', { class: 'ins-col-bar', style: { height: `${Math.max(2, (r.value / max) * 100)}%` } })),
-        h('span', { class: 'ins-col-label' }, r.label)))),
+        h('span', { class: 'ins-col-label' }, i % step === 0 ? r.label : '')))),
     details,
   );
 }
