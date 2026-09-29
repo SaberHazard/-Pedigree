@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  fa, latin, toJalali, toGregorian, isLeapJalali, monthLength, parsePartial, formatDate, yearOf,
+  fa, latin, toJalali, toGregorian, isLeapJalali, monthLength, parsePartial, formatDate, yearOf, bankNumber,
 } from '../../public/assets/js/core/format.js';
 
 test('اعداد فارسی و لاتین به هم تبدیل می‌شوند', () => {
@@ -55,4 +55,11 @@ test('تاریخ جزئی', () => {
   assert.equal(formatDate('1305-07-12'), '۱۲ مهر ۱۳۰۵');
   assert.equal(formatDate('1305-07'), 'مهر ۱۳۰۵');
   assert.equal(yearOf('1305-07-12'), 1305);
+});
+
+test('شماره کارت و شبا خوانا نمایش داده می‌شوند', () => {
+  assert.equal(bankNumber('card', '6037991199500590'), '6037 9911 9950 0590');
+  assert.equal(bankNumber('sheba', 'IR820540102680020817909002'), 'IR82 0540 1026 8002 0817 9090 02');
+  assert.equal(bankNumber('account', '0101-123'), '0101-123');
+  assert.equal(bankNumber('link', null), '');
 });

@@ -6,10 +6,10 @@ final class OfflineView: UIView {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = .systemBackground
+        backgroundColor = Theme.background
 
         let icon = UIImageView(image: UIImage(systemName: "wifi.exclamationmark"))
-        icon.tintColor = UIColor(red: 0.06, green: 0.46, blue: 0.43, alpha: 1)
+        icon.tintColor = Theme.primary
         icon.contentMode = .scaleAspectFit
         icon.heightAnchor.constraint(equalToConstant: 64).isActive = true
 
@@ -26,7 +26,8 @@ final class OfflineView: UIView {
 
         var config = UIButton.Configuration.filled()
         config.title = "تلاش دوباره"
-        config.baseBackgroundColor = UIColor(red: 0.06, green: 0.46, blue: 0.43, alpha: 1)
+        config.baseBackgroundColor = Theme.primary
+        config.baseForegroundColor = Theme.onPrimary
         config.cornerStyle = .large
         let button = UIButton(configuration: config, primaryAction: UIAction { [weak self] _ in self?.onRetry?() })
 

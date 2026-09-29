@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- آیکن درخت (همان لوگوی سایت) -->
+<!-- لوگو: درخت خانواده با قلب مرجانی (همان icon.svg سایت، در ناحیه امن آیکن تطبیقی) -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:translateX="24" android:translateY="24" android:scaleX="0.1172" android:scaleY="0.1172">
+    <group android:scaleX="0.18" android:scaleY="0.18" android:translateX="7.92" android:translateY="5.76">
         <path
-            android:pathData="M256,150v200M110,350v-44c0,-24 20,-44 44,-44h204c24,0 44,20 44,44v44"
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="22"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
-        <path android:fillColor="#FFFFFF" android:pathData="M256,112m-48,0a48,48 0,1 1,96 0a48,48 0,1 1,-96 0" />
-        <path android:fillColor="#FFFFFF" android:pathData="M110,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
-        <path android:fillColor="#FFFFFF" android:pathData="M256,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
-        <path android:fillColor="#FFFFFF" android:pathData="M402,396m-46,0a46,46 0,1 1,92 0a46,46 0,1 1,-92 0" />
-        <path android:fillColor="#0F766E" android:pathData="M256,112m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M160.05,186.09A98,98 0,0 1,351.95 186.09A62,62 0,1 1,297.65 294.71A98,98 0,0 1,214.35 294.71A62,62 0,1 1,160.05 186.09Z" />
+        <path
+            android:pathData="M256,300v100"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="30"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M256,398c-20,0 -44,8 -66,22M256,398c20,0 44,8 66,22"
+            android:strokeAlpha="0.8"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="18"
+            android:strokeLineCap="round" />
+        <path
+            android:fillColor="#FFEC8E80"
+            android:pathData="M256,258c-36,-22 -54,-41 -54,-62a27,27 0,0 1,54 -9a27,27 0,0 1,54 9c0,21 -18,40 -54,62z" />
     </group>
 </vector>

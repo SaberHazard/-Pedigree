@@ -2,7 +2,7 @@
  * سرویس‌ورکر (PWA): کش فایل‌های ثابت برای بارگذاری سریع و نصب روی گوشی.
  * درخواست‌های API و فایل‌های رسانه هرگز کش نمی‌شوند (اطلاعات خصوصی).
  */
-const CACHE = 'pedigree-static-v1';
+const CACHE = 'pedigree-static-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 

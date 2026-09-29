@@ -23,7 +23,8 @@ targets:
         CFBundleDisplayName: شجره‌نامه
         CFBundleDevelopmentRegion: fa
         UILaunchScreen:
-          UIColorName: AccentColor
+          UIColorName: LaunchBackground
+          UIImageName: LaunchLogo
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

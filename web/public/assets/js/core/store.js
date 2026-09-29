@@ -69,7 +69,7 @@ export function saveLocalPrefs(prefs) {
 export function applyTheme(theme = store.prefs.theme) {
   const dark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0c1214' : '#0f766e');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0e1517' : '#f4f3ee');
   try {
     localStorage.setItem('theme', theme);
   } catch {

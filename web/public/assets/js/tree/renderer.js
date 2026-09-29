@@ -615,7 +615,7 @@ export class TreeView {
         }
         bctx.fill();
       }
-      this.mmCache = { w, h, base, primary: style.getPropertyValue('--primary') || '#0f766e' };
+      this.mmCache = { w, h, base, primary: style.getPropertyValue('--primary') || '#2b766e' };
       this.mm = { scale, ox, oy };
     }
 

@@ -61,8 +61,8 @@ export function buildDefs(g, idPrefix = 't') {
     <path id="${idPrefix}-arc-bottom" d="M ${-rb},0 A ${rb},${rb} 0 0 0 ${rb},0" fill="none"/>
     <linearGradient id="${idPrefix}-ring-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#06b6d4"/></linearGradient>
     <linearGradient id="${idPrefix}-ring-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#db2777"/><stop offset="1" stop-color="#a855f7"/></linearGradient>
-    <linearGradient id="${idPrefix}-ring-md" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset=".6" stop-color="#475569"/><stop offset="1" stop-color="#b7862c"/></linearGradient>
-    <linearGradient id="${idPrefix}-ring-fd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b1d2e"/><stop offset=".6" stop-color="#6b5563"/><stop offset="1" stop-color="#b7862c"/></linearGradient>
+    <linearGradient id="${idPrefix}-ring-md" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f2937"/><stop offset=".6" stop-color="#475569"/><stop offset="1" stop-color="#a9773f"/></linearGradient>
+    <linearGradient id="${idPrefix}-ring-fd" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b1d2e"/><stop offset=".6" stop-color="#6b5563"/><stop offset="1" stop-color="#a9773f"/></linearGradient>
     <radialGradient id="${idPrefix}-halo"><stop offset=".55" stop-color="#14b8a6" stop-opacity=".35"/><stop offset="1" stop-color="#14b8a6" stop-opacity="0"/></radialGradient>
     <radialGradient id="${idPrefix}-plate"><stop offset=".6" stop-color="var(--plate-1, #fff)" stop-opacity=".92"/><stop offset="1" stop-color="var(--plate-1, #fff)" stop-opacity=".55"/></radialGradient>
     <symbol id="${idPrefix}-sil-m" viewBox="0 0 100 100">${silhouetteMarkup('m')}</symbol>

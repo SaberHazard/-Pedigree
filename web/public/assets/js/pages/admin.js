@@ -28,6 +28,8 @@ export default function adminPage(container, { params, query }) {
   }
   const body = h('div');
   const superAdmin = store.user.role === 'super_admin';
+  // پیش از show(active) تعریف شود (باز کردن مستقیم #/admin/users)
+  let userStatus = query?.status === 'pending' ? 'pending' : '';
   const active = ['settings', 'templates', 'donate'].includes(params.tab) && !superAdmin ? 'overview' : params.tab || 'overview';
   container.append(h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('h1', null, icon('crown'), ' مدیریت')),
@@ -61,7 +63,6 @@ export default function adminPage(container, { params, query }) {
   }
 
   // ------------------------------------------------------------ کاربران
-  let userStatus = query?.status === 'pending' ? 'pending' : '';
   async function users(q = '') {
     const search = h('input', { class: 'input', type: 'search', placeholder: 'جستجوی نام...', value: q });
     const filter = segmented([

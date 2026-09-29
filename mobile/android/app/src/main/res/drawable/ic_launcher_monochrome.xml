@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- آیکن تک‌رنگ (Themed icons اندروید ۱۳+): قلب به صورت برش در تاج درخت -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:scaleX="0.18" android:scaleY="0.18" android:translateX="7.92" android:translateY="5.76">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:fillType="evenOdd"
+            android:pathData="M160.05,186.09A98,98 0,0 1,351.95 186.09A62,62 0,1 1,297.65 294.71A98,98 0,0 1,214.35 294.71A62,62 0,1 1,160.05 186.09ZM256,258c-36,-22 -54,-41 -54,-62a27,27 0,0 1,54 -9a27,27 0,0 1,54 9c0,21 -18,40 -54,62z" />
+        <path
+            android:pathData="M256,304v96M256,398c-20,0 -44,8 -66,22M256,398c20,0 44,8 66,22"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="24"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

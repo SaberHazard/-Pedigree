@@ -56,7 +56,7 @@ export default async function treePage(container, { params, query }) {
   const legend = h('div', { class: 'tree-legend' },
     h('span', null, h('i', { style: { background: 'linear-gradient(135deg,#2563eb,#06b6d4)' } }), 'مرد'),
     h('span', null, h('i', { style: { background: 'linear-gradient(135deg,#db2777,#a855f7)' } }), 'زن'),
-    h('span', null, h('i', { style: { background: 'linear-gradient(135deg,#1f2937,#b7862c)' } }), 'شادروان'),
+    h('span', null, h('i', { style: { background: 'linear-gradient(135deg,#1f2937,#a9773f)' } }), 'شادروان'),
   );
   const toolbar = h('div', { class: 'tree-toolbar' });
   const page = h('div', { class: 'tree-page' }, canvas, title, legend, minimapBox, toolbar);

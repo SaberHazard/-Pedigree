@@ -37,36 +37,39 @@
   color-scheme: light;
   --font: "Vazirmatn", Tahoma, system-ui, sans-serif;
 
-  --bg: #f5f1ea;
-  --bg-2: #ece5d8;
-  --surface: #ffffff;
-  --surface-2: #faf7f2;
-  --surface-3: #f2ede4;
-  --glass: rgba(255, 255, 255, 0.72);
+  /* پالت ملایم و آرام: سبزآبی مریمی، کرم عاجی، شنی گرم و مرجانی (قلب لوگو) */
+  --bg: #f4f3ee;
+  --bg-2: #eae7df;
+  --surface: #fffefb;
+  --surface-2: #f9f8f4;
+  --surface-3: #f1efe8;
+  --glass: rgba(255, 254, 251, 0.74);
   --glass-border: rgba(255, 255, 255, 0.6);
-  --text: #1d2a2f;
+  --text: #243034;
   --text-2: #56666b;
-  --muted: #8b989c;
-  --border: #e6ded0;
-  --border-2: #d8cebd;
+  --muted: #758489;
+  --border: #e6e1d6;
+  --border-2: #d8d1c3;
 
-  --primary: #0f766e;
-  --primary-2: #14a39a;
-  --primary-3: #5eead4;
-  --primary-soft: #d9f5ef;
+  --primary: #2b766e;
+  --primary-2: #3f9589;
+  --primary-3: #8fd3c4;
+  --primary-soft: #e1f1ec;
   --primary-contrast: #ffffff;
-  --accent: #b7862c;
-  --accent-2: #e2b458;
-  --accent-soft: #f8ecd3;
+  --accent: #a9773f;
+  --accent-2: #d9ac78;
+  --accent-soft: #f6ecde;
+  --accent-contrast: #ffffff;
+  --heart: #e7837a;
 
-  --male-1: #2563eb;
-  --male-2: #06b6d4;
-  --male-soft: #dbeafe;
-  --female-1: #db2777;
-  --female-2: #a855f7;
-  --female-soft: #fce7f3;
-  --deceased-1: #4b5563;
-  --deceased-2: #b7862c;
+  --male-1: #3d7bd6;
+  --male-2: #4fb3c8;
+  --male-soft: #e0ecfb;
+  --female-1: #cc5a8a;
+  --female-2: #a27ad4;
+  --female-soft: #f8e4ee;
+  --deceased-1: #4f5b66;
+  --deceased-2: #a9773f;
 
   --success: #15803d;
   --success-soft: #dcfce7;
@@ -77,10 +80,10 @@
   --info: #2563eb;
   --info-soft: #dbeafe;
 
-  --link-color: #b39a74;
-  --tree-bg-1: #f8f4ec;
-  --tree-bg-2: #efe7d8;
-  --tree-dot: rgba(120, 100, 70, 0.13);
+  --link-color: #b9a584;
+  --tree-bg-1: #f7f5ef;
+  --tree-bg-2: #edeae1;
+  --tree-dot: rgba(110, 100, 80, 0.12);
 
   --radius-sm: 10px;
   --radius: 16px;
@@ -88,7 +91,7 @@
   --shadow-sm: 0 1px 2px rgba(29, 42, 47, 0.06), 0 2px 8px -2px rgba(29, 42, 47, 0.08);
   --shadow: 0 12px 32px -14px rgba(29, 42, 47, 0.28), 0 2px 6px rgba(29, 42, 47, 0.05);
   --shadow-lg: 0 28px 60px -20px rgba(29, 42, 47, 0.4);
-  --ring: 0 0 0 3px rgba(20, 163, 154, 0.25);
+  --ring: 0 0 0 3px rgba(63, 149, 137, 0.28);
 
   /* فاصله از بریدگی/نوار وضعیت در گوشی‌هایی مثل آیفون (در اپ‌ها صفر است) */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -100,27 +103,29 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0c1214;
-  --bg-2: #111a1d;
-  --surface: #141d20;
-  --surface-2: #192428;
-  --surface-3: #1f2c31;
-  --glass: rgba(20, 29, 32, 0.78);
+  --bg: #0e1517;
+  --bg-2: #121b1e;
+  --surface: #151f22;
+  --surface-2: #1a2629;
+  --surface-3: #202e32;
+  --glass: rgba(21, 31, 34, 0.78);
   --glass-border: rgba(255, 255, 255, 0.06);
-  --text: #e6eef0;
-  --text-2: #a4b4b8;
-  --muted: #74868b;
-  --border: #243238;
-  --border-2: #2f4148;
+  --text: #e4eeee;
+  --text-2: #a5b6b8;
+  --muted: #7b8e92;
+  --border: #243337;
+  --border-2: #2f4247;
 
-  --primary: #2dd4bf;
-  --primary-2: #14b8a6;
-  --primary-3: #99f6e4;
-  --primary-soft: rgba(45, 212, 191, 0.14);
+  --primary: #6fcfbf;
+  --primary-2: #4db6a6;
+  --primary-3: #a9ece0;
+  --primary-soft: rgba(111, 207, 191, 0.14);
   --primary-contrast: #062622;
-  --accent: #e2b458;
-  --accent-2: #f3cf85;
-  --accent-soft: rgba(226, 180, 88, 0.15);
+  --accent: #e3b77f;
+  --accent-2: #f0d0a3;
+  --accent-soft: rgba(227, 183, 127, 0.15);
+  --accent-contrast: #2a1c0b;
+  --heart: #f0958c;
 
   --male-soft: rgba(37, 99, 235, 0.18);
   --female-soft: rgba(219, 39, 119, 0.18);
@@ -130,8 +135,8 @@
   --info-soft: rgba(37, 99, 235, 0.18);
 
   --link-color: #6d7f84;
-  --tree-bg-1: #0f1719;
-  --tree-bg-2: #0a1012;
+  --tree-bg-1: #10181a;
+  --tree-bg-2: #0b1113;
   --tree-dot: rgba(255, 255, 255, 0.06);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -163,15 +168,22 @@ body {
   transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
 }
 body::before {
-  /* نقش اسلیمی بسیار کم‌رنگ در پس‌زمینه */
+  /* نورهای ملایم پس‌زمینه (سبزآبی، شنی و مرجانی) که بسیار آرام جابه‌جا می‌شوند */
   content: "";
   position: fixed;
-  inset: 0;
+  inset: -12%;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(1200px 600px at 100% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 60%),
-    radial-gradient(900px 500px at -10% 110%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%);
+    radial-gradient(900px 560px at 92% 4%, color-mix(in srgb, var(--primary-3) 22%, transparent), transparent 62%),
+    radial-gradient(760px 520px at 4% 96%, color-mix(in srgb, var(--accent-2) 18%, transparent), transparent 62%),
+    radial-gradient(520px 380px at 12% 18%, color-mix(in srgb, var(--heart) 7%, transparent), transparent 65%);
+  animation: softGlow 38s ease-in-out infinite alternate;
+  will-change: transform;
+}
+@keyframes softGlow {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-3%, 2%, 0) scale(1.06); }
 }
 h1, h2, h3, h4 {
   margin: 0 0 0.5em;
@@ -271,10 +283,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
   box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--primary) 70%, transparent);
 }
 .btn.primary:hover { box-shadow: 0 12px 26px -10px color-mix(in srgb, var(--primary) 80%, transparent); }
+/* برق ملایم روی دکمه‌های اصلی (لایه پس‌زمینه متحرک؛ بدون overflow تا متن دکمه‌های فشرده بریده نشود) */
+.btn.primary, .btn.accent {
+  --sheen: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.26) 50%, transparent 62%) 160% 0 / 250% 100% no-repeat;
+  transition: transform 0.15s var(--ease), box-shadow 0.25s var(--ease), background-position 0.9s var(--ease), opacity 0.2s;
+}
+.btn.primary { background: var(--sheen), var(--btn-bg); }
+@media (hover: hover) {
+  .btn.primary:hover, .btn.accent:hover { background-position: -60% 0, 0 0; }
+}
 .btn.accent {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  --btn-fg: #fff;
+  background: var(--sheen), linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, var(--accent-2)));
+  --btn-fg: var(--accent-contrast);
   --btn-border: transparent;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .btn.soft { --btn-bg: var(--primary-soft); --btn-fg: var(--primary); --btn-border: transparent; }
 .btn.ghost { --btn-bg: transparent; --btn-border: transparent; }
@@ -625,14 +647,13 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
 .brand-logo {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  color: #fff;
-  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--primary) 70%, transparent);
+  flex: none;
+  border-radius: 11px;
+  box-shadow: 0 6px 16px -7px color-mix(in srgb, var(--primary) 75%, transparent);
+  transition: transform 0.4s var(--ease-spring);
 }
-.brand-logo svg { width: 24px; height: 24px; }
+.brand-logo img { width: 100%; height: 100%; display: block; }
+.brand:hover .brand-logo { transform: rotate(-6deg) scale(1.06); }
 .main-nav { display: flex; gap: 4px; margin-inline-start: 12px; }
 .main-nav a {
   display: inline-flex;
@@ -756,7 +777,7 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
   .main-nav { display: none; }
   .bottom-nav { display: flex; }
   .app-header { padding: var(--safe-top) max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); gap: 8px; }
-  .brand span { display: none; }
+  .app-header .brand { display: none; }
   .header-search { max-width: none; }
   .hide-mobile { display: none !important; }
 }
@@ -939,9 +960,9 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(800px 500px at 20% 10%, rgba(94, 234, 212, 0.35), transparent 60%),
-    radial-gradient(700px 500px at 90% 90%, rgba(226, 180, 88, 0.35), transparent 60%),
-    linear-gradient(160deg, #0b3b37, #0f5c55 45%, #13403c);
+    radial-gradient(800px 500px at 20% 10%, rgba(143, 211, 196, 0.4), transparent 60%),
+    radial-gradient(700px 500px at 90% 90%, rgba(240, 196, 150, 0.35), transparent 60%),
+    linear-gradient(160deg, #1d4a45, #2a665f 45%, #22504b);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -999,8 +1020,9 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
   padding: 28px;
   color: #fff;
   background:
-    radial-gradient(600px 300px at 0% 0%, rgba(226, 180, 88, 0.45), transparent 60%),
-    linear-gradient(135deg, #0d5e57, #0f766e 50%, #155e75);
+    radial-gradient(600px 300px at 0% 0%, rgba(190, 236, 224, 0.32), transparent 60%),
+    radial-gradient(460px 280px at 100% 100%, rgba(240, 196, 150, 0.3), transparent 60%),
+    linear-gradient(135deg, #25665f, #2b766e 50%, #33707f);
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
@@ -1020,7 +1042,7 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
 .hero h1 { margin: 0 0 4px; }
 .hero p { margin: 0; opacity: 0.85; }
 .hero .btn { --btn-bg: rgba(255, 255, 255, 0.16); --btn-fg: #fff; --btn-border: rgba(255, 255, 255, 0.25); backdrop-filter: blur(6px); }
-.hero .btn.accent { background: linear-gradient(135deg, var(--accent), var(--accent-2)); }
+.hero .btn.accent { background: var(--sheen), linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, var(--accent-2))); --btn-fg: var(--accent-contrast); --btn-border: transparent; }
 .hero .avatar { --size: 84px; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.35); }
 .stat {
   display: flex;
@@ -1125,11 +1147,11 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
   height: 150px;
   background:
     radial-gradient(400px 200px at 80% 0%, rgba(255, 255, 255, 0.25), transparent 60%),
-    linear-gradient(120deg, var(--cover-1, #0f766e), var(--cover-2, #155e75));
+    linear-gradient(120deg, var(--cover-1, #2b766e), var(--cover-2, #33707f));
   position: relative;
 }
-.profile-hero.female .cover { --cover-1: #9d174d; --cover-2: #6b21a8; }
-.profile-hero.dead .cover { --cover-1: #374151; --cover-2: #78592a; }
+.profile-hero.female .cover { --cover-1: #b04a7a; --cover-2: #7d5bb0; }
+.profile-hero.dead .cover { --cover-1: #4b5563; --cover-2: #8a6a3f; }
 .profile-hero .cover svg.pattern { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.12; }
 .profile-hero .ph-body {
   display: flex;
@@ -1543,7 +1565,8 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  body::before { animation: none; }
 }
 
 /* ---------- ۸. چاپ ---------- */
@@ -1838,7 +1861,9 @@ fieldset legend .icon { vertical-align: -3px; }
   .iv-actions .btn { flex: none; padding-inline: 12px; }
   .iv-actions .btn.primary { flex: 1 1 auto; min-height: 44px; font-size: 0.95rem; }
 }
-.interview-invite { text-decoration: none; color: inherit; border-color: var(--primary-soft); }
+.interview-invite, .interview-invite:hover { text-decoration: none; color: inherit; border-color: var(--primary-soft); }
+.interview-invite .btn { flex: none; }
+@media (max-width: 420px) { .interview-invite .stat { display: none; } }
 
 /* انتخاب سریع بخش چاپ */
 .export-presets { margin-bottom: 12px; }

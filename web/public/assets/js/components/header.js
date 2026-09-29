@@ -5,11 +5,14 @@ import { h, fill } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { store, applyTheme, saveLocalPrefs } from '../core/store.js';
 import { navigate } from '../core/router.js';
-import { post, put } from '../core/api.js';
+import { post, put, url } from '../core/api.js';
 import { dropdown, toast } from '../core/ui.js';
 import { fa, fullName } from '../core/format.js';
 import { avatar } from './avatar.js';
 import { searchBox } from './person-search.js';
+
+// با تغییر لوگو این عدد بالا برود تا نسخه کش‌شده قدیمی نمایش داده نشود
+const LOGO_VERSION = 2;
 
 const NAV = [
   { path: '/', label: 'خانه', icon: 'home', match: (p) => p === '/' },
@@ -22,8 +25,7 @@ const NAV = [
 ];
 
 export function brand() {
-  const logo = h('span', { class: 'brand-logo' });
-  logo.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4.8" r="2.3"/><circle cx="5.2" cy="18.6" r="2.3"/><circle cx="18.8" cy="18.6" r="2.3"/><circle cx="12" cy="18.6" r="2.3"/><path d="M12 7.1v9.2M5.2 16.3v-2.1c0-1.1.9-2 2-2h9.6c1.1 0 2 .9 2 2v2.1"/></svg>';
+  const logo = h('span', { class: 'brand-logo' }, h('img', { src: url(`/assets/img/icon.svg?v=${LOGO_VERSION}`), alt: '', width: 38, height: 38, decoding: 'async' }));
   return h('a', { class: 'brand', href: '#/' }, logo, h('span', null, store.config.site_name || 'شجره‌نامه'));
 }
 

@@ -14,7 +14,7 @@ final class WebViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(named: "AccentColor")
+        view.backgroundColor = Theme.background
 
         let contentController = WKUserContentController()
         // پیام‌ها با یک واسطه ضعیف ثبت می‌شوند تا نشت حافظه رخ ندهد
@@ -33,7 +33,7 @@ final class WebViewController: UIViewController {
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.isOpaque = false
-        webView.backgroundColor = .systemBackground
+        webView.backgroundColor = Theme.background
         #if DEBUG
         if #available(iOS 16.4, *) { webView.isInspectable = true }
         #endif
@@ -41,7 +41,7 @@ final class WebViewController: UIViewController {
         webView.translatesAutoresizingMaskIntoConstraints = false
         progress.translatesAutoresizingMaskIntoConstraints = false
         offlineView.translatesAutoresizingMaskIntoConstraints = false
-        progress.progressTintColor = UIColor(red: 0.06, green: 0.46, blue: 0.43, alpha: 1)
+        progress.progressTintColor = Theme.primary
         offlineView.isHidden = true
         offlineView.onRetry = { [weak self] in self?.reload() }
 

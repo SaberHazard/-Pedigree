@@ -6,7 +6,7 @@ import { post, put, del } from '../core/api.js';
 import { modal, toast, field, showFormErrors, confirmDialog } from '../core/ui.js';
 import { searchBox, personRow } from './person-search.js';
 
-const COLORS = ['#0f766e', '#155e75', '#1d4ed8', '#7c3aed', '#be185d', '#b45309', '#15803d', '#334155'];
+const COLORS = ['#2b766e', '#155e75', '#1d4ed8', '#7c3aed', '#be185d', '#b45309', '#15803d', '#334155'];
 
 export function openFamilyDialog(family, onDone) {
   let rootId = family?.root?.id || null;

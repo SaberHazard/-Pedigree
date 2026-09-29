@@ -14,15 +14,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ config('pedigree.site_name') }}</title>
     <meta name="description" content="شجره‌نامه خانوادگی آنلاین: درخت خانواده، نیاکان و نوادگان، عکس‌ها و خاطرات">
-    <meta name="theme-color" content="#0f766e">
+    <meta name="theme-color" content="#f4f3ee">
     <meta name="base-url" content="{{ $base }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ config('pedigree.site_name') }}">
     <meta name="format-detection" content="telephone=no">
     <link rel="manifest" href="{{ $base }}/manifest.webmanifest">
-    <link rel="icon" href="{{ $base }}/assets/img/icon.svg" type="image/svg+xml">
-    <link rel="apple-touch-icon" href="{{ $base }}/assets/img/icon-192.png">
+    <link rel="icon" href="{{ $base }}/assets/img/icon.svg?v={{ $assetVersion }}" type="image/svg+xml">
+    <link rel="icon" href="{{ $base }}/assets/img/icon-192.png?v={{ $assetVersion }}" type="image/png" sizes="192x192">
+    <link rel="apple-touch-icon" href="{{ $base }}/assets/img/apple-touch-icon.png?v={{ $assetVersion }}">
     <link rel="preload" href="{{ $base }}/assets/fonts/Vazirmatn-UI-FD-Regular.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ $base }}/assets/fonts/Vazirmatn-UI-FD-Bold.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="{{ $base }}/assets/css/app.css?v={{ $assetVersion }}">
