@@ -75,7 +75,8 @@ class GreetingSmsTest extends TestCase
         // حسابی که صاحبش هرگز وارد نشده (مثلاً ساخته‌شده برای پدربزرگ) اعلان نمی‌گیرد
         $neverLoggedIn = User::factory()->withPerson()->create();
         $neverLoggedIn->forceFill(['last_login_at' => null])->save();
-        $dead = Person::factory()->create(['birth_date' => '1300-'.$this->todayMd, 'is_deceased' => true]);
+        // نام ثابت و متفاوت (نام تصادفی ممکن بود با «مریم» یکی شود و آزمون گاهی بی‌دلیل رد شود)
+        $dead = Person::factory()->create(['first_name' => 'بهرام', 'birth_date' => '1300-'.$this->todayMd, 'is_deceased' => true]);
 
         $this->artisan('pedigree:birthdays', ['--force' => true])->assertSuccessful();
 

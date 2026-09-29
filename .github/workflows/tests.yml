@@ -48,7 +48,7 @@ jobs:
           POSTGRES_PASSWORD: secret
         ports: ['5432:5432']
         options: >-
-          --health-cmd="pg_isready -U pedigree"
+          --health-cmd="pg_isready -U pedigree -d pedigree_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
     defaults:
       run:
@@ -63,7 +63,8 @@ jobs:
       - name: Install ffmpeg and heif-convert (video and HEIC/AVIF pipeline tests)
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg libheif-examples && (sudo apt-get install -y -qq libheif-plugin-x265 libheif-plugin-libde265 || true)
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        # یک .env خالی: تنظیمات تست از phpunit.xml و متغیرهای همین فایل می‌آید (بدون هشدار «.env پیدا نشد» در هر تست)
+        run: composer install --no-interaction --prefer-dist --no-progress && touch .env
       - name: Code style (Pint)
         if: matrix.db == 'sqlite' && matrix.php == '8.3'
         run: ./vendor/bin/pint --test
