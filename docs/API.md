@@ -100,6 +100,10 @@
   "person": { ...Node }, "counters": { "notifications": 2, "votes": 1, "links": 0 } } }
 ```
 
+**فقط اعضا**: همه مسیرهای درخت، پروفایل و بقیه برای مهمان `401` می‌دهند. اگر ثبت‌نام با تأیید مدیر باشد
+(`registration.require_approval` در `/bootstrap`)، `POST /auth/register` فیلد الزامی `join_note` (معرفی کوتاه، ۵ تا ۳۰۰ نویسه) دارد
+و کاربر تازه `status: pending` است: فقط `/auth/me` و `/auth/logout` کار می‌کنند و بقیه مسیرها `403` با `code: pending_approval` می‌دهند.
+
 ### `POST /auth/logout`
 
 ### `GET /auth/captcha`
@@ -229,8 +233,18 @@
 در غیر این صورت: 202 و `status: requested` — یکی از بستگانِ طرف مقابل باید تأیید کند.
 
 ### `DELETE /persons/{id}/parents/{father|mother}` — قطع ارتباط والد
-### `PATCH /marriages/{id}` — `status (married/divorced/widowed), marriage_date, end_date, sort_order, notes`
+### `GET /marriages/{id}` — جزئیات ازدواج (کلیک روی قلب در درخت)
+`{marriage{status, marriage_date, end_date, ...}, husband, wife, can_edit, can_suggest, pending_suggestion}`
+
+### `PATCH /marriages/{id}` — `status (married/divorced/widowed), marriage_date, end_date, sort_order, notes, reason?`
+ویرایش مستقیم با بستگان درجه یک زن یا شوهر (یا درجه دو وقتی هیچ‌کدام از بستگان درجه یک عضو نیستند) و مدیر → `200`.
+بستگان درجه دو و سه (در بقیه حالت‌ها) → `202 {pending: true, request_id}`: پیشنهاد برای تأیید مدیر.
 ### `DELETE /marriages/{id}`
+
+### پیشنهاد ویرایش پروفایل (بستگان درجه ۲ و ۳)
+`PATCH /persons/{id}` برای کسی که فقط اجازه پیشنهاد دارد → `202 {pending: true, request_id, message}` (فیلد اختیاری
+`edit_reason`). تا تأیید مدیر چیزی در سایت عوض نمی‌شود. کد ملی، موبایل، نشانی و تنظیم حریم خصوصی پیشنهادی نیست.
+حداکثر ۳۰ پیشنهاد در انتظار برای هر عضو (`429`).
 
 ### درخواست‌های اتصال
 | روش | مسیر |
@@ -312,7 +326,7 @@
 
 اعلان تولد با `kind: birthday` و `link: #/greetings?person={id}` در `/notifications` می‌آید.
 
-## پیام‌رسان اعضا (فقط متن و ایموجی)
+## پیام‌رسان اعضا (متن، ایموجی و پیام صوتی)
 
 همه مسیرها فقط برای دو طرف گفتگو پاسخ می‌دهند؛ برای بقیه (حتی مدیر) `404`. متن در پایگاه داده رمزنگاری‌شده است.
 
@@ -325,6 +339,12 @@
 | POST | `/messages/{id}` | `{body}` (حداکثر ۲۰۰۰ نویسه) → `201`؛ سقف ۲۰ در دقیقه و ۵۰۰ در روز (`message_limit`) |
 | DELETE | `/direct-messages/{id}` | حذف پیام خودم برای هر دو طرف |
 | POST | `/messages/{id}/block` | `{blocked: true/false}` — مسدودسازی دوطرفه |
+| POST | `/messages/{id}/voice` | multipart: `voice` (فایل صوتی ضبط‌شده؛ WebM/Opus، MP4/AAC، OGG، MP3، WAV ...)، `waveform?` (JSON آرایه تا ۶۴ عدد ۰..۳۱) → `201` با `voice{id, url, duration, waveform}` — ۱۲ در دقیقه |
+
+### پیام صوتی (مشترک)
+فایل در سرور به AAC تک‌کاناله حدود ۳۲ کیلوبیت تبدیل می‌شود. `voice.url` یک لینک **امضاشده و زمان‌دار** (`/v/{uuid}?expires=&signature=`)
+است که فقط برای کسی ساخته می‌شود که پیام را می‌بیند؛ از `Range` پشتیبانی می‌کند. خطاها: `voice_off` (۴۰۳، خاموش از پنل)،
+`voice_limit` (۴۲۹)، فایل نامعتبر/خیلی کوتاه/بیش از سقف مدت (۴۲۲).
 
 ## گروه خاطرات خاندان
 
@@ -340,6 +360,18 @@
 | POST | `/group/messages/{id}/react` | `{emoji}` یکی از ۷ واکنش؛ `null` = برداشتن |
 | POST | `/group/messages/{id}/report` | `{reason?}` — ۱۰ در دقیقه |
 | DELETE | `/group/messages/{id}` | حذف پیام خود (مدیر: هر پیام) |
+| POST | `/group/voice` | multipart: `voice`، `waveform?`، `reply_to?` → `201` پیام با `kind: voice` — ۱۲ در دقیقه |
+
+## پشتیبانی (تنها راه ارتباط با مدیران سایت)
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/support?after=` | گفتگوی خودم: `{thread, data[{id, mine, from_admin, sender, body, voice, deleted, at}], voice{enabled, max_seconds}}`؛ نام مدیر به عضو نشان داده نمی‌شود (`sender: پشتیبانی`) |
+| POST | `/support/messages` | `{body}` → `201` — ۱۰ در دقیقه و ۱۰۰ در روز (`support_limit`) |
+| POST | `/support/voice` | multipart: `voice`، `waveform?` → `201` |
+| DELETE | `/support/messages/{id}` | حذف پیام خودم |
+
+شمارنده پاسخ‌های نخوانده در `/auth/me`: `counters.support` (برای مدیران `counters.support_admin`).
 
 ## بازی‌ها
 
@@ -352,8 +384,22 @@
 | روش | مسیر | توضیح |
 |---|---|---|
 | GET | `/assistant` | `{enabled, provider, remaining, max_chars, modes[{key, label, emoji, starter}], restore{enabled, remaining, modes}}` |
-| POST | `/assistant/chat` | `{messages: [{role: user/assistant, content}], mode?}` (کل گفتگو تا اینجا، آخری از کاربر؛ سرور چیزی ذخیره نمی‌کند). `mode`: `chat`، `memory`، `mushaere`، `twenty`، `riddle`، `quiz`، `story`، `proverb` → `{reply, remaining}` — ۸ در دقیقه. خطاها با `code`: `ai_off` (۵۰۳)، `ai_quota` (۴۲۹)، `ai_busy`، `ai_auth`، `ai_model`، `ai_rejected`، `ai_blocked`، `ai_empty`، `ai_down` |
+| POST | `/assistant/chat` | `{messages: [{role: user/assistant, content}], mode?}` (کل گفتگو تا اینجا، آخری از کاربر؛ سرور چیزی ذخیره نمی‌کند). `mode`: `chat`، `memory`، `mushaere`، `twenty`، `riddle`، `quiz`، `story`، `proverb`، `family_quiz` (مسابقه خاندان از روی اطلاعات عمومی بستگان خود کاربر) → `{reply, remaining}` — ۸ در دقیقه. خطاها با `code`: `ai_off` (۵۰۳)، `ai_quota` (۴۲۹)، `ai_busy`، `ai_auth`، `ai_model`، `ai_rejected`، `ai_blocked`، `ai_empty`، `ai_down` |
+| POST | `/assistant/transcribe` | multipart: `voice` (حداکثر ۶ مگابایت و ۲ دقیقه) → `{data{text, remaining}}` صدای فارسی به متن (Groq/OpenAI Whisper یا Gemini)؛ از سهمیه روزانه دستیار کم می‌شود — ۸ در دقیقه. خطا `ai_voice_off` (۵۰۳) |
+| POST | `/assistant/speak` | `{text}` → فایل صوتی (`audio/mp4` یا `audio/aac`؛ ذخیره نمی‌شود) — ۱۰ در دقیقه و سقف روزانه؛ اگر سرویس صدای سرور تنظیم نشده `422` با `code: tts_browser` (از صدای خود دستگاه استفاده کنید) |
+| POST | `/assistant/live` | `{mode?}` → `{data{provider: gemini\|openai, token, url, setup?, max_seconds, left}}` کلید **یک‌بارمصرف کوتاه‌عمر** برای اتصال مستقیم دستگاه به Gemini Live (WebSocket با `access_token`) یا OpenAI Realtime (WebRTC)؛ کلید اصلی هرگز فرستاده نمی‌شود — ۳ در دقیقه و سقف روزانه هر عضو و کل سایت. خطا `ai_live_off` (۵۰۳) |
 | POST | `/media/{id}/restore` | `{mode: restore\|colorize\|both}` → `201 {data: Media, remaining, message}` نسخه بازسازی/رنگی‌شده در همان پروفایل — ۴ در دقیقه و سقف روزانه |
+
+## حمایت از سازنده
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/donate` | `{enabled, title, message, gateway{key, label}\|null, limits{min, max, suggested[]}, accounts[{id, kind: card\|sheba\|account\|link, title, holder, value, note}], thanks[{name, person, message, at}], mine[]}` (اگر خاموش باشد فقط `{enabled: false}`) |
+| POST | `/donate` | `{amount (تومان), message?, anonymous?}` → `201 {data{url, id}}`؛ کاربر به `url` (صفحه امن درگاه) هدایت می‌شود — ۶ بار در ۱۰ دقیقه. خطا `donate_off` (۵۰۳)، `donate_gateway` (۵۰۲) |
+| GET | `/donate/{id}` | نتیجه پرداخت خودم `{id, status: pending\|paid\|failed, amount, ref}` |
+
+بازگشت درگاه به `GET|POST /donate/callback/{token}` (بیرون از `/api`، بدون ورود و بدون CSRF) است: سرور پرداخت را **سرور-به-سرور**
+با همان مبلغ تأیید می‌کند و به `/#/donate?result=paid|failed&id=` برمی‌گرداند؛ هر توکن فقط یک بار تأیید می‌شود.
 
 ## مدیریت (فقط مدیران)
 
@@ -361,6 +407,14 @@
 |---|---|
 | GET | `/admin/users?q=&role=&status=` |
 | PATCH | `/admin/users/{id}` (`role`, `status`) |
+| POST | `/admin/users/{id}/approve` — تأیید عضو در انتظار (`?status=pending` در فهرست کاربران؛ `pending` در پاسخ = تعداد) |
+| POST | `/admin/users/{id}/reject` — رد عضو در انتظار |
+| GET | `/admin/edit-requests?status=pending\|approved\|rejected` — `{data[{id, kind: person\|marriage, status, degree, reason, decision_note, created_at, decided_at, person, marriage, requester{id, name, person_id}, decider, fields[{field, label, old, new, stale}]}], pending}` |
+| POST | `/admin/edit-requests/{id}/approve` — اعمال پیشنهاد در سایت |
+| POST | `/admin/edit-requests/{id}/reject` — `{note?}` |
+| GET | `/admin/support` — `{data[{id, user, last{text, from_admin, at}, unread}], unread_threads}` |
+| GET | `/admin/support/{threadId}?after=` — پیام‌های یک گفتگو (خوانده می‌شود) |
+| POST | `/admin/support/{threadId}/messages` — `{body}`؛ `/admin/support/{threadId}/voice` — multipart `voice` |
 | GET | `/admin/activity?action=&user_id=&subject_id=` |
 | GET | `/admin/trash` |
 | POST | `/admin/trash/{id}/restore` |
@@ -376,6 +430,16 @@
 | POST | `/admin/group/reports/{messageId}/resolve` — `{action: dismiss|delete|mute, days?}` (`days` خالی با `mute` = دائم) |
 | POST | `/admin/group/messages/{id}/pin` — `{pinned: bool}` (حداکثر ۵) |
 | POST | `/admin/users/{id}/group-mute` — `{days}`: `0` برداشتن، `null` دائم، `1..365` روز |
+
+### حمایت از سازنده (فقط مدیر کل)
+
+| روش | مسیر |
+|---|---|
+| GET | `/admin/donations` — `{accounts[], donations[{id, name, amount, status, gateway, ref, card, message, anonymous, at}], totals{count, sum, month}}` |
+| POST | `/admin/donation-accounts` — `{kind: card\|sheba\|account\|link, title, holder?, value, note?, active?}`؛ کارت با رقم کنترل (Luhn)، شبا با IBAN (mod-97)، لینک فقط `https` (اعداد فارسی پذیرفته و یکسان‌سازی می‌شوند) |
+| PUT | `/admin/donation-accounts/{id}` — همان فیلدها |
+| DELETE | `/admin/donation-accounts/{id}` |
+| POST | `/admin/donation-accounts/reorder` — `{ids[]}` |
 
 ### قالب‌های پیامک (فقط مدیر کل؛ برای بقیه `403`)
 

@@ -60,7 +60,7 @@ Route::prefix('auth')->group(function () {
     });
 });
 
-// ------------------------------------------------------------------ مشاهده (با امکان حالت مهمان)
+// ------------------------------------------------------------------ مشاهده (فقط اعضای واردشده؛ مهمان پاسخ 401 می‌گیرد)
 Route::middleware(['viewer', 'active', 'throttle:api'])->group(function () {
     Route::get('persons/{person}', [PersonController::class, 'show']);
     Route::get('persons/{person}/relatives', [PersonController::class, 'relatives']);

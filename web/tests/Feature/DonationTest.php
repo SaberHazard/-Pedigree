@@ -138,6 +138,21 @@ class DonationTest extends TestCase
         $this->assertSame('failed', $d->fresh()->status);
     }
 
+    public function test_gateway_ignores_the_foreign_social_proxy(): void
+    {
+        // سرور در ایران با پراکسی خارجی برای شبکه‌های اجتماعی: درگاه ایرانی باید مستقیم وصل شود
+        $resolved = [];
+        SafeHttp::fakeResolver(function (string $host) use (&$resolved) {
+            $resolved[] = $host;
+
+            return ['185.143.233.10'];
+        });
+        config(['pedigree.social.proxy' => 'socks5h://127.0.0.1:1080', 'pedigree.iran_proxy' => null]);
+        Http::fake(['payment.zarinpal.com/*' => Http::response(['data' => ['code' => 100, 'authority' => 'A0000000000000000000000000000000cafe']])]);
+        $this->actingAs($this->member, 'sanctum')->postJson('/api/donate', ['amount' => 100000])->assertCreated();
+        $this->assertSame(['payment.zarinpal.com'], $resolved);
+    }
+
     public function test_disabled_page_hides_everything(): void
     {
         config(['pedigree.donate.enabled' => false]);

@@ -9,7 +9,11 @@
 | `{action: 'print'}` | چاپ با `UIPrintInteractionController` (امکان ذخیره PDF) |
 | `{action: 'share', title, url}` | اشتراک لینک |
 
-آپلود عکس/ویدیو و عکس گرفتن با دوربین را WKWebView خودش پشتیبانی می‌کند.
+آپلود عکس/ویدیو و عکس گرفتن با دوربین را WKWebView خودش پشتیبانی می‌کند. میکروفون (پیام صوتی و گفتگوی صوتی با هوش مصنوعی)
+با توضیح فارسی `NSMicrophoneUsageDescription` درخواست می‌شود.
+
+آیکن اپ (`Assets.xcassets/AppIcon.appiconset/icon-1024.png`) و صفحه شروع (رنگ `LaunchBackground` روشن/تیره و تصویر `LaunchLogo`)
+همان لوگو و رنگ‌های ملایم سایت‌اند؛ رنگ‌های بومی در `Theme.swift`.
 
 ## ساخت
 

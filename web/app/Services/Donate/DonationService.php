@@ -281,7 +281,7 @@ class DonationService
 
     private function post(string $url, array $hosts, array $body): array
     {
-        $res = $this->http->postJson($url, $hosts, $body, 256 * 1024, ['Accept' => 'application/json'], config('pedigree.iran_proxy') ?: null, 20);
+        $res = $this->http->postJson($url, $hosts, $body, 256 * 1024, ['Accept' => 'application/json'], config('pedigree.iran_proxy') ?: SafeHttp::DIRECT, 20);
         $json = json_decode($res['body'], true);
 
         return is_array($json) ? $json + ['_status' => $res['status']] : ['_status' => $res['status']];

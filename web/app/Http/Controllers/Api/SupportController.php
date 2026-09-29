@@ -67,9 +67,18 @@ class SupportController extends Controller
             ->orderByDesc('last_message_at')->limit(200)->get();
         $last = SupportMessage::query()->whereIn('id', SupportMessage::query()->whereIn('thread_id', $threads->pluck('id'))
             ->selectRaw('max(id)')->groupBy('thread_id'))->get()->keyBy('thread_id');
-        $rows = $threads->map(function (SupportThread $t) use ($last) {
+        // تعداد نخوانده‌ها با یک پرس‌وجو (نه یکی برای هر گفتگو)
+        $unreadCounts = SupportMessage::query()
+            ->join('support_threads', 'support_threads.id', '=', 'support_messages.thread_id')
+            ->whereIn('support_messages.thread_id', $threads->pluck('id'))
+            ->where('support_messages.from_admin', false)
+            ->whereColumn('support_messages.id', '>', 'support_threads.admin_read_id')
+            ->groupBy('support_messages.thread_id')
+            ->selectRaw('support_messages.thread_id as tid, count(*) as c')
+            ->pluck('c', 'tid');
+        $rows = $threads->map(function (SupportThread $t) use ($last, $unreadCounts) {
             $m = $last->get($t->id);
-            $unread = SupportMessage::query()->where('thread_id', $t->id)->where('from_admin', false)->where('id', '>', $t->admin_read_id)->count();
+            $unread = (int) ($unreadCounts[$t->id] ?? 0);
 
             return [
                 'id' => $t->id,

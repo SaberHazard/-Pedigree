@@ -18,6 +18,9 @@ use Throwable;
  */
 class SafeHttp
 {
+    /** اتصال مستقیم (بدون پراکسی خروجی شبکه‌های اجتماعی)، مثلاً برای درگاه‌های پرداخت ایرانی */
+    public const DIRECT = 'direct';
+
     /** @var (Closure(string): array<int,string>)|null برای تست */
     private static ?Closure $resolver = null;
 
@@ -61,12 +64,16 @@ class SafeHttp
 
     /**
      * @param  string[]  $allowedHosts
-     * @param  ?string  $proxy  خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)
+     * @param  ?string  $proxy  خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)؛ self::DIRECT = بدون پراکسی
      * @return array{status:int, body:string, type:string}
      */
     private function request(string $method, string $url, array $allowedHosts, int $maxBytes, array $headers, ?array $json, int $maxRedirects, ?string $proxy = null, ?int $timeout = null, ?array $multipart = null): array
     {
-        $proxy = $proxy === null || $proxy === '' ? config('pedigree.social.proxy') : $proxy;
+        $proxy = match (true) {
+            $proxy === self::DIRECT => null,
+            $proxy === null || $proxy === '' => config('pedigree.social.proxy'),
+            default => $proxy,
+        };
         $timeout ??= (int) config('pedigree.social.timeout', 8);
 
         for ($hop = 0; $hop <= $maxRedirects; $hop++) {

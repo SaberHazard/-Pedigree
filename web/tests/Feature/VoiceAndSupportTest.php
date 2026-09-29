@@ -125,8 +125,8 @@ class VoiceAndSupportTest extends TestCase
         // مدیر: فهرست، خواندن و پاسخ (متن و صوت)
         $list = $this->actingAs($this->admin, 'sanctum')->getJson('/api/admin/support')->assertOk();
         $this->assertSame(1, $list->json('unread_threads'));
+        $this->assertSame(2, $list->json('data.0.unread'));
         $this->assertSame('support', $this->admin->notifications()->first()->data['kind']);
-        $this->assertSame('support_admin', 'support_admin');
         $thread = $list->json('data.0.id');
         $this->getJson("/api/admin/support/{$thread}")->assertOk()->assertJsonCount(2, 'data');
         $this->assertSame(0, $this->getJson('/api/admin/support')->json('unread_threads'));
