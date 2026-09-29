@@ -4,7 +4,9 @@ namespace App\Console\Commands;
 
 use App\Services\Occasions\BirthdayService;
 use App\Services\Sms\GreetingService;
+use App\Support\ErrorReporter;
 use Illuminate\Console\Command;
+use Throwable;
 
 /**
  * سر هر ساعت به وقت تهران اجرا می‌شود (زمان‌بند)؛ از ساعت تنظیم‌شده به بعد:
@@ -23,15 +25,29 @@ class BirthdaysCommand extends Command
         $hour = (int) now('Asia/Tehran')->format('G');
         $force = (bool) $this->option('force');
 
+        $ok = true;
+        // دو کار جدا: خطای یکی (مثلاً اعلان‌ها) مانع دیگری (پیامک‌های تبریک ساعت ۰۰:۰۰) نمی‌شود
         if ($force || $hour >= (int) config('pedigree.birthdays.notify_hour', 8)) {
-            $count = $birthdays->notifyToday();
-            $this->info("birthday notifications: {$count}");
+            try {
+                $count = $birthdays->notifyToday();
+                $this->info("birthday notifications: {$count}");
+            } catch (Throwable $e) {
+                $ok = false;
+                $ref = ErrorReporter::record($e);
+                $this->error('birthday notifications failed'.($ref ? " (ref {$ref})" : ''));
+            }
         }
         if ($force || $hour >= (int) config('pedigree.member_sms.send_hour', 0)) {
-            $stats = $greetings->autoSendToday();
-            $this->info("auto greetings: sent {$stats['sent']}, skipped {$stats['skipped']}, failed {$stats['failed']}");
+            try {
+                $stats = $greetings->autoSendToday();
+                $this->info("auto greetings: sent {$stats['sent']}, skipped {$stats['skipped']}, failed {$stats['failed']}");
+            } catch (Throwable $e) {
+                $ok = false;
+                $ref = ErrorReporter::record($e);
+                $this->error('auto greetings failed'.($ref ? " (ref {$ref})" : ''));
+            }
         }
 
-        return self::SUCCESS;
+        return $ok ? self::SUCCESS : self::FAILURE;
     }
 }

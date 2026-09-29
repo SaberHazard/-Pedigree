@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\ActivityController;
 use App\Http\Controllers\Api\Admin\DonationAdminController;
 use App\Http\Controllers\Api\Admin\EditRequestController;
+use App\Http\Controllers\Api\Admin\ErrorReportController;
 use App\Http\Controllers\Api\Admin\OverviewController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
 use App\Http\Controllers\Api\Admin\SettingsController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\GameController;
 use App\Http\Controllers\Api\GreetingController;
 use App\Http\Controllers\Api\GroupController;
+use App\Http\Controllers\Api\InsightController;
 use App\Http\Controllers\Api\KinController;
 use App\Http\Controllers\Api\LinkRequestController;
 use App\Http\Controllers\Api\MapController;
@@ -198,6 +200,17 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('assistant/live', [AssistantController::class, 'live'])->middleware('throttle:3,1,assistant-live');
     Route::post('media/{media}/restore', [AssistantController::class, 'restorePhoto'])->middleware('throttle:4,1,ai-restore');
 
+    // گزارش خطای مرورگر برای پنل مدیریت (با سقف تا سیل درخواست دیسک را پر نکند)
+    Route::post('client-errors', [ErrorReportController::class, 'client'])->middleware('throttle:10,1,client-errors');
+
+    // بینش‌های خاندان و ابزارهای هوشمند
+    Route::get('insights/stats', [InsightController::class, 'stats'])->middleware('throttle:20,1,insights-stats');
+    Route::get('insights/consistency', [InsightController::class, 'consistency'])->middleware('throttle:20,1,insights-check');
+    Route::get('insights/ai', [InsightController::class, 'aiTools']);
+    Route::get('persons/{person}/timeline', [InsightController::class, 'timeline'])->middleware('throttle:30,1,timeline');
+    Route::post('persons/{person}/ai/biography', [InsightController::class, 'biography'])->middleware('throttle:4,1,ai-bio');
+    Route::post('media/{media}/ai/read', [InsightController::class, 'readPhoto'])->middleware('throttle:6,1,ai-read');
+
     Route::get('greetings', [GreetingController::class, 'index']);
     Route::post('greetings/sms', [GreetingController::class, 'send'])->middleware('throttle:10,1,greeting-send');
     Route::post('greetings/preview', [GreetingController::class, 'preview'])->middleware('throttle:90,1,greeting-preview');
@@ -246,6 +259,11 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
         // قالب‌های ثابت پیامک تبریک (فقط مدیر کل)
         Route::middleware('super-admin')->group(function () {
+            // خطاهای ثبت‌شده سرور و مرورگر
+            Route::get('errors', [ErrorReportController::class, 'index']);
+            Route::post('errors/resolve-all', [ErrorReportController::class, 'resolveAll']);
+            Route::delete('errors/resolved', [ErrorReportController::class, 'clearResolved']);
+            Route::post('errors/{report}/resolve', [ErrorReportController::class, 'resolve'])->whereNumber('report');
             Route::get('donations', [DonationAdminController::class, 'index']);
             Route::post('donation-accounts', [DonationAdminController::class, 'store'])->middleware('throttle:30,1,donate-acc');
             Route::post('donation-accounts/reorder', [DonationAdminController::class, 'reorder']);

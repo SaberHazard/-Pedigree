@@ -5,11 +5,30 @@
  * پیش‌فرضش (container, ctx) را می‌گیرد و می‌تواند یک تابع پاک‌سازی برگرداند.
  */
 import { store } from './store.js';
+import { reportClientError } from './errors.js';
 
 const routes = [];
 let cleanup = null;
 let currentToken = 0;
 let onRender = null;
+
+/** پیام خطای صفحه با دکمه «دوباره» (بدون جزئیات فنی) */
+function failed(container, message) {
+  const box = document.createElement('div');
+  box.className = 'page';
+  const empty = document.createElement('div');
+  empty.className = 'empty';
+  const text = document.createElement('div');
+  text.textContent = message;
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'btn soft mt';
+  retry.textContent = 'دوباره';
+  retry.addEventListener('click', () => resolve());
+  empty.append(text, retry);
+  box.append(empty);
+  container.replaceChildren(box);
+}
 
 export function route(pattern, loader, options = {}) {
   const keys = [];
@@ -93,7 +112,14 @@ async function resolve() {
   cleanup = null;
 
   const container = onRender(match);
-  const module = await match.loader();
+  let module;
+  try {
+    module = await match.loader();
+  } catch (e) {
+    // فایل صفحه بارگذاری نشد (قطعی اینترنت یا نسخه تازه سایت)
+    if (token === currentToken) failed(container, 'بارگذاری این صفحه ممکن نشد؛ اتصال اینترنت را بررسی کنید و دوباره امتحان کنید.');
+    return;
+  }
   if (token !== currentToken) return; // کاربر در این فاصله صفحه را عوض کرده
 
   window.scrollTo({ top: 0 });
@@ -101,7 +127,11 @@ async function resolve() {
     cleanup = await module.default(container, { params, query, path });
   } catch (e) {
     console.error(e);
-    container.textContent = 'خطا در نمایش صفحه: ' + (e.message || e);
+    if (token !== currentToken) return;
+    // خطای API پیام فارسی خودش را دارد؛ خطای کد برای مدیر گزارش و به کاربر پیام کلی نشان داده می‌شود
+    const api = e && typeof e === 'object' && 'status' in e && 'data' in e;
+    if (!api) reportClientError(e);
+    failed(container, api && e.message ? e.message : 'نمایش این صفحه با خطا روبه‌رو شد و برای مدیر سایت گزارش شد. دوباره امتحان کنید.');
   }
   store.emit('route', { path, name: match.name });
 }

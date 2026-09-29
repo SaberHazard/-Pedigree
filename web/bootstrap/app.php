@@ -1,16 +1,20 @@
 <?php
 
+use App\Exceptions\DomainException;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\ResetScopedServices;
 use App\Http\Middleware\ResolveViewer;
 use App\Http\Middleware\SecurityHeaders;
+use App\Services\Sms\SmsException;
+use App\Support\ErrorReporter;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -41,6 +45,15 @@ return Application::configure(basePath: dirname(__DIR__))
         }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // خطاهای «قانون کسب‌وکار» (پیام فارسی برای کاربر، مثل «این شخص از قبل پدر دارد») خطای سرور نیستند
+        // و ثبتشان در لاگ فقط دیسک را پر می‌کند (راهی برای حمله با درخواست‌های پیاپی)
+        $exceptions->dontReport([DomainException::class, SmsException::class]);
+
+        // هر خطای پیش‌بینی‌نشده با کد پیگیری در پنل مدیریت (بخش «خطاها») ثبت می‌شود
+        $exceptions->report(function (Throwable $e) {
+            ErrorReporter::record($e, app()->runningInConsole() && ! app()->runningUnitTests() ? null : request());
+        });
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
@@ -76,5 +89,24 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return response()->json(['message' => $message], $status, $e->getHeaders());
+        });
+
+        // هر خطای دیگر: هیچ جزئیاتی (مسیر فایل، آدرس سرور، پرس‌وجو) به کاربر نشان داده نمی‌شود؛
+        // فقط پیام فارسی و کد پیگیری. جزئیات فقط در لاگ سرور و خلاصه پاک‌شده‌اش در پنل مدیریت است.
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if ($e instanceof HttpExceptionInterface || $e instanceof ValidationException || $e instanceof AuthenticationException) {
+                return null;
+            }
+            // فقط روی رایانه برنامه‌نویس با APP_DEBUG=true جزئیات کامل نمایش داده می‌شود
+            if (config('app.debug') && app()->environment('local')) {
+                return null;
+            }
+            $ref = ErrorReporter::refFor($e);
+            $message = 'متأسفانه خطای پیش‌بینی‌نشده‌ای رخ داد و برای مدیر سایت ثبت شد.'.($ref ? " کد پیگیری: {$ref}" : '');
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => $message, 'code' => 'server_error', 'ref' => $ref], 500);
+            }
+
+            return response()->view('errors.500', ['ref' => $ref], 500);
         });
     })->create();

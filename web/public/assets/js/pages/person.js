@@ -25,8 +25,9 @@ import { miniMap, directionsLinks, coordText } from '../components/map.js';
 import { socialProfiles } from '../components/social.js';
 import { openMarriage } from '../components/marriage-sheet.js';
 import { authorLink } from '../components/author.js';
+import { timelineTab } from '../components/timeline.js';
 
-const TABS = ['details', 'gallery', 'relatives', 'opinions', 'history'];
+const TABS = ['details', 'gallery', 'relatives', 'timeline', 'opinions', 'history'];
 
 export default async function personPage(container, { params }) {
   const page = h('div', { class: 'page' }, loader());
@@ -65,6 +66,7 @@ export default async function personPage(container, { params }) {
       { value: 'details', label: 'درباره', icon: 'id-card' },
       { value: 'gallery', label: 'عکس‌ها و ویدیوها', icon: 'image' },
       { value: 'relatives', label: 'بستگان', icon: 'users' },
+      loggedIn ? { value: 'timeline', label: 'زندگی در گذر زمان', icon: 'calendar' } : null,
       loggedIn && (store.config.ratings?.enabled !== false || store.config.comments_enabled !== false) ? { value: 'opinions', label: 'نظرها و امتیازها', icon: 'star' } : null,
       perms.history ? { value: 'history', label: 'تاریخچه', icon: 'history' } : null,
     ].filter(Boolean), active, (tab) => {
@@ -177,6 +179,7 @@ export default async function personPage(container, { params }) {
     if (tab === 'details') tabBody.replaceChildren(details());
     else if (tab === 'gallery') tabBody.replaceChildren(gallery(person, { onChange: () => navigate(`/person/${person.id}/gallery`, { replace: true }) }));
     else if (tab === 'relatives') tabBody.replaceChildren(await relatives());
+    else if (tab === 'timeline') tabBody.replaceChildren(timelineTab(person));
     else if (tab === 'opinions') tabBody.replaceChildren(opinionsTab(person));
     else if (tab === 'history') tabBody.replaceChildren(await historyTab());
   }

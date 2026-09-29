@@ -12,6 +12,10 @@ import { store, applyTheme } from './core/store.js';
 import { route, start, navigate } from './core/router.js';
 import { get, post } from './core/api.js';
 import { renderHeader, brand } from './components/header.js';
+import { installErrorHandlers } from './core/errors.js';
+
+// خطاهای پیش‌بینی‌نشده مرورگر برای پنل مدیریت گزارش می‌شوند (بدون نمایش جزئیات به کاربر)
+installErrorHandlers();
 
 // ------------------------------------------------------------------ داده اولیه از سرور
 const boot = JSON.parse($('#boot-data')?.textContent || '{}');
@@ -43,6 +47,7 @@ route('/messages/:id', () => import('./pages/messages.js'), { layout: 'full' });
 route('/assistant', () => import('./pages/assistant.js'));
 route('/group', () => import('./pages/group.js'));
 route('/games', () => import('./pages/games.js'));
+route('/insights', () => import('./pages/insights.js'));
 route('/support', () => import('./pages/support.js'));
 route('/donate', () => import('./pages/donate.js'));
 route('/account', () => import('./pages/account.js'));

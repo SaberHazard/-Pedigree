@@ -6,6 +6,8 @@ import { icon } from '../core/icons.js';
 import { fa, formatDate } from '../core/format.js';
 import { saveFile } from '../core/native.js';
 import { authorLink } from './author.js';
+import { store } from '../core/store.js';
+import { openPhotoReader } from './photo-reader.js';
 
 export function openLightbox(items, index = 0) {
   let i = index;
@@ -15,9 +17,11 @@ export function openLightbox(items, index = 0) {
   const prev = h('button', { class: 'icon-btn lb-nav lb-prev', type: 'button', title: 'قبلی', onclick: () => go(-1) }, icon('chevron-right'));
   const next = h('button', { class: 'icon-btn lb-nav lb-next', type: 'button', title: 'بعدی', onclick: () => go(1) }, icon('chevron-left'));
   const download = h('button', { class: 'icon-btn', type: 'button', title: 'دانلود', onclick: save }, icon('download'));
+  // توضیح عکس یا خواندن دست‌خط/سند با هوش مصنوعی
+  const reader = h('button', { class: 'icon-btn', type: 'button', title: 'خواندن عکس و سند با هوش مصنوعی', onclick: () => openPhotoReader(items[i]) }, icon('sparkles'));
   const el = h('div', { class: 'lightbox', role: 'dialog', 'aria-modal': 'true' },
     stage, prev, next,
-    h('div', { class: 'lb-bar' }, caption, counter, download, h('button', { class: 'icon-btn', type: 'button', title: 'بستن', onclick: close }, icon('x'))),
+    h('div', { class: 'lb-bar' }, caption, counter, reader, download, h('button', { class: 'icon-btn', type: 'button', title: 'بستن', onclick: close }, icon('x'))),
   );
 
   function render() {
@@ -38,6 +42,7 @@ export function openLightbox(items, index = 0) {
         authorLink(m.uploader, { label: m.type === 'video' ? 'آپلود فیلم' : 'آپلود عکس' })),
     );
     counter.textContent = items.length > 1 ? `${fa(i + 1)} از ${fa(items.length)}` : '';
+    reader.hidden = !(store.config.assistant?.reader && m.type === 'image' && m.id);
     prev.hidden = next.hidden = items.length < 2;
   }
 

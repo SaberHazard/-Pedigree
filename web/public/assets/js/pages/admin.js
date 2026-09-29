@@ -18,6 +18,7 @@ import { adminOverview, adminGroup } from '../components/admin-overview.js';
 import { adminEdits } from '../components/admin-edits.js';
 import { adminSupport } from '../components/admin-support.js';
 import { adminDonate } from '../components/admin-donate.js';
+import { adminErrors } from '../components/admin-errors.js';
 import { authorLink } from '../components/author.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
@@ -31,7 +32,7 @@ export default function adminPage(container, { params, query }) {
   const superAdmin = store.user.role === 'super_admin';
   // پیش از show(active) تعریف شود (باز کردن مستقیم #/admin/users)
   let userStatus = query?.status === 'pending' ? 'pending' : '';
-  const active = ['settings', 'templates', 'donate'].includes(params.tab) && !superAdmin ? 'overview' : params.tab || 'overview';
+  const active = ['settings', 'templates', 'donate', 'errors'].includes(params.tab) && !superAdmin ? 'overview' : params.tab || 'overview';
   container.append(h('div', { class: 'page' },
     h('div', { class: 'page-head' }, h('h1', null, icon('crown'), ' مدیریت')),
     tabs([
@@ -43,6 +44,7 @@ export default function adminPage(container, { params, query }) {
       superAdmin ? { value: 'settings', label: 'تنظیمات و اتصال‌ها (API)', icon: 'key' } : null,
       superAdmin ? { value: 'templates', label: 'قالب پیامک‌ها', icon: 'edit' } : null,
       superAdmin ? { value: 'donate', label: 'حمایت', icon: 'gift' } : null,
+      superAdmin ? { value: 'errors', label: 'خطاها', icon: 'alert' } : null,
       { value: 'sms', label: 'پیامک‌ها', icon: 'mail' },
       { value: 'activity', label: 'لاگ فعالیت‌ها', icon: 'history' },
       { value: 'trash', label: 'سطل زباله', icon: 'trash' },
@@ -60,7 +62,7 @@ export default function adminPage(container, { params, query }) {
 
   function show(tab) {
     body.replaceChildren(loader());
-    ({ users, activity, trash, tools, edits: () => adminEdits(body), donate: () => adminDonate(body), support: () => adminSupport(body, { threadId: query?.thread }), overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
+    ({ users, activity, trash, tools, edits: () => adminEdits(body), donate: () => adminDonate(body), errors: () => adminErrors(body), support: () => adminSupport(body, { threadId: query?.thread }), overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
   }
 
   // ------------------------------------------------------------ کاربران

@@ -11,6 +11,7 @@ import { openLightbox } from './lightbox.js';
 import { dateInput } from './date-input.js';
 import { shrinkImage } from '../core/shrink.js';
 import { authorLink } from './author.js';
+import { openPhotoReader } from './photo-reader.js';
 
 const STATUS = {
   pending: ['warning', 'در انتظار تأیید'],
@@ -73,6 +74,8 @@ export function gallery(person, { onChange } = {}) {
       m.can.edit ? { label: 'ویرایش توضیحات', icon: 'edit', onClick: () => editMeta(m) } : null,
       store.config.assistant?.restore && m.type === 'image' && m.status === 'approved' && canUpload
         ? { label: 'بازسازی / رنگی کردن با هوش مصنوعی', icon: 'wand', onClick: () => restore(m) } : null,
+      store.config.assistant?.reader && m.type === 'image'
+        ? { label: 'توضیح عکس یا خواندن دست‌خط با هوش مصنوعی', icon: 'sparkles', onClick: () => openPhotoReader(m, { onSaved: () => load() }) } : null,
       m.status === 'pending' ? { label: `رأی‌ها: ${fa(m.votes.approve)} موافق، ${fa(m.votes.reject)} مخالف از ${fa(m.votes.total)}`, icon: 'info' } : null,
       m.can.delete ? 'sep' : null,
       m.can.delete ? { label: 'حذف', icon: 'trash', danger: true, onClick: () => remove(m) } : null,

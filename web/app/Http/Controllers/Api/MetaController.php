@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\Ai\AssistantService;
+use App\Services\Ai\Biographer;
 use App\Services\Ai\FamilyFacts;
+use App\Services\Ai\PhotoReader;
 use App\Services\Ai\PhotoRestorer;
 use App\Services\Ai\VoiceAi;
 use App\Services\Social\SocialProfileFetcher;
@@ -108,6 +110,8 @@ class MetaController extends Controller
                 'enabled' => app(AssistantService::class)->configured(),
                 'restore' => app(PhotoRestorer::class)->enabled(),
                 'family' => FamilyFacts::enabled(),
+                'biographer' => Biographer::enabled() && app(AssistantService::class)->configured(),
+                'reader' => PhotoReader::enabled() && app(AssistantService::class)->configured(),
                 'voice' => app(VoiceAi::class)->sttProvider() !== null || app(VoiceAi::class)->liveProvider() !== null,
             ],
             'group' => ['enabled' => (bool) config('pedigree.group.enabled', true), 'name' => (string) config('pedigree.group.name')],

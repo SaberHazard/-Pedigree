@@ -9,7 +9,7 @@ import { icon } from '../core/icons.js';
 import { get, put, post } from '../core/api.js';
 import { store } from '../core/store.js';
 import { fa, timeAgo, dateTime } from '../core/format.js';
-import { modal, toast, toastError, withLoading, confirmDialog, loader, emptyState } from '../core/ui.js';
+import { modal, toast, toastError, withLoading, confirmDialog, loader, emptyState, segmented } from '../core/ui.js';
 import { authorLink } from './author.js';
 
 const PALETTE_SIZE = 10;
@@ -112,11 +112,22 @@ export function textSection(field, ctx) {
         toastError(e);
       }
     }));
+    const aiSlot = h('span');
+    if (field !== 'resume') {
+      aiTools().then((tools) => {
+        if (!tools?.biographer) return;
+        aiSlot.replaceChildren(h('button', { class: 'btn ghost sm ai-draft-btn', type: 'button', title: 'ساخت پیش‌نویس از روی اطلاعات همین پروفایل', onclick: () => aiDraft(person, field, tools, (text, mode) => {
+          area.value = (mode === 'append' && area.value.trim() ? `${area.value.trimEnd()}\n\n${text}` : text).slice(0, meta.max);
+          updateCounter();
+          area.focus();
+        }) }, icon('sparkles'), h('span', null, 'پیش‌نویس هوشمند')));
+      });
+    }
     body.replaceChildren(
       area,
-      h('div', { class: 'row between mt-sm' },
+      h('div', { class: 'row between mt-sm wrap', style: { gap: '6px' } },
         h('div', { class: 'muted tiny' }, icon('info'), ' فقط کلمه‌هایی که تغییر دهید به نام شما ثبت می‌شود؛ بقیه به نام نویسنده قبلی می‌ماند.'),
-        h('div', { class: 'row', style: { gap: '6px' } }, counter, h('button', { class: 'btn ghost sm', type: 'button', onclick: show }, 'انصراف'), save),
+        h('div', { class: 'row wrap', style: { gap: '6px' } }, aiSlot, counter, h('button', { class: 'btn ghost sm', type: 'button', onclick: show }, 'انصراف'), save),
       ),
     );
     area.focus();
@@ -212,4 +223,53 @@ async function openRevisions(field, label, ctx, onRestored) {
       }
     });
   }
+}
+
+// ------------------------------------------------------------------ زندگی‌نامه‌نویس هوشمند
+
+let toolsPromise = null;
+/** وضعیت ابزارهای هوشمند (یک بار در هر بارگذاری صفحه) */
+export function aiTools() {
+  toolsPromise ??= get('/api/insights/ai').then((r) => r.data).catch(() => { toolsPromise = null; return null; });
+  return toolsPromise;
+}
+
+/**
+ * ساخت پیش‌نویس زندگی‌نامه با هوش مصنوعی؛ کاربر پیش از ارسال می‌بیند چه چیزی فرستاده می‌شود،
+ * متن را می‌خواند و بعد جایگزین یا به انتهای متن اضافه می‌کند (و با نام خودش ذخیره می‌کند).
+ */
+function aiDraft(person, field, tools, apply) {
+  let tone = field === 'summary' ? 'short' : 'warm';
+  const result = h('div', { class: 'ai-draft-result' });
+  const toneLabels = tools.tones || {};
+  const run = h('button', { class: 'btn primary', type: 'button' }, icon('sparkles'), 'ساختن پیش‌نویس');
+  const box = modal({
+    title: 'پیش‌نویس هوشمند زندگی‌نامه',
+    size: 'wide',
+    body: h('div', null,
+      h('p', { class: 'muted small', style: { marginTop: 0 } }, 'هوش مصنوعی فقط از روی اطلاعات ثبت‌شده همین پروفایل (نام، تاریخ‌ها، تحصیلات، شغل، شهر، بستگان نزدیک، سوابق و متن‌های موجود) یک پیش‌نویس می‌نویسد. شماره تلفن، ایمیل، نشانی و کد ملی هرگز فرستاده نمی‌شود. متن را بخوانید و اصلاح کنید؛ پس از ذخیره به نام شما ثبت می‌شود.'),
+      h('div', { class: 'field' }, h('label', null, 'لحن'), segmented(Object.entries(toneLabels).map(([value, label]) => ({ value, label })), tone, (v) => { tone = v; })),
+      h('div', { class: 'row', style: { gap: '8px' } }, run, tools.remaining !== undefined ? h('span', { class: 'muted tiny' }, `سهمیه امروز: ${fa(tools.remaining)}`) : null),
+      result,
+    ),
+    actions: [{ label: 'بستن' }],
+  });
+  run.addEventListener('click', () => withLoading(run, async () => {
+    result.replaceChildren(loader());
+    try {
+      const res = (await post(`/api/persons/${person.id}/ai/biography`, { tone })).data;
+      tools.remaining = res.remaining;
+      const preview = h('textarea', { class: 'input', rows: 10, dir: 'auto' }, res.text);
+      result.replaceChildren(
+        h('div', { class: 'tiny muted mt-sm' }, 'پیش‌نویس (قابل ویرایش پیش از افزودن):'),
+        preview,
+        h('div', { class: 'row wrap mt-sm', style: { gap: '6px' } },
+          h('button', { class: 'btn primary sm', type: 'button', onclick: () => { apply(preview.value.trim(), 'replace'); box.close(); } }, icon('check'), 'جایگزین متن فعلی'),
+          h('button', { class: 'btn soft sm', type: 'button', onclick: () => { apply(preview.value.trim(), 'append'); box.close(); } }, icon('plus'), 'افزودن به انتهای متن'),
+          h('span', { class: 'tiny muted' }, `سهمیه باقی‌مانده امروز: ${fa(res.remaining)}`)),
+      );
+    } catch (e) {
+      result.replaceChildren(h('p', { class: 'chip danger', style: { whiteSpace: 'normal' } }, icon('alert'), e.message));
+    }
+  }));
 }

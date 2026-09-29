@@ -5,10 +5,12 @@ namespace App\Services\Occasions;
 use App\Models\Person;
 use App\Models\User;
 use App\Notifications\BirthdayToday;
+use App\Support\ErrorReporter;
 use App\Support\Jalali;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Throwable;
 
 /**
  * تولدهای امروز (تقویم شمسی، به وقت تهران) و اعلان آن به اعضا.
@@ -94,8 +96,13 @@ class BirthdayService
             }
             $notification = new BirthdayToday($person, $age);
             foreach ($this->recipients($person)->chunk(500) as $chunk) {
-                Notification::send($chunk, $notification);
-                $sent += $chunk->count();
+                // خطای یک دسته (مثلاً سرویس پوش) مانع اعلان بقیه نمی‌شود
+                try {
+                    Notification::send($chunk, $notification);
+                    $sent += $chunk->count();
+                } catch (Throwable $e) {
+                    ErrorReporter::record($e);
+                }
             }
         }
 

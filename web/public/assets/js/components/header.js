@@ -129,6 +129,7 @@ export function renderHeader() {
         { grid: true, items: [...NAV.map(navItem), page('/search', 'جستجو', 'search')] },
         { title: 'ابزارها و هوش مصنوعی', items: [
           page('/assistant', 'دستیار هوشمند', 'bot', { hint: 'پرسش، تماس صوتی، بازسازی عکس' }),
+          page('/insights', 'بینش‌های خاندان', 'layers', { hint: 'آمار، نمودارها و بررسی درستی اطلاعات' }),
           page('/games', 'بازی‌های خانوادگی', 'gamepad'),
           page('/greetings', 'تبریک مناسبت‌ها', 'cake', { hint: 'تولد، سالگرد، اعیاد' }),
           { label: 'درخت من', icon: 'tree', path: `/tree/${u.person.id}?mode=hourglass` },

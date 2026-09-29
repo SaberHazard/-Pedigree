@@ -12,10 +12,12 @@ use App\Services\Occasions\BirthdayService;
 use App\Services\Occasions\OccasionCalendar;
 use App\Services\People\ProfileService;
 use App\Services\Tree\RelationshipCalculator;
+use App\Support\ErrorReporter;
 use App\Support\PersianText;
 use App\Support\Phone;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 /**
  * پیامک تبریک (تولد، سالگرد ازدواج، نوروز، یلدا) از طرف اعضا با پنل پیامکی سایت.
@@ -446,57 +448,72 @@ class GreetingService
             ->filter(fn (User $u) => $this->autoPreferences($u)['auto']);
 
         foreach ($senders as $sender) {
-            $prefs = $this->autoPreferences($sender);
-            $wanted = array_flip($prefs['occasions']);
-            if (! $this->eligibility($sender)['eligible']) {
-                $stats['skipped']++;
-
-                continue;
-            }
-            $max = KinshipDegrees::levelMax($this->effectiveScope($prefs['scope']));
-            $queue = [];
-            foreach (['birthday', 'anniversary'] as $occasion) {
-                if (! isset($wanted[$occasion])) {
-                    continue;
-                }
-                foreach ($due[$occasion] as $person) {
-                    $degree = $this->degrees->degree($sender->person, $person);
-                    if ($max === null || ($degree !== null && $degree <= $max)) {
-                        $queue[] = [$occasion, $person, $degree ?? 99];
-                    }
-                }
-            }
-            $mine = array_values(array_filter($seasonal, fn ($o) => isset($wanted[$o])));
-            if ($mine) {
-                // مناسبت‌های همگانی حداکثر تا بستگان درجه ۴ (نه کل خاندان)
-                $kin = $this->degrees->from($sender->person, min($max ?? 4, 4));
-                $people = Person::query()->whereIn('id', array_keys($kin))->where('is_deceased', false)->whereNotNull('phone_hash')->get();
-                foreach ($mine as $occasion) {
-                    foreach ($people as $person) {
-                        $queue[] = [$occasion, $person, $kin[$person->id]['degree'] ?? 99];
-                    }
-                }
-            }
-            // نزدیک‌ترها اول (اگر به سقف روزانه رسید، دورترها می‌مانند)
-            usort($queue, fn ($a, $b) => $a[2] <=> $b[2]);
-
-            foreach ($queue as [$occasion, $person]) {
-                if ($this->recipientProblem($sender, $person, $occasion, $occasion === 'birthday' ? 0 : null) !== null) {
-                    continue;
-                }
-                try {
-                    $this->send($sender, $person, $occasion, $occasion === 'birthday' ? $prefs['template'] : null, $prefs['note'], true);
-                    $stats['sent']++;
-                } catch (DomainException $e) {
-                    $stats['failed']++;
-                    if (in_array($e->errorCode(), ['sms_limit', 'sms_global_limit'], true)) {
-                        break;
-                    }
-                }
+            // خطای پیش‌بینی‌نشده برای یک فرستنده، ارسال بقیه را متوقف نمی‌کند (و برای مدیر ثبت می‌شود)
+            try {
+                $this->autoSendFor($sender, $due, $seasonal, $stats);
+            } catch (Throwable $e) {
+                $stats['failed']++;
+                ErrorReporter::record($e);
             }
         }
 
         return $stats;
+    }
+
+    /** ارسال خودکار یک فرستنده (هر گیرنده جداگانه؛ خطای یکی مانع بقیه نمی‌شود) */
+    private function autoSendFor(User $sender, array $due, array $seasonal, array &$stats): void
+    {
+        $prefs = $this->autoPreferences($sender);
+        $wanted = array_flip($prefs['occasions']);
+        if (! $this->eligibility($sender)['eligible']) {
+            $stats['skipped']++;
+
+            return;
+        }
+        $max = KinshipDegrees::levelMax($this->effectiveScope($prefs['scope']));
+        $queue = [];
+        foreach (['birthday', 'anniversary'] as $occasion) {
+            if (! isset($wanted[$occasion])) {
+                continue;
+            }
+            foreach ($due[$occasion] as $person) {
+                $degree = $this->degrees->degree($sender->person, $person);
+                if ($max === null || ($degree !== null && $degree <= $max)) {
+                    $queue[] = [$occasion, $person, $degree ?? 99];
+                }
+            }
+        }
+        $mine = array_values(array_filter($seasonal, fn ($o) => isset($wanted[$o])));
+        if ($mine) {
+            // مناسبت‌های همگانی حداکثر تا بستگان درجه ۴ (نه کل خاندان)
+            $kin = $this->degrees->from($sender->person, min($max ?? 4, 4));
+            $people = Person::query()->whereIn('id', array_keys($kin))->where('is_deceased', false)->whereNotNull('phone_hash')->get();
+            foreach ($mine as $occasion) {
+                foreach ($people as $person) {
+                    $queue[] = [$occasion, $person, $kin[$person->id]['degree'] ?? 99];
+                }
+            }
+        }
+        // نزدیک‌ترها اول (اگر به سقف روزانه رسید، دورترها می‌مانند)
+        usort($queue, fn ($a, $b) => $a[2] <=> $b[2]);
+
+        foreach ($queue as [$occasion, $person]) {
+            if ($this->recipientProblem($sender, $person, $occasion, $occasion === 'birthday' ? 0 : null) !== null) {
+                continue;
+            }
+            try {
+                $this->send($sender, $person, $occasion, $occasion === 'birthday' ? $prefs['template'] : null, $prefs['note'], true);
+                $stats['sent']++;
+            } catch (DomainException $e) {
+                $stats['failed']++;
+                if (in_array($e->errorCode(), ['sms_limit', 'sms_global_limit'], true)) {
+                    break;
+                }
+            } catch (Throwable $e) {
+                $stats['failed']++;
+                ErrorReporter::record($e);
+            }
+        }
     }
 
     private function todayDate(): string

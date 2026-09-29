@@ -12,6 +12,7 @@ use App\Services\Settings\SettingsStore;
 use App\Services\Sms\SmsException;
 use App\Services\Sms\SmsManager;
 use App\Services\Social\SocialProfileFetcher;
+use App\Support\ErrorReporter;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -106,9 +107,10 @@ class SettingsController extends Controller
         } catch (SmsException|DomainException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
         } catch (Throwable $e) {
-            report($e);
+            // پیام خام خطا (که ممکن است آدرس سرویس یا کلید در آن باشد) نمایش داده نمی‌شود
+            $ref = ErrorReporter::record($e, $request);
 
-            return response()->json(['ok' => false, 'message' => mb_substr($e->getMessage(), 0, 200) ?: 'آزمایش ناموفق بود.'], 422);
+            return response()->json(['ok' => false, 'message' => 'آزمایش ناموفق بود؛ سرویس در دسترس نبود یا پاسخ نامعتبر داد.'.($ref ? " کد پیگیری: {$ref}" : '')], 422);
         }
 
         return response()->json(['ok' => true, 'message' => $message]);

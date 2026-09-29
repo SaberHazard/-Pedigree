@@ -31,10 +31,10 @@ class SmsManager
         $name ??= config('pedigree.sms.driver', 'log');
         $class = self::DRIVERS[$name] ?? throw new InvalidArgumentException("SMS driver [{$name}] is not supported.");
 
-        return new $class(
+        return new SafeDriver(new $class(
             (array) config("pedigree.sms.drivers.{$name}", []),
             (int) config('pedigree.sms.timeout', 10),
-        );
+        ), $name);
     }
 
     public function sendOtp(string $phone, string $code): void

@@ -508,6 +508,10 @@ return [
         'fallback_provider' => env('PEDIGREE_AI_FALLBACK', ''),
         // مسابقه خاندان: اطلاعات عمومی بستگان (نام، نسبت، سال تولد، شغل ...) برای سرویس فرستاده شود
         'family_data' => (bool) env('PEDIGREE_AI_FAMILY_DATA', true),
+        // زندگی‌نامه‌نویس: اطلاعات عمومی پروفایل (بدون شماره، نشانی، کد ملی) برای ساخت پیش‌نویس فرستاده می‌شود
+        'biographer' => (bool) env('PEDIGREE_AI_BIOGRAPHER', true),
+        // خواندن عکس و سند (توضیح عکس، حدس دهه، خواندن دست‌خط) با مدل‌های بینایی؛ فقط همان عکس فرستاده می‌شود
+        'vision' => (bool) env('PEDIGREE_AI_VISION', true),
         // صدا: گفتار به متن (پیام صوتی به دستیار) و خواندن پاسخ‌ها
         'voice' => [
             // auto (اول Groq رایگان، بعد OpenAI، بعد Gemini) | groq | openai | gemini | off

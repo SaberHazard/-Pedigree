@@ -152,6 +152,23 @@ class AssistantService
     }
 
     /**
+     * یک درخواست تک‌نوبتی با همان سرویس‌ها، پشتیبان و سهمیه روزانه (زندگی‌نامه‌نویس، خواندن عکس و سند)
+     *
+     * @param  array{mime: string, data: string}|null  $image  عکس (base64) برای مدل‌های بینایی
+     *
+     * @throws DomainException
+     */
+    public function generate(User $user, string $system, string $prompt, int $maxTokens = 1500, ?array $image = null): string
+    {
+        if (! $this->configured()) {
+            throw new DomainException('هوش مصنوعی هنوز راه‌اندازی نشده است؛ مدیر سایت باید کلید یکی از سرویس‌ها را در «تنظیمات و اتصال‌ها» وارد کند.', 503, 'ai_off');
+        }
+        $this->consumeQuota($user);
+
+        return $this->complete($system, [['role' => 'user', 'content' => self::clean($prompt)]], $maxTokens, $image);
+    }
+
+    /**
      * سقف روزانه هر عضو و کل سایت (پیش از تماس با سرویس؛ گفتگو، تبدیل صدا به متن)
      *
      * @throws DomainException
@@ -287,14 +304,19 @@ class AssistantService
      *
      * @param  array<int, array{role:string, content:string}>  $messages
      */
-    private function complete(string $system, array $messages, int $maxTokens): string
+    private function complete(string $system, array $messages, int $maxTokens, ?array $image = null): string
     {
         $providers = $this->providers();
         foreach ($providers as $i => $provider) {
             try {
-                return $this->completeWith($provider, $system, $messages, $maxTokens);
+                return $this->completeWith($provider, $system, $messages, $maxTokens, $image);
             } catch (DomainException $e) {
-                $retryable = in_array($e->errorCode(), ['ai_busy', 'ai_down', 'ai_auth', 'ai_model', null], true);
+                // مدلی که عکس نمی‌پذیرد درخواست را رد می‌کند؛ سرویس پشتیبان شاید بپذیرد
+                $retryable = in_array($e->errorCode(), ['ai_busy', 'ai_down', 'ai_auth', 'ai_model', null], true)
+                    || ($image !== null && $e->errorCode() === 'ai_rejected');
+                if ($image !== null && $e->errorCode() === 'ai_rejected' && $i === count($providers) - 1) {
+                    throw new DomainException('مدل هوش مصنوعی انتخاب‌شده عکس نمی‌پذیرد؛ مدیر سایت یک مدل بینایی (مثلاً Gemini Flash یا GPT-4.1 mini) انتخاب کند.', 502, 'ai_vision');
+                }
                 if (! $retryable || $i === count($providers) - 1) {
                     throw $e;
                 }
@@ -306,7 +328,7 @@ class AssistantService
     }
 
     /** @param array<int, array{role:string, content:string}> $messages */
-    private function completeWith(string $provider, string $system, array $messages, int $maxTokens): string
+    private function completeWith(string $provider, string $system, array $messages, int $maxTokens, ?array $image = null): string
     {
         $conf = (array) config("pedigree.ai.providers.{$provider}");
         $key = (string) $conf['api_key'];
@@ -320,6 +342,9 @@ class AssistantService
             'anthropic' => $this->anthropicRequest($key, $model, $system, $messages, $maxTokens),
             default => $this->openAiRequest($provider, $conf, $key, $model, $system, $messages, $maxTokens),
         };
+        if ($image !== null) {
+            $body = $this->attachImage($provider, $body, $image);
+        }
 
         $response = $this->http->postJson(
             $url,
@@ -396,6 +421,31 @@ class AssistantService
                 'generationConfig' => ['maxOutputTokens' => $maxTokens, 'temperature' => 0.7],
             ],
         ];
+    }
+
+    /**
+     * افزودن عکس به آخرین پیام کاربر، در قالب هر سرویس
+     *
+     * @param  array{mime: string, data: string}  $image
+     */
+    private function attachImage(string $provider, array $body, array $image): array
+    {
+        if (! in_array($image['mime'], ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            throw new DomainException('قالب عکس پشتیبانی نمی‌شود.');
+        }
+        if ($provider === 'gemini') {
+            $last = array_key_last($body['contents']);
+            $body['contents'][$last]['parts'][] = ['inline_data' => ['mime_type' => $image['mime'], 'data' => $image['data']]];
+
+            return $body;
+        }
+        $last = array_key_last($body['messages']);
+        $text = (string) $body['messages'][$last]['content'];
+        $body['messages'][$last]['content'] = $provider === 'anthropic'
+            ? [['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $image['mime'], 'data' => $image['data']]], ['type' => 'text', 'text' => $text]]
+            : [['type' => 'text', 'text' => $text], ['type' => 'image_url', 'image_url' => ['url' => 'data:'.$image['mime'].';base64,'.$image['data']]]];
+
+        return $body;
     }
 
     private function geminiText(array $json): string
