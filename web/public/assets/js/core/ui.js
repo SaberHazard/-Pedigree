@@ -57,6 +57,7 @@ export function modal({ title, body, actions = [], size = 'normal', onClose, dis
     closed = true;
     overlay.classList.add('closing');
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', onRoute);
     setTimeout(() => {
       overlay.remove();
       openModals--;
@@ -67,6 +68,11 @@ export function modal({ title, body, actions = [], size = 'normal', onClose, dis
 
   function onKey(e) {
     if (e.key === 'Escape' && dismissible) close();
+  }
+
+  // رفتن به صفحه دیگر (یا دکمه «بازگشت» گوشی) پنجره باز را می‌بندد تا روی صفحه تازه جا نماند
+  function onRoute() {
+    close();
   }
 
   for (const action of actions) {
@@ -89,6 +95,7 @@ export function modal({ title, body, actions = [], size = 'normal', onClose, dis
     });
   }
   document.addEventListener('keydown', onKey);
+  window.addEventListener('hashchange', onRoute);
   document.body.append(overlay);
   openModals++;
   document.body.style.overflow = 'hidden';

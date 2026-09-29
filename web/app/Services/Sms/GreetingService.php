@@ -179,7 +179,7 @@ class GreetingService
             throw new DomainException('سقف روزانه پیامک‌های تبریک سایت پر شده است؛ فردا دوباره امتحان کنید.', 429, 'sms_global_limit');
         }
 
-        $text = $this->compose($sender, $recipient, $occasion, $template, $note);
+        $text = $this->compose($sender, $recipient, $occasion, $template, $note, $auto);
         $provider = $this->sms->messageDriverName();
         $record = new SmsMessage([
             'sender_user_id' => $sender->id,
@@ -219,9 +219,9 @@ class GreetingService
      *
      * @throws DomainException
      */
-    public function compose(User $sender, Person $recipient, string $occasion, int|string|null $template, ?string $note = null): string
+    public function compose(User $sender, Person $recipient, string $occasion, int|string|null $template, ?string $note = null, bool $auto = false): string
     {
-        $tpl = SmsTemplates::resolve($occasion, $template) ?? throw new DomainException('برای این مناسبت متنی تعیین نشده است.');
+        $tpl = SmsTemplates::resolve($occasion, $template, firstMoment: $auto) ?? throw new DomainException('برای این مناسبت متنی تعیین نشده است.');
         $text = SmsTemplates::render($tpl->body, $this->values($sender, $recipient, $occasion, $this->cleanNote($note)));
 
         return mb_substr($text, 0, 800);
@@ -280,6 +280,7 @@ class GreetingService
             'new_year' => $digits($this->calendar->newYear()),
             'note' => $note,
             'site_name' => (string) config('pedigree.site_name'),
+            'site_url' => rtrim((string) config('app.url'), '/'),
             'occasion' => SmsTemplates::OCCASIONS[$occasion]['label'] ?? null,
             'today' => $digits($this->calendar->todayText()),
             'year' => $digits($year),
@@ -288,7 +289,7 @@ class GreetingService
         // هر مقداری که از پروفایل‌ها می‌آید پاک‌سازی می‌شود تا کسی با گذاشتن لینک یا شماره در نام/لقب خود،
         // از خط رسمی سایت پیامک فریبنده نفرستد
         foreach ($values as $key => $value) {
-            if (! in_array($key, ['from_line', 'from_line_formal', 'site_name', 'note', 'occasion'], true)) {
+            if (! in_array($key, ['from_line', 'from_line_formal', 'site_name', 'site_url', 'note', 'occasion'], true)) {
                 $values[$key] = self::safe($value);
             }
         }
@@ -348,13 +349,15 @@ class GreetingService
         return $note;
     }
 
-    /** @return array<int, array{id:int, title:string, display:string}> قالب‌های فعال یک مناسبت برای نمایش به اعضا */
+    /** @return array<int, array{id:int, title:string, display:string, first_moment:bool}> قالب‌های فعال یک مناسبت برای نمایش به اعضا */
     public static function templates(string $occasion): array
     {
         return SmsTemplates::active($occasion)->map(fn ($t) => [
             'id' => $t->id,
             'title' => $t->title,
             'display' => SmsTemplates::display($t->body),
+            // «نخستین تبریک»: مخصوص ارسال خودکار ساعت ۰۰:۰۰؛ در ارسال دستی پیش‌فرض نیست
+            'first_moment' => SmsTemplates::isFirstMoment($t),
         ])->values()->all();
     }
 
@@ -382,11 +385,17 @@ class GreetingService
         $prefs = (array) (($user->preferences ?? [])['birthday_sms'] ?? []);
         $note = is_string($prefs['note'] ?? null) ? $prefs['note'] : null;
 
+        $occasions = array_values(array_intersect(
+            is_array($prefs['occasions'] ?? null) ? $prefs['occasions'] : ['birthday'],
+            OccasionCalendar::enabledKeys(),
+        ));
+
         return [
             'auto' => (bool) ($prefs['auto'] ?? false),
             'scope' => in_array($prefs['scope'] ?? null, ['all', 'd4', 'd3', 'd2', 'd1'], true) ? $prefs['scope'] : 'd1',
             'template' => SmsTemplates::resolve('birthday', $prefs['template'] ?? null)?->id,
             'note' => $note,
+            'occasions' => $occasions,
         ];
     }
 
@@ -400,15 +409,36 @@ class GreetingService
     }
 
     /**
-     * تبریک خودکار امروز از طرف اعضایی که آن را روشن کرده‌اند
+     * تبریک خودکار امروز از طرف اعضایی که آن را روشن کرده‌اند؛ زمان‌بند این را دقیقاً ساعت ۰۰:۰۰ به وقت تهران
+     * (اولین لحظه روز مناسبت) اجرا می‌کند و در ساعت‌های بعد فقط جاماندگان را می‌فرستد (هر نفر سالی یک بار):
+     *  - تولد: بستگانی که امروز زادروزشان است
+     *  - سالگرد ازدواج: زن و شوهری که امروز سالگرد پیوندشان است
+     *  - مناسبت‌های همگانی (نوروز، یلدا، اعیاد ...): روز اول هر مناسبت، به بستگان تا درجه انتخابی (حداکثر ۴)
      *
      * @return array{sent: int, skipped: int, failed: int}
      */
     public function autoSendToday(): array
     {
         $stats = ['sent' => 0, 'skipped' => 0, 'failed' => 0];
-        $todays = $this->birthdays->todays()->filter(fn ($row) => (bool) $row['person']->phone_hash);
-        if ($todays->isEmpty()) {
+
+        // چه کسانی امروز چه مناسبتی دارند
+        $due = ['birthday' => [], 'anniversary' => []];
+        foreach ($this->birthdays->todays() as $row) {
+            if ($row['person']->phone_hash) {
+                $due['birthday'][$row['person']->id] = $row['person'];
+            }
+        }
+        if (OccasionCalendar::enabled('anniversary')) {
+            foreach ($this->calendar->anniversaries(0, 0) as $r) {
+                foreach ([$r['marriage']->husband, $r['marriage']->wife] as $p) {
+                    if ($p && ! $p->is_deceased && $p->phone_hash) {
+                        $due['anniversary'][$p->id] = $p;
+                    }
+                }
+            }
+        }
+        $seasonal = array_values(array_filter(OccasionCalendar::enabledKeys(), fn ($o) => OccasionCalendar::isSeasonal($o) && $this->calendar->dueToday($o)));
+        if (! $due['birthday'] && ! $due['anniversary'] && ! $seasonal) {
             return $stats;
         }
 
@@ -417,27 +447,51 @@ class GreetingService
 
         foreach ($senders as $sender) {
             $prefs = $this->autoPreferences($sender);
-            $max = KinshipDegrees::levelMax($this->effectiveScope($prefs['scope']));
+            $wanted = array_flip($prefs['occasions']);
             if (! $this->eligibility($sender)['eligible']) {
                 $stats['skipped']++;
 
                 continue;
             }
-            foreach ($todays as ['person' => $person]) {
-                if ($max !== null) {
+            $max = KinshipDegrees::levelMax($this->effectiveScope($prefs['scope']));
+            $queue = [];
+            foreach (['birthday', 'anniversary'] as $occasion) {
+                if (! isset($wanted[$occasion])) {
+                    continue;
+                }
+                foreach ($due[$occasion] as $person) {
                     $degree = $this->degrees->degree($sender->person, $person);
-                    if ($degree === null || $degree > $max) {
-                        continue;
+                    if ($max === null || ($degree !== null && $degree <= $max)) {
+                        $queue[] = [$occasion, $person, $degree ?? 99];
                     }
                 }
-                if ($this->recipientProblem($sender, $person, 'birthday', 0) !== null) {
+            }
+            $mine = array_values(array_filter($seasonal, fn ($o) => isset($wanted[$o])));
+            if ($mine) {
+                // مناسبت‌های همگانی حداکثر تا بستگان درجه ۴ (نه کل خاندان)
+                $kin = $this->degrees->from($sender->person, min($max ?? 4, 4));
+                $people = Person::query()->whereIn('id', array_keys($kin))->where('is_deceased', false)->whereNotNull('phone_hash')->get();
+                foreach ($mine as $occasion) {
+                    foreach ($people as $person) {
+                        $queue[] = [$occasion, $person, $kin[$person->id]['degree'] ?? 99];
+                    }
+                }
+            }
+            // نزدیک‌ترها اول (اگر به سقف روزانه رسید، دورترها می‌مانند)
+            usort($queue, fn ($a, $b) => $a[2] <=> $b[2]);
+
+            foreach ($queue as [$occasion, $person]) {
+                if ($this->recipientProblem($sender, $person, $occasion, $occasion === 'birthday' ? 0 : null) !== null) {
                     continue;
                 }
                 try {
-                    $this->send($sender, $person, 'birthday', $prefs['template'], $prefs['note'], true);
+                    $this->send($sender, $person, $occasion, $occasion === 'birthday' ? $prefs['template'] : null, $prefs['note'], true);
                     $stats['sent']++;
-                } catch (DomainException) {
+                } catch (DomainException $e) {
                     $stats['failed']++;
+                    if (in_array($e->errorCode(), ['sms_limit', 'sms_global_limit'], true)) {
+                        break;
+                    }
                 }
             }
         }

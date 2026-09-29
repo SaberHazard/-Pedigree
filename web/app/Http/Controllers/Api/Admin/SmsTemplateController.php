@@ -18,7 +18,7 @@ use Illuminate\Validation\Rule;
 /**
  * «قالب‌های پیامک تبریک» در پنل مدیریت — فقط مدیر کل.
  *
- * متن ثابتی که همه اعضا با آن تبریک می‌فرستند، با متغیرهایی مثل {to_first_name} و {relation}.
+ * متن ثابتی که همه اعضا با آن تبریک می‌فرستند، با متغیرهایی مثل @نام_گیرنده و @نسبت ({to_first_name} هم پذیرفته است).
  * آخرین قالب فعال تولد قابل حذف یا غیرفعال کردن نیست (تبریک تولد خاموش‌شدنی نیست).
  */
 class SmsTemplateController extends Controller
@@ -41,6 +41,7 @@ class SmsTemplateController extends Controller
             'occasions' => $occasions,
             'variables' => $variables,
             'limits' => ['body_max' => SmsTemplates::BODY_MAX, 'title_max' => SmsTemplates::TITLE_MAX, 'per_occasion' => SmsTemplates::PER_OCCASION_MAX],
+            'send_hour' => (int) config('pedigree.member_sms.send_hour', 0),
         ]);
     }
 
@@ -119,6 +120,8 @@ class SmsTemplateController extends Controller
             $values = $greetings->values($request->user(), $person, $data['occasion'], $greetings->cleanNote($data['note'] ?? null));
         } else {
             $values = SmsTemplates::sampleValues();
+            // نام مناسبتِ همین قالب (نه نمونه ثابت)
+            $values['occasion'] = SmsTemplates::OCCASIONS[$data['occasion']]['label'];
             if (array_key_exists('note', $data)) {
                 $values['note'] = $greetings->cleanNote($data['note']);
             }

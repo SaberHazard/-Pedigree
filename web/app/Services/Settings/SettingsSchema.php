@@ -168,7 +168,7 @@ final class SettingsSchema
                     'pedigree.member_sms.min_completeness' => ['label' => 'حداقل درصد تکمیل پروفایل فرستنده', 'type' => 'int', 'min' => 0, 'max' => 100, 'help' => 'درصد فقط از روی بخش‌هایی که پایین تیک زده‌اید حساب می‌شود. برای اینکه همه بخش‌های تیک‌خورده الزامی باشند ۱۰۰ بگذارید.'],
                     'pedigree.member_sms.required_fields' => ['label' => 'بخش‌هایی از پروفایل که برای پیامک از پنل سایت باید تکمیل شده باشد', 'type' => 'multi', 'options' => ProfileService::SMS_CHECK_LABELS, 'min' => 1],
                     'pedigree.member_sms.auto_max_scope' => ['label' => 'بیشترین دامنه تبریک خودکار', 'type' => 'select', 'options' => self::SCOPES],
-                    'pedigree.member_sms.send_hour' => ['label' => 'ساعت ارسال تبریک خودکار (به وقت تهران)', 'type' => 'int', 'min' => 6, 'max' => 22],
+                    'pedigree.member_sms.send_hour' => ['label' => 'ساعت ارسال تبریک خودکار (به وقت تهران)', 'type' => 'int', 'min' => 0, 'max' => 23, 'help' => '۰ یعنی دقیقاً ساعت ۰۰:۰۰، اولین لحظه روز تولد یا مناسبت (پیش‌فرض). اگر پنل پیامکی شما پیامک شبانه را تا صبح نگه دارد، همان صبح می‌رسد.'],
                     'pedigree.member_sms.daily_per_user' => ['label' => 'سقف پیامک هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 1000],
                     'pedigree.member_sms.monthly_per_user' => ['label' => 'سقف پیامک هر عضو در ماه', 'type' => 'int', 'min' => 1, 'max' => 10000],
                     'pedigree.member_sms.daily_per_recipient' => ['label' => 'سقف پیامکی که یک نفر در روز دریافت می‌کند', 'type' => 'int', 'min' => 1, 'max' => 100],

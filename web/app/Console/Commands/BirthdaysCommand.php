@@ -7,9 +7,10 @@ use App\Services\Sms\GreetingService;
 use Illuminate\Console\Command;
 
 /**
- * هر ساعت اجرا می‌شود (زمان‌بند)؛ از ساعت تنظیم‌شده به بعد:
+ * سر هر ساعت به وقت تهران اجرا می‌شود (زمان‌بند)؛ از ساعت تنظیم‌شده به بعد:
  *  - اعلان «امروز تولد فلانی است» به اعضا (هر تولد سالی یک بار)
- *  - پیامک تبریک خودکار از طرف اعضایی که آن را روشن کرده‌اند (هر فرستنده به هر گیرنده سالی یک بار)
+ *  - پیامک تبریک خودکار (تولد، سالگرد ازدواج و مناسبت‌های انتخابی) از طرف اعضایی که آن را روشن کرده‌اند؛
+ *    پیش‌فرض ساعت ۰۰:۰۰، یعنی اولین لحظه روز مناسبت (هر فرستنده به هر گیرنده برای هر مناسبت سالی یک بار)
  */
 class BirthdaysCommand extends Command
 {
@@ -26,7 +27,7 @@ class BirthdaysCommand extends Command
             $count = $birthdays->notifyToday();
             $this->info("birthday notifications: {$count}");
         }
-        if ($force || $hour >= (int) config('pedigree.member_sms.send_hour', 9)) {
+        if ($force || $hour >= (int) config('pedigree.member_sms.send_hour', 0)) {
             $stats = $greetings->autoSendToday();
             $this->info("auto greetings: sent {$stats['sent']}, skipped {$stats['skipped']}, failed {$stats['failed']}");
         }

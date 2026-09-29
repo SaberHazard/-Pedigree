@@ -416,7 +416,8 @@ return [
         'required_fields' => ['avatar', 'birth_date', 'birth_place', 'education_level', 'occupation', 'location', 'summary', 'biography', 'resume', 'father', 'mother', 'contact', 'social'],
         // دامنه تبریک خودکار: all | d4 | d3 | d2 | d1
         'auto_max_scope' => 'd2',
-        'send_hour' => 9,
+        // ساعت ارسال تبریک خودکار به وقت تهران؛ ۰ = دقیقاً ساعت ۰۰:۰۰، اولین لحظه روز مناسبت
+        'send_hour' => (int) env('PEDIGREE_MEMBER_SMS_HOUR', 0),
         'daily_per_user' => 10,
         'monthly_per_user' => 60,
         'daily_per_recipient' => 5,

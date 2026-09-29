@@ -1,8 +1,8 @@
 /**
  * «قالب‌های پیامک تبریک» در پنل مدیریت (فقط مدیر کل)
  *
- * متن ثابتی که همه اعضا با آن تبریک می‌فرستند؛ با متغیرهای آماده (نام، نام خانوادگی، نسبت، سن ...)
- * که با کلیک در متن گذاشته می‌شوند، ایموجی، پیش‌نمایش زنده و شمارش بخش‌های پیامک.
+ * متن ثابتی که همه اعضا با آن تبریک می‌فرستند؛ با متغیرهای @ (مثل @نام_کامل_گیرنده، @نسبت، @لینک_سایت)
+ * که با کلیک در متن گذاشته می‌شوند، راهنمای کامل متغیرها، ایموجی، پیش‌نمایش زنده و شمارش بخش‌های پیامک.
  */
 import { h, debounce } from '../core/dom.js';
 import { icon } from '../core/icons.js';
@@ -24,6 +24,7 @@ export async function adminTemplates(body) {
   }
 
   const listBox = h('div');
+  const tokenRe = variableRegex(state.variables);
   const tabBar = segmented(state.occasions.map((o) => ({ value: o.key, label: `${o.emoji} ${o.label}${o.enabled ? '' : ' (خاموش)'}` })), occasion, (v) => { occasion = v; renderList(); });
 
   body.replaceChildren(
@@ -33,9 +34,10 @@ export async function adminTemplates(body) {
         h('button', { class: 'btn ghost sm', type: 'button', onclick: restoreDefaults }, icon('refresh'), 'بازگردانی پیش‌فرض‌ها'),
       ),
       h('p', { class: 'muted small', style: { marginTop: 0 } },
-        'اعضا فقط می‌توانند یکی از همین متن‌ها را انتخاب کنند (به‌علاوه یادداشتی خیلی کوتاه). متغیرهایی مثل ',
-        h('code', null, '{نام_گیرنده}'), ' یا ', h('code', null, '{نسبت}'), ' هنگام ارسال با مشخصات هر نفر پر می‌شوند؛ اگر همه متغیرهای یک سطر خالی باشند آن سطر حذف می‌شود. دست‌کم یک قالب فعال تولد همیشه می‌ماند.'),
-      h('div', { class: 'scroll-x', 'data-scroll-x': '' }, tabBar),
+        'اعضا فقط می‌توانند یکی از همین متن‌ها را انتخاب کنند (به‌علاوه یادداشتی خیلی کوتاه). متغیرها با @ نوشته می‌شوند، مثل ',
+        h('code', { dir: 'rtl' }, '@نام_کامل_گیرنده'), ' یا ', h('code', { dir: 'rtl' }, '@نسبت'), '، و هنگام ارسال با مشخصات هر نفر پر می‌شوند. دست‌کم یک قالب فعال تولد همیشه می‌ماند.'),
+      guide(),
+      h('div', { class: 'scroll-x mt-sm', 'data-scroll-x': '' }, tabBar),
     ),
     listBox,
   );
@@ -79,18 +81,63 @@ export async function adminTemplates(body) {
     );
   }
 
-  /** متغیرها به صورت برچسب رنگی (فقط گره متنی) */
+  /** متغیرها (@نام یا {نام}) به صورت برچسب رنگی؛ فقط گره متنی */
   function highlight(text) {
-    const labels = Object.fromEntries(state.variables.flatMap((v) => [[v.key, v.label], [v.token, v.label]]));
+    const labels = {};
+    for (const v of state.variables) labels[norm(v.key)] = labels[norm(v.token)] = v.label;
     const nodes = [];
     let last = 0;
-    for (const m of text.matchAll(/\{([^{}\n]{1,40})\}/g)) {
+    tokenRe.lastIndex = 0;
+    for (const m of text.matchAll(tokenRe)) {
+      if (m[0] === '@@') continue;
+      const name = m[1] || m[2];
+      // @ وسط یک کلمه (مثل ایمیل) متغیر نیست
+      if (m[1] && m.index > 0 && /[\p{L}\p{N}_@]/u.test(text[m.index - 1])) continue;
+      const label = labels[norm(name)];
+      if (!label) continue;
       if (m.index > last) nodes.push(text.slice(last, m.index));
-      nodes.push(h('span', { class: 'tpl-var', title: m[0] }, labels[m[1]] || m[0]));
+      nodes.push(h('span', { class: 'tpl-var', title: m[0] }, label));
       last = m.index + m[0].length;
     }
     if (last < text.length) nodes.push(text.slice(last));
     return nodes;
+  }
+
+  // ------------------------------------------------------------ راهنمای متغیرها
+  function guide() {
+    const occLabel = Object.fromEntries(state.occasions.map((o) => [o.key, `${o.emoji} ${o.label}`]));
+    const groups = {};
+    for (const v of state.variables) (groups[v.group] ||= []).push(v);
+    const hour = state.send_hour || 0;
+    return h('details', { class: 'tpl-guide' },
+      h('summary', null, icon('info'), ' راهنمای کامل متغیرها و قوانین متن'),
+      h('div', { class: 'tpl-guide-body' },
+        h('ol', { class: 'tpl-rules' },
+          h('li', null, 'هر متغیر با ', h('b', null, '@'), ' و نام آن نوشته می‌شود؛ مثلاً ', h('code', null, '@نام_کامل_گیرنده'), '. با زدن هر متغیر در ویرایشگر، همان‌جا که مکان‌نما هست گذاشته می‌شود.'),
+          h('li', null, 'متغیر می‌تواند به کلمه بعدی بچسبد: ', h('code', null, '@سال_ازدواجمین سالگرد'), ' ← «۲۵مین سالگرد».'),
+          h('li', null, 'برای نوشتن خود نشانه @ (مثلاً شناسه تلگرام) دو بار بزنید: ', h('code', null, '@@'), '.'),
+          h('li', null, 'متن باید نام فرستنده را داشته باشد: یکی از ', h('code', null, '@از_طرف'), '، ', h('code', null, '@از_طرف_رسمی'), '، ', h('code', null, '@نام_کامل_فرستنده'), ' یا ', h('code', null, '@نام_فرستنده'), '.'),
+          h('li', null, 'اگر همه متغیرهای یک سطر خالی باشند (مثلاً فرستنده یادداشتی ننوشته یا لقب ثبت نشده)، آن سطر خودکار حذف می‌شود؛ پس یادداشت و لقب را در سطر جدا بگذارید.'),
+          h('li', null, 'لینک دستی مجاز نیست (ضد فیشینگ)؛ برای نشانی سایت ', h('code', null, '@لینک_سایت'), ' را بگذارید. بعضی پنل‌های پیامکی لینک را فقط پس از تأیید دامنه می‌فرستند.'),
+          h('li', null, 'مقدار فیلدهای پروفایل پیش از ارسال پاک‌سازی می‌شود (بدون لینک، شناسه @ و شماره) تا کسی نتواند از خط سایت پیامک فریبنده بفرستد.'),
+          h('li', null, `هر بخش پیامک فارسی ۷۰ نویسه است (چندبخشی ۶۷)؛ متن بلندتر = بخش بیشتر = هزینه بیشتر. شمارنده زیر پیش‌نمایش تعداد بخش‌ها را نشان می‌دهد.`),
+          h('li', null, `تبریک خودکار اعضا ${hour === 0 ? 'دقیقاً ساعت ۰۰:۰۰ به وقت تهران، یعنی اولین لحظه روز تولد یا مناسبت،' : `ساعت ${fa(hour)}:۰۰ به وقت تهران`} با قالب اولِ هر مناسبت فرستاده می‌شود (قالب «نخستین تبریک»؛ ترتیب با دکمه‌های بالا/پایین). ساعت در «تنظیمات ← پیامک تبریک اعضا» قابل تغییر است.`),
+          h('li', null, 'شکل قدیمی ', h('code', null, '{نام_گیرنده}'), ' هم همچنان کار می‌کند.'),
+        ),
+        h('div', { class: 'label mt-sm' }, 'همه متغیرها'),
+        ...Object.entries(groups).map(([group, vars]) => h('div', { class: 'tpl-guide-group' },
+          h('div', { class: 'tpl-guide-title' }, group),
+          ...vars.map((v) => h('div', { class: 'tpl-guide-row' },
+            h('code', { class: 'tpl-guide-token', dir: 'rtl' }, `@${v.token}`),
+            h('span', { class: 'grow' }, v.label,
+              v.occasions ? h('span', { class: 'chip tiny-chip' }, `فقط ${v.occasions.map((o) => occLabel[o] || o).join('، ')}`) : null),
+            h('span', { class: 'muted tiny tpl-guide-sample' }, 'نمونه: ', h('bdi', null, v.sample)),
+          )),
+        )),
+        h('div', { class: 'label mt-sm' }, 'نمونه متن «نخستین تبریک» تولد'),
+        h('pre', { class: 'tpl-body', dir: 'rtl' }, '🎂 @نام_کامل_گیرنده عزیز،\nدر اولین لحظه از روز @نام_مناسبت شما، امیدوارم اولین نفری باشم که به شما تبریک می‌گویم. 🌹\n@از_طرف_رسمی\n@یادداشت\n@نام_سایت\n@لینک_سایت'),
+      ),
+    );
   }
 
   async function move(items, i, dir) {
@@ -133,7 +180,7 @@ export async function adminTemplates(body) {
   function edit(t) {
     const title = h('input', { class: 'input', maxlength: state.limits.title_max, value: t?.title || '', placeholder: 'مثلاً «گرم و صمیمی»' });
     const text = h('textarea', { class: 'input tpl-editor', rows: 6, maxlength: state.limits.body_max, dir: 'rtl' });
-    text.value = t?.body || '🎉 {نام_کامل_گیرنده} عزیز، \n{از_طرف}\n{یادداشت}\n{نام_سایت}';
+    text.value = t?.body || '🎉 @نام_کامل_گیرنده عزیز، \n@از_طرف\n@یادداشت\n@نام_سایت\n@لینک_سایت';
     const active = switchInput('active', 'فعال (اعضا بتوانند انتخابش کنند)', t ? t.active : true);
     let occ = t?.occasion || occasion;
     const occSelect = h('select', { class: 'input' }, ...state.occasions.map((o) => h('option', { value: o.key, selected: o.key === occ }, `${o.emoji} ${o.label}`)));
@@ -156,8 +203,8 @@ export async function adminTemplates(body) {
       varsBox.replaceChildren(...Object.entries(groups).map(([group, vars]) => h('div', { class: 'tpl-var-group' },
         h('span', { class: 'muted tiny' }, group),
         h('div', { class: 'row wrap', style: { gap: '4px' } }, ...vars.map((v) => h('button', {
-          type: 'button', class: 'chip tpl-chip', title: `{${v.token}} — نمونه: ${v.sample}`,
-          onclick: () => insertAtCursor(text, `{${v.token}}`),
+          type: 'button', class: 'chip tpl-chip', title: `@${v.token} — نمونه: ${v.sample}`,
+          onclick: () => insertAtCursor(text, `@${v.token}`),
         }, v.label))),
       )));
     };
@@ -201,7 +248,7 @@ export async function adminTemplates(body) {
         panel,
         text,
         error,
-        h('div', { class: 'label mt-sm' }, 'متغیرها (بزنید تا در جای مکان‌نما گذاشته شود)'),
+        h('div', { class: 'label mt-sm' }, 'متغیرها (بزنید تا در جای مکان‌نما گذاشته شود؛ یا خودتان @ و نام متغیر را بنویسید)'),
         varsBox,
         h('div', { class: 'row between mt', style: { flexWrap: 'wrap', gap: '6px' } },
           h('div', { class: 'label', style: { margin: 0 } }, 'پیش‌نمایش ', sampleLabel),
@@ -232,4 +279,16 @@ export async function adminTemplates(body) {
       ],
     });
   }
+}
+
+/** نام متغیر یکدست (نیم‌فاصله/کشیده ← زیرخط، ی و ک عربی ← فارسی) */
+function norm(name) {
+  return String(name || '').replace(/[\u200C\u0640 ]/g, '_').replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
+}
+
+/** الگوی @متغیر (بلندترین نام شناخته‌شده) یا {متغیر}؛ بدون lookbehind (سازگار با iOS قدیمی) */
+function variableRegex(variables) {
+  const names = [...new Set(variables.flatMap((v) => [v.token, v.key]))].sort((a, b) => b.length - a.length);
+  const esc = (n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/_/g, '[_\u200C\u0640]').replace(/ی/g, '[یي]').replace(/ک/g, '[کك]');
+  return new RegExp(`@@|@(${names.map(esc).join('|')})|\\{([^{}\\n]{1,40})\\}`, 'gu');
 }

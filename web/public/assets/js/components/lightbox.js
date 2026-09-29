@@ -55,7 +55,9 @@ export function openLightbox(items, index = 0) {
   function close() {
     el.remove();
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', close);
     document.body.style.overflow = '';
+    el.querySelectorAll('video,audio').forEach((m) => m.pause());
   }
 
   function onKey(e) {
@@ -74,6 +76,8 @@ export function openLightbox(items, index = 0) {
   el.addEventListener('click', (e) => e.target === stage && close());
 
   document.addEventListener('keydown', onKey);
+  // «بازگشت» گوشی یا رفتن به صفحه دیگر نمایشگر را می‌بندد
+  window.addEventListener('hashchange', close);
   document.body.style.overflow = 'hidden';
   document.body.append(el);
   render();

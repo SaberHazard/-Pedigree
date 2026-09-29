@@ -61,11 +61,15 @@ export async function openAiCall({ mode = 'chat', modeLabel = '' } = {}) {
     ended = true;
     clearInterval(tick);
     try { stopFn(); } catch { /* ignore */ }
+    window.removeEventListener('hashchange', onRoute);
     overlay.classList.add('closing');
     setTimeout(() => { overlay.remove(); document.body.style.overflow = ''; }, 220);
     if (message) toast(message, 'info');
   };
   endBtn.addEventListener('click', () => end());
+  // رفتن به صفحه دیگر یا «بازگشت» گوشی: تماس (و میکروفون) قطع می‌شود
+  function onRoute() { end('تماس پایان یافت.'); }
+  window.addEventListener('hashchange', onRoute);
   document.addEventListener('keydown', function onKey(e) {
     if (e.key === 'Escape') { end(); document.removeEventListener('keydown', onKey); }
   });
@@ -76,6 +80,11 @@ export async function openAiCall({ mode = 'chat', modeLabel = '' } = {}) {
   } catch {
     end();
     toast('اجازه میکروفون داده نشد. از تنظیمات مرورگر یا گوشی اجازه میکروفون را بدهید.', 'warning', 6000);
+    return;
+  }
+  // اگر پیش از اجازه میکروفون تماس بسته شد، اتصال شروع نشود
+  if (ended) {
+    micStream.getTracks().forEach((t) => t.stop());
     return;
   }
   muteBtn.addEventListener('click', () => {

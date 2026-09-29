@@ -8,7 +8,9 @@ use App\Models\SmsMessage;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Services\Occasions\BirthdayService;
+use App\Services\Sms\SmsTemplates;
 use App\Support\Jalali;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -175,7 +177,7 @@ class GreetingSmsTest extends TestCase
         $this->postJson('/api/greetings/sms', ['person_id' => $stranger->person_id, 'template' => $this->tpl('warm')])->assertStatus(429)->assertJsonPath('code', 'sms_limit');
 
         $this->getJson('/api/greetings')->assertOk()->assertJsonPath('history.0.status', 'sent')
-            ->assertJsonPath('eligibility.eligible', true)->assertJsonCount(4, 'occasions.0.templates')
+            ->assertJsonPath('eligibility.eligible', true)->assertJsonCount(count(array_filter(SmsTemplates::DEFAULTS, fn ($d) => $d[0] === 'birthday')), 'occasions.0.templates')
             ->assertJsonPath('history.0.kind', 'birthday');
     }
 
@@ -242,5 +244,65 @@ class GreetingSmsTest extends TestCase
         $this->assertSame(0, $row['in_days']);
         $this->assertSame(2, $row['degree']);
         $this->assertNotEmpty($row['relation']);
+    }
+
+    public function test_first_moment_greeting_is_sent_exactly_at_midnight_tehran(): void
+    {
+        config(['app.url' => 'https://family.example']);
+        // بدون انتخاب متن: متن «نخستین تبریک» (اولین قالب تولد) فرستاده می‌شود
+        $this->actingAs($this->sender, 'sanctum')->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1'])
+            ->assertOk()->assertJsonPath('auto.template', $this->tpl('first_birthday'))->assertJsonPath('auto.occasions', ['birthday']);
+
+        // یک دقیقه قبل از نیمه‌شب (روز قبل از تولد): چیزی فرستاده نمی‌شود
+        $this->travelTo(Carbon::parse('2026-09-27 23:59:00', 'Asia/Tehran'));
+        $this->artisan('pedigree:birthdays')->assertSuccessful();
+        Http::assertSentCount(0);
+
+        // ساعت ۰۰:۰۰ روز تولد به وقت تهران: اولین تبریک
+        $this->travelTo(Carbon::parse('2026-09-28 00:00:05', 'Asia/Tehran'));
+        $this->artisan('pedigree:birthdays')->assertSuccessful();
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r['receptor'] === '09121112222'
+            && str_starts_with($r['message'], "🎂 مریم احمدی عزیز،\nدر اولین لحظه از روز تولد شما، امیدوارم اولین نفری باشم که به شما تبریک می‌گویم.")
+            && str_contains($r['message'], 'از طرف برادر شما، علی احمدی')
+            && str_ends_with($r['message'], "شجره احمدی\nhttps://family.example"));
+        $this->assertTrue(SmsMessage::first()->auto);
+
+        // ساعت بعد: تکرار نمی‌شود
+        $this->travelTo(Carbon::parse('2026-09-28 01:00:05', 'Asia/Tehran'));
+        $this->artisan('pedigree:birthdays');
+        Http::assertSentCount(1);
+    }
+
+    public function test_automatic_nowruz_greeting_on_the_first_moment_of_farvardin(): void
+    {
+        $this->actingAs($this->sender, 'sanctum')->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1', 'occasions' => ['nowruz']])
+            ->assertOk()->assertJsonPath('auto.occasions', ['nowruz']);
+        // مناسبت خاموش یا ناشناخته پذیرفته نمی‌شود
+        $this->putJson('/api/greetings/auto', ['auto' => true, 'scope' => 'd1', 'occasions' => ['hacker']])->assertStatus(422);
+        $this->other->person->forceFill(['phone' => '09127778888'])->save(); // غیرخویشاوند
+
+        // ۲۹ اسفند: بازه نوروز باز است ولی روز تبریک خودکار ۱ فروردین است
+        [$gy, $gm, $gd] = Jalali::toGregorian(1405, 12, 29);
+        $this->travelTo(Carbon::parse(sprintf('%04d-%02d-%02d 00:00:10', $gy, $gm, $gd), 'Asia/Tehran'));
+        $this->artisan('pedigree:birthdays')->assertSuccessful();
+        Http::assertSentCount(0);
+
+        [$gy, $gm, $gd] = Jalali::toGregorian(1406, 1, 1);
+        $this->travelTo(Carbon::parse(sprintf('%04d-%02d-%02d 00:00:10', $gy, $gm, $gd), 'Asia/Tehran'));
+        $this->artisan('pedigree:birthdays')->assertSuccessful();
+        Http::assertSentCount(1);
+        Http::assertSent(fn (Request $r) => $r['receptor'] === '09121112222'
+            && str_starts_with($r['message'], "🌱 مریم احمدی عزیز،\nدر اولین لحظه از نوروز ۱۴۰۶،"));
+        $this->assertSame('nowruz', SmsMessage::first()->kind);
+    }
+
+    public function test_scheduler_runs_on_the_hour_in_tehran_time(): void
+    {
+        $this->artisan('schedule:list')->assertSuccessful();
+        $event = collect(app(Schedule::class)->events())->first(fn ($e) => str_contains((string) $e->command, 'pedigree:birthdays'));
+        $this->assertNotNull($event);
+        $this->assertSame('0 * * * *', $event->expression);
+        $this->assertSame('Asia/Tehran', (string) $event->timezone);
     }
 }

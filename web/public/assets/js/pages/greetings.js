@@ -218,7 +218,7 @@ export default async function greetingsPage(container, { query }) {
     const draw = (current) => box.replaceChildren(...templates.map((t) => h('button', {
       type: 'button', class: `tpl ${t.id === current ? 'active' : ''}`, role: 'radio', 'aria-checked': t.id === current ? 'true' : 'false',
       onclick: () => { draw(t.id); onChange(t.id); },
-    }, h('b', { class: 'small' }, t.title), h('div', { class: 'tpl-text' }, t.display))));
+    }, h('b', { class: 'small' }, t.title, t.first_moment ? h('span', { class: 'chip tiny-chip' }, '🕛 ویژه ساعت ۰۰:۰۰') : null), h('div', { class: 'tpl-text' }, t.display))));
     draw(selected);
     return box;
   }
@@ -232,7 +232,9 @@ export default async function greetingsPage(container, { query }) {
   function compose(p, occasion, onSent) {
     const o = occ(occasion);
     if (!o?.templates.length) return toast('برای این مناسبت متنی تعیین نشده است.', 'warning');
-    let template = occasion === 'birthday' && o.templates.some((t) => t.id === state.auto?.template) ? state.auto.template : o.templates[0].id;
+    // متن «نخستین تبریک» مخصوص ارسال خودکار ساعت ۰۰:۰۰ است؛ در ارسال دستی متن معمولی پیش‌فرض است
+    const regular = o.templates.find((t) => !t.first_moment) || o.templates[0];
+    let template = occasion === 'birthday' && o.templates.some((t) => t.id === state.auto?.template && !t.first_moment) ? state.auto.template : regular.id;
     const previewBox = h('div', { class: 'sms-preview' });
     const counter = h('div', { class: 'muted tiny' });
     const problem = h('div', { class: 'field-error', hidden: true });
@@ -292,9 +294,18 @@ export default async function greetingsPage(container, { query }) {
     let template = birthdayTemplates.some((t) => t.id === a.template) ? a.template : birthdayTemplates[0]?.id;
     const note = noteInput(a.note, () => {});
     const sw = switchInput('auto', 'روشن', !!a.auto);
+    // تبریک خودکار برای کدام مناسبت‌ها (تولد پیش‌فرض)
+    const chosen = new Set(a.occasions?.length ? a.occasions : ['birthday']);
+    const occBoxes = h('div', { class: 'auto-occasions' }, ...state.occasions.filter((o) => o.templates.length).map((o) => {
+      const cb = h('input', { type: 'checkbox', checked: chosen.has(o.key), onchange: () => { if (cb.checked) chosen.add(o.key); else chosen.delete(o.key); } });
+      return h('label', { class: 'auto-occ' }, cb, h('span', null, `${o.emoji} ${o.label}`));
+    }));
+    const when = a.send_hour === 0
+      ? 'دقیقاً ساعت ۰۰:۰۰ به وقت تهران، یعنی اولین لحظه همان روز'
+      : `ساعت ${fa(a.send_hour)}:۰۰ به وقت تهران`;
     const save = h('button', { class: 'btn primary sm', type: 'button', onclick: () => withLoading(save, async () => {
       try {
-        const res = await put('/api/greetings/auto', { auto: sw.querySelector('input').checked, scope: scope.value, template, note: note.value });
+        const res = await put('/api/greetings/auto', { auto: sw.querySelector('input').checked, scope: scope.value, template, note: note.value, occasions: [...chosen] });
         state.auto = { ...state.auto, ...res.auto };
         toast(res.message);
       } catch (e) {
@@ -303,11 +314,13 @@ export default async function greetingsPage(container, { query }) {
     }) }, icon('check'), 'ذخیره');
     return h('section', { class: 'card mt' },
       h('div', { class: 'card-title' }, h('h3', null, icon('sparkles'), ' تبریک خودکار از طرف من'), sw),
-      h('p', { class: 'muted small' }, `هر روز ساعت ${fa(a.send_hour)} به کسانی که تولدشان است (در دامنه انتخابی) از طرف شما پیامک تبریک فرستاده می‌شود؛ هر نفر سالی یک بار. فقط وقتی پروفایل شما بالای ${fa(state.eligibility.required)}٪ کامل باشد.`),
+      h('p', { class: 'muted small' }, `در روز تولد هر یک از بستگان (در دامنه انتخابی) و در روز مناسبت‌هایی که پایین تیک بزنید، ${when}، از طرف شما پیامک تبریک فرستاده می‌شود تا اولین تبریک باشید؛ هر نفر برای هر مناسبت سالی یک بار. سالگرد ازدواج برای زن و شوهر در روز سالگرد، و مناسبت‌های همگانی (نوروز، یلدا، اعیاد ...) در روز اول مناسبت برای بستگان تا درجه ۴. فقط وقتی پروفایل شما بالای ${fa(state.eligibility.required)}٪ کامل باشد؛ سقف روزانه شما ${fa(a.daily_limit ?? 10)} پیامک است (نزدیک‌ترها اول).`),
       h('div', { class: 'form-grid' },
+        h('div', { class: 'field full' }, h('label', null, 'برای کدام مناسبت‌ها'), occBoxes),
         h('div', { class: 'field' }, h('label', null, 'به چه کسانی'), scope),
         h('div', { class: 'field' }, h('label', null, 'یادداشت کوتاه (اختیاری)'), note),
-        h('div', { class: 'field full' }, h('label', null, 'متن تبریک'), templatePicker(birthdayTemplates, template, (id) => { template = id; })),
+        h('div', { class: 'field full' }, h('label', null, 'متن تبریک تولد'), templatePicker(birthdayTemplates, template, (id) => { template = id; })),
+        h('p', { class: 'muted tiny full', style: { margin: 0 } }, 'برای مناسبت‌های دیگر، متن «نخستین تبریک» همان مناسبت (اولین متنی که مدیر سایت تعیین کرده) فرستاده می‌شود.'),
       ),
       h('div', { class: 'row', style: { justifyContent: 'flex-end' } }, save),
     );

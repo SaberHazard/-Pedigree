@@ -127,11 +127,11 @@ class SmsTemplateTest extends TestCase
         $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => $body, 'note' => ''])->assertOk()
             ->assertJsonPath('text', "🎂 مریم جان (احمدی)، ۳۵ سالگی‌ات مبارک!\nاز طرف پسرخاله عزیزت، مهندس علی احمدی");
         $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => '{از_طرف} {نام_ناشناس}'])
-            ->assertStatus(422)->assertJsonPath('errors.body.0', 'این متغیرها وجود ندارند: {نام_ناشناس}');
+            ->assertStatus(422)->assertJsonPath('errors.body.0', 'این متغیرها وجود ندارند: @نام_ناشناس');
         $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => '{نام_گیرنده} تولدت مبارک'])
             ->assertStatus(422);
         $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => '{از_طرف} {سال_ازدواج}'])
-            ->assertStatus(422)->assertJsonPath('errors.body.0', fn ($m) => str_contains($m, '{سال_ازدواج}'));
+            ->assertStatus(422)->assertJsonPath('errors.body.0', fn ($m) => str_contains($m, '@سال_ازدواج'));
 
         $tokens = array_column($this->getJson('/api/admin/sms-templates')->json('variables'), 'token');
         $this->assertContains('نام_کامل_گیرنده', $tokens);
@@ -153,7 +153,7 @@ class SmsTemplateTest extends TestCase
 
         // بازگردانی پیش‌فرض‌ها
         $this->postJson('/api/admin/sms-templates/defaults')->assertOk();
-        $this->assertSame(4, SmsTemplate::where('occasion', 'birthday')->where('active', true)->count());
+        $this->assertSame(count(array_filter(SmsTemplates::DEFAULTS, fn ($d) => $d[0] === 'birthday')), SmsTemplate::where('occasion', 'birthday')->where('active', true)->count());
     }
 
     public function test_anniversary_greeting(): void
@@ -168,7 +168,7 @@ class SmsTemplateTest extends TestCase
         $this->assertSame(25, $row['years']);
         $this->assertTrue($row['can_sms']);
 
-        $anniv = SmsTemplate::where('occasion', 'anniversary')->value('id');
+        $anniv = SmsTemplate::where('slug', 'anniv')->value('id');
         $text = $this->postJson('/api/greetings/preview', ['person_id' => $this->recipient->person_id, 'occasion' => 'anniversary', 'template' => $anniv])->json('text');
         $this->assertStringStartsWith('💍 مریم احمدی عزیز، ۲۵مین سالگرد ازدواج شما و حسین رضایی مبارک!', $text);
         $this->postJson('/api/greetings/sms', ['person_id' => $this->recipient->person_id, 'occasion' => 'anniversary', 'template' => $anniv])->assertCreated();
@@ -230,5 +230,41 @@ class SmsTemplateTest extends TestCase
         // مقدار عادی دست نمی‌خورد
         $this->assertSame('مهندس عمران، کارمند شهرداری', GreetingService::safe('مهندس عمران، کارمند شهرداری'));
         $this->assertSame('متولد ۱۳۴۵', GreetingService::safe('متولد ۱۳۴۵'));
+    }
+
+    public function test_at_sign_variables_site_link_and_literal_at(): void
+    {
+        config(['app.url' => 'https://family.example']);
+        $this->actingAs($this->super, 'sanctum');
+        $body = "🎂 @نام_کامل_گیرنده عزیز، روز @نام_مناسبت شما!\n@از_طرف\n@یادداشت\n@نام_سایت\n@لینک_سایت\nکانال: @@shajare";
+        $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => $body, 'note' => ''])->assertOk()
+            ->assertJsonPath('text', "🎂 دکتر مریم احمدی عزیز، روز تولد شما!\nاز طرف پسرخاله عزیزت، مهندس علی احمدی\n".config('pedigree.site_name')."\nhttps://family.example\nکانال: @shajare");
+        // متغیر ناشناخته با @
+        $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => "@نام_گیرند عزیز\n@از_طرف"])
+            ->assertStatus(422)->assertJsonPath('errors.body.0', fn ($m) => str_contains($m, '@نام_گیرند') && str_contains($m, '@@'));
+        // لینک دستی همچنان ممنوع است
+        $this->postJson('/api/admin/sms-templates/preview', ['occasion' => 'birthday', 'body' => '@از_طرف https://evil.example'])->assertStatus(422);
+        // قالب با @ ذخیره می‌شود و اعضا برچسب خوانا می‌بینند
+        $id = $this->postJson('/api/admin/sms-templates', ['occasion' => 'birthday', 'title' => 'با لینک', 'body' => $body, 'active' => true])->assertCreated()->json('data.id');
+        $display = collect($this->actingAs($this->sender, 'sanctum')->getJson('/api/greetings')->json('occasions.0.templates'))->firstWhere('id', $id)['display'];
+        $this->assertStringContainsString('https://family.example', $display);
+        $this->assertStringContainsString('@shajare', $display);
+        $this->assertStringNotContainsString('@نام_کامل_گیرنده', $display);
+    }
+
+    public function test_upgrade_migration_keeps_admin_edits_and_adds_first_moment_texts(): void
+    {
+        SmsTemplate::query()->where('slug', 'like', 'first_%')->delete();
+        SmsTemplate::query()->where('slug', 'warm')->update(['body' => '🎂 {نام_کامل_گیرنده} عزیز، زادروزت خجسته باد! سالی سرشار از سلامتی و شادی برایت آرزومندم.'."\n{از_طرف}\n{یادداشت}\n{نام_سایت}"]);
+        SmsTemplate::query()->where('slug', 'short')->update(['body' => "متن خود مدیر {نام_گیرنده}\n{از_طرف}"]);
+
+        $migration = require database_path('migrations/2026_04_04_000100_at_sign_sms_variables_and_first_moment_templates.php');
+        $migration->up();
+
+        $this->assertStringStartsWith('🎂 @نام_کامل_گیرنده عزیز', SmsTemplate::where('slug', 'warm')->value('body'));
+        $this->assertSame("متن خود مدیر {نام_گیرنده}\n{از_طرف}", SmsTemplate::where('slug', 'short')->value('body'));
+        $first = SmsTemplate::where('occasion', 'birthday')->orderBy('sort_order')->orderBy('id')->first();
+        $this->assertSame('first_birthday', $first->slug);
+        $this->assertSame(11, SmsTemplate::where('slug', 'like', 'first_%')->count());
     }
 }

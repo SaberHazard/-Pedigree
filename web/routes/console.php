@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Schedule;
 // جمع‌بندی رأی‌گیری‌هایی که مهلتشان تمام شده
 Schedule::command('pedigree:resolve-votes')->dailyAt('03:00');
 
-// اعلان تولدهای امروز و پیامک‌های تبریک خودکار (هر ساعت؛ خودش ساعت تنظیم‌شده را رعایت می‌کند)
-Schedule::command('pedigree:birthdays')->hourlyAt(5)->withoutOverlapping(30);
+// اعلان تولدهای امروز و پیامک‌های تبریک خودکار: سر هر ساعت به وقت تهران (پس دقیقاً ساعت ۰۰:۰۰، اولین لحظه روز
+// تولد یا مناسبت)؛ خودش ساعت تنظیم‌شده را رعایت می‌کند و اجراهای بعدی فقط جاماندگان را می‌فرستند
+Schedule::command('pedigree:birthdays')->hourly()->timezone('Asia/Tehran')->withoutOverlapping(30);
 
 // «سؤال روز» گروه خاندان برای زنده کردن خاطرات
 Schedule::command('pedigree:group-prompt')->hourlyAt(7)->withoutOverlapping(10);

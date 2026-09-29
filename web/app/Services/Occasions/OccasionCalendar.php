@@ -23,11 +23,12 @@ class OccasionCalendar
      * kind: person (تولد)، couple (سالگرد)، seasonal (همه بستگان)
      * ranges: [ماه شروع، روز شروع، ماه پایان، روز پایان] در همان تقویم
      * audience: mothers | fathers (فقط مادران/پدرانی که در درخت فرزند دارند)
+     * auto: روزِ تبریک خودکار ساعت ۰۰:۰۰ [ماه، روز] (پیش‌فرض: نخستین روز بازه)
      */
     public const DEFINITIONS = [
         'birthday' => ['kind' => 'person', 'window' => 'روز تولد یا فردای آن'],
         'anniversary' => ['kind' => 'couple', 'window' => 'روز سالگرد ازدواج یا فردای آن'],
-        'nowruz' => ['kind' => 'seasonal', 'calendar' => 'jalali', 'ranges' => [[12, 25, 12, 30], [1, 1, 1, 13]], 'window' => 'از ۲۵ اسفند تا ۱۳ فروردین'],
+        'nowruz' => ['kind' => 'seasonal', 'calendar' => 'jalali', 'ranges' => [[12, 25, 12, 30], [1, 1, 1, 13]], 'auto' => [1, 1], 'window' => 'از ۲۵ اسفند تا ۱۳ فروردین'],
         'yalda' => ['kind' => 'seasonal', 'calendar' => 'jalali', 'ranges' => [[9, 30, 9, 30], [10, 1, 10, 1]], 'window' => '۳۰ آذر و ۱ دی'],
         'sepandarmazgan' => ['kind' => 'seasonal', 'calendar' => 'jalali', 'ranges' => [[11, 29, 11, 30]], 'window' => '۲۹ و ۳۰ بهمن'],
         'mother_day' => ['kind' => 'seasonal', 'calendar' => 'hijri', 'ranges' => [[6, 20, 6, 21]], 'audience' => 'mothers', 'window' => '۲۰ و ۲۱ جمادی‌الثانی (فقط برای مادران)'],
@@ -91,6 +92,25 @@ class OccasionCalendar
         [$y, $m, $d] = $this->birthdays->today();
 
         return $this->openOn($occasion, Jalali::toGregorian($y, $m, $d));
+    }
+
+    /**
+     * آیا امروز (وقت تهران) روز تبریک خودکار این مناسبت همگانی است؟ (مثلاً ۱ فروردین برای نوروز، ۱ شوال برای عید فطر)
+     */
+    public function dueToday(string $occasion): bool
+    {
+        $def = self::DEFINITIONS[$occasion] ?? null;
+        if (! $def || ($def['kind'] ?? null) !== 'seasonal' || ! self::enabled($occasion)) {
+            return false;
+        }
+        [$am, $ad] = $def['auto'] ?? array_slice($def['ranges'][0], 0, 2);
+        [$y, $m, $d] = $this->birthdays->today();
+        if ($def['calendar'] === 'hijri') {
+            [$gy, $gm, $gd] = Jalali::toGregorian($y, $m, $d);
+            [, $m, $d] = Hijri::fromGregorian($gy, $gm, $gd, self::hijriOffset());
+        }
+
+        return $m === $am && $d === $ad;
     }
 
     /** آیا بازه این مناسبت در این روز (میلادی) باز است؟ */

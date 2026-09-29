@@ -234,8 +234,10 @@ export function openViewer(items, index = 0, { onDeleted } = {}) {
   const info = h('div', { class: 'sv-info' });
   const close = () => {
     clearInterval(timer);
+    overlay.querySelectorAll('video').forEach((v) => v.pause());
     overlay.remove();
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('hashchange', close);
     document.body.style.overflow = '';
   };
   const overlay = h('div', { class: 'story-viewer', role: 'dialog', 'aria-modal': 'true' },
@@ -301,6 +303,7 @@ export function openViewer(items, index = 0, { onDeleted } = {}) {
   }
 
   document.addEventListener('keydown', onKey);
+  window.addEventListener('hashchange', close);
   document.body.append(overlay);
   document.body.style.overflow = 'hidden';
   go(i);

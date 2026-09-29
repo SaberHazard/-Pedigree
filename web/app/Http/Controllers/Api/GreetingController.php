@@ -92,7 +92,8 @@ class GreetingController extends Controller
             'relatives' => $this->seasonalRelatives($user, $eligibility['eligible'], $degrees, $relations),
             'auto' => $this->greetings->autoPreferences($user) + [
                 'max_scope' => (string) config('pedigree.member_sms.auto_max_scope', 'd2'),
-                'send_hour' => (int) config('pedigree.member_sms.send_hour', 9),
+                'send_hour' => (int) config('pedigree.member_sms.send_hour', 0),
+                'daily_limit' => (int) config('pedigree.member_sms.daily_per_user', 10),
             ],
             'note_max' => GreetingService::NOTE_MAX,
             'history' => SmsMessage::with('recipient')->where('sender_user_id', $user->id)->latest('id')->limit(30)->get()
@@ -206,7 +207,7 @@ class GreetingController extends Controller
         ]);
     }
 
-    /** تنظیم تبریک خودکار تولد (قالب ثابت + یادداشت کوتاه) */
+    /** تنظیم تبریک خودکار (تولد و مناسبت‌های انتخابی؛ قالب ثابت + یادداشت کوتاه) */
     public function updateAuto(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -215,6 +216,8 @@ class GreetingController extends Controller
             'scope' => ['required', Rule::in(['all', 'd4', 'd3', 'd2', 'd1'])],
             'template' => ['nullable', 'integer', Rule::in(SmsTemplates::active('birthday')->pluck('id')->all())],
             'note' => ['nullable', 'string', 'max:200'],
+            'occasions' => ['sometimes', 'array', 'max:20'],
+            'occasions.*' => ['string', Rule::in(OccasionCalendar::enabledKeys())],
         ]);
         $note = $this->greetings->cleanNote($data['note'] ?? null);
         if ($data['auto']) {
@@ -230,6 +233,7 @@ class GreetingController extends Controller
             'scope' => $this->greetings->effectiveScope($data['scope']),
             'template' => $data['template'] ?? null,
             'note' => $note,
+            'occasions' => array_values(array_unique($data['occasions'] ?? ($prefs['birthday_sms']['occasions'] ?? ['birthday']))),
         ];
         $user->preferences = $prefs;
         $user->save();
