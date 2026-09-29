@@ -10,6 +10,7 @@ use App\Services\Access\PersonAccess;
 use App\Services\People\ProfileService;
 use App\Services\Tree\NodePresenter;
 use App\Support\AttributedText;
+use App\Support\Author;
 use App\Support\SocialNetworks;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -119,7 +120,9 @@ class PersonResource extends JsonResource
                 'exists' => $account !== null,
                 'active' => $person->hasActiveAccount(),
                 'has_password' => $sensitive ? ($account?->password !== null) : null,
-                'username' => $sensitive ? $account?->username : null,
+                // نام کاربری عمومی است (مثل تلگرام: @sabertiger) و برای همه اعضا نمایش داده می‌شود؛
+                // ورود فقط با رمز و قفل پس از تلاش‌های اشتباه ممکن است
+                'username' => $account?->username,
             ],
 
             // متن‌های بلند با نویسنده هر تکه
@@ -141,6 +144,8 @@ class PersonResource extends JsonResource
             'created_at' => $person->created_at?->toIso8601String(),
             'updated_at' => $person->updated_at?->toIso8601String(),
             'created_by' => $person->creator?->displayName(),
+            // ایجادکننده این پروفایل در شجره‌نامه
+            'creator' => Author::of($person->creator),
             'permissions' => $access->summary($user, $person),
         ];
     }

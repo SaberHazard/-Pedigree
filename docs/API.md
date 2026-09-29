@@ -49,6 +49,11 @@
 }
 ```
 
+- **ایجادکننده (Author)**: هر چیزی که عضوی ثبت می‌کند (پروفایل `creator`، رسانه `uploader`، ازدواج `creator`، خاندان `creator`،
+  نسخه‌های متن `user`، درخواست ویرایش `requester`، نظرها و لاگ‌ها `user`) این قالب را دارد:
+  `{"id": 7, "name": "محمد صابر حسینی فرجی", "username": "sabertiger", "person_id": "01a0..."}` —
+  اپ‌ها `@username` (یا اگر خالی است نام کامل) را به صورت لینک به پروفایل `person_id` نمایش می‌دهند.
+
 لینک فایل‌ها (`avatar` و `urls` رسانه‌ها) **امضاشده و زمان‌دار** هستند و بدون توکن هم کار می‌کنند؛
 آدرس نسبی است و باید به آدرس سایت اضافه شود.
 
@@ -127,7 +132,11 @@
 
 ### `GET /persons?q=&gender=&deceased=&per_page=`
 جستجو (نام، نام خانوادگی، شهرت، کد). حروف عربی/فارسی و نیم‌فاصله یکدست می‌شوند.
+با `q=@sab` بر اساس پیشوند نام کاربری عمومی جستجو می‌شود (مثل تلگرام).
 پاسخ: `{ "data": [Node + father_name], "meta": { "current_page", "last_page", "total" } }`
+
+### `GET /u/{username}` — پروفایلِ صاحب یک نام کاربری
+برای لینک‌های `#/@sabertiger`: `{data: {person_id, username, name}}` یا 404. فقط برای اعضا؛ `throttle:60,1`.
 
 ### `GET /persons/{id}` — مشخصات کامل
 علاوه بر فیلدهای Node:
@@ -140,11 +149,13 @@
 - نشانی طبق `location_visibility` (پیش‌فرض `d1`): `address, postal_code, home_location{lat,lng}` (وگرنه `null`؛ `has_home_location`, `location_hidden`)
 - تماس طبق `contact_visibility` (پیش‌فرض `all`): `phone, email, landline` و شماره واتس‌اپ/تلگرام در `social` (وگرنه حذف؛ `contact_hidden`)
 - سطح‌ها: `all` همه اعضا، `d4`..`d1` بستگان تا آن درجه، `self` فقط خود شخص؛ خود شخص، مدیر و مدیرِ پروفایلِ بدون حساب همیشه می‌بینند
-- فقط با دسترسی حساس: `national_code, birth_cert_no, birth_cert_place, account.username, account.has_password`
+- فقط با دسترسی حساس: `national_code, birth_cert_no, birth_cert_place, account.has_password`
+- `account.username`: نام کاربری عمومی (برای همه اعضا)
+- `creator`: ایجادکننده پروفایل — قالب Author: `{id, name, username|null, person_id|null}`؛ نمایش: `@username` یا نام کامل، لینک به `#/person/{person_id}`
 - `texts{summary|description|biography|resume: {segments: [[user_id, "متن"], ...], revision, updated_at}}` — نویسنده هر تکه
 - `resume[{id, type, title, organization, location, start_date, end_date, is_current, description, author_id}]`
 - `field_meta{field: {u: user_id, t: unix}}` آخرین ویرایشگر هر فیلد
-- `contributors[{id, name, person_id, relation, color}]` — `color`: `owner` | `admin` | شماره پالت
+- `contributors[{id, name, username, person_id, relation, color}]` — `color`: `owner` | `admin` | شماره پالت
 - `completeness{percent, missing[]}` (فقط برای ویرایشگران)
 - `permissions{edit, sensitive, upload, delete, admin, history, privacy, comment, rate}` — `privacy`: اجازه تغییر سطح نمایش
 
@@ -234,7 +245,7 @@
 
 ### `DELETE /persons/{id}/parents/{father|mother}` — قطع ارتباط والد
 ### `GET /marriages/{id}` — جزئیات ازدواج (کلیک روی قلب در درخت)
-`{marriage{status, marriage_date, end_date, ...}, husband, wife, can_edit, can_suggest, pending_suggestion}`
+`{marriage{status, marriage_date, end_date, ...}, husband, wife, creator (Author), can_edit, can_suggest, pending_suggestion}`
 
 ### `PATCH /marriages/{id}` — `status (married/divorced/widowed), marriage_date, end_date, sort_order, notes, reason?`
 ویرایش مستقیم با بستگان درجه یک زن یا شوهر (یا درجه دو وقتی هیچ‌کدام از بستگان درجه یک عضو نیستند) و مدیر → `200`.

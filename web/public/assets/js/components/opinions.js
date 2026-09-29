@@ -10,6 +10,7 @@ import { store } from '../core/store.js';
 import { fa, timeAgo, dateTime } from '../core/format.js';
 import { toast, toastError, withLoading, confirmDialog, loader, emptyState } from '../core/ui.js';
 import { avatar } from './avatar.js';
+import { authorLink } from './author.js';
 
 export function opinionsTab(person) {
   const root = h('div', { class: 'opinions' });
@@ -71,7 +72,7 @@ function renderRatings(person, box, data) {
   const details = data.raters?.length ? h('details', { class: 'raters' },
     h('summary', null, `امتیازدهندگان (${fa(data.raters.length)} نفر)`),
     ...data.raters.map((r) => h('div', { class: 'rater' },
-      h('a', { href: r.user.person_id ? `#/person/${r.user.person_id}` : null, class: 'bold' }, r.user.name),
+      authorLink(r.user, { cls: 'bold' }),
       h('div', { class: 'row wrap', style: { gap: '4px' } }, ...Object.entries(r.scores).map(([k, v]) => {
         const label = data.traits.find((t) => t.key === k)?.label || k;
         return h('span', { class: 'chip' }, `${label}: ${fa(v)}`);
@@ -199,7 +200,7 @@ function commentItem(c, all, redraw) {
     h('div', { class: 'grow', style: { minWidth: 0 } },
       h('div', { class: 'row between' },
         h('div', null,
-          c.author?.person_id ? h('a', { class: 'bold', href: `#/person/${c.author.person_id}` }, c.author.name) : h('b', null, c.author?.name || 'کاربر حذف‌شده'),
+          c.author ? h('span', { class: 'comment-author' }, authorLink(c.author, { cls: 'bold' }), c.author.username ? h('span', { class: 'muted tiny' }, ` ${c.author.name}`) : null) : h('b', null, 'کاربر حذف‌شده'),
           ' ', h('span', { class: 'muted tiny', title: dateTime(c.created_at) }, timeAgo(c.created_at)),
           c.edited_at ? h('span', { class: 'muted tiny', title: dateTime(c.edited_at) }, ' • ویرایش‌شده') : null,
           c.hidden ? h('span', { class: 'chip warning', style: { marginInlineStart: '6px' } }, 'مخفی') : null,

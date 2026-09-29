@@ -12,6 +12,7 @@ import { avatar } from '../components/avatar.js';
 import { openFamilyDialog } from '../components/family-dialog.js';
 import { openRelativeDialog } from '../components/relative-dialog.js';
 import { actionLabel } from '../components/labels.js';
+import { authorLink } from '../components/author.js';
 
 export default async function dashboard(container) {
   const user = store.user;
@@ -183,6 +184,7 @@ export default async function dashboard(container) {
       h('h3', null, f.name),
       h('div', { class: 'muted small' }, f.root ? `جد اعلا: ${fullName(f.root)}` : ''),
       f.description ? h('p', { class: 'small text-2', style: { margin: '6px 0 0' } }, f.description.slice(0, 120)) : null,
+      f.creator ? h('div', { class: 'tiny muted fc-author' }, authorLink(f.creator, { label: 'ایجادکننده' })) : null,
     ))),
     h('div', { class: 'card family-card new hover', onclick: () => openFamilyDialog(null, () => navigate('/')) },
       h('div', null, icon('plus'), h('div', { class: 'bold' }, 'خاندان جدید'), h('div', { class: 'small' }, 'یک جد اعلا انتخاب کنید و درختش را بسازید')),
@@ -210,7 +212,7 @@ export default async function dashboard(container) {
     ? h('div', null, ...feedList.slice(0, 10).map((a) => h('div', { class: 'feed-item' },
       h('div', { class: 'dot' }, icon(a.action.startsWith('media') ? 'image' : a.action.startsWith('link') ? 'link' : 'user-plus')),
       h('div', { class: 'grow' },
-        h('div', null, h('b', null, a.user?.name || 'سیستم'), ' ', actionLabel(a.action), a.subject_name ? [' ', h('a', { href: `#/person/${a.subject_id}` }, a.subject_name)] : null, a.properties?.name ? ` (${a.properties.name})` : ''),
+        h('div', null, a.user ? h('b', null, authorLink(a.user, { withIcon: false })) : h('b', null, 'سیستم'), ' ', actionLabel(a.action), a.subject_name ? [' ', h('a', { href: `#/person/${a.subject_id}` }, a.subject_name)] : null, a.properties?.name ? ` (${a.properties.name})` : ''),
         h('div', { class: 'muted tiny' }, timeAgo(a.created_at)),
       ),
     )))

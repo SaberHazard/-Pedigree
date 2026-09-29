@@ -64,6 +64,7 @@ class ProfileService
             $out[] = [
                 'id' => $user->id,
                 'name' => $user->displayName(),
+                'username' => $user->username,
                 'person_id' => $user->person_id,
                 'relation' => $this->relationLabel($relation, $user->person?->gender),
                 'color' => $color,

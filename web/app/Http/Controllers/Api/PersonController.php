@@ -9,6 +9,7 @@ use App\Http\Resources\PersonResource;
 use App\Models\ActivityLog;
 use App\Models\Marriage;
 use App\Models\Person;
+use App\Models\User;
 use App\Services\People\EditRequestService;
 use App\Services\People\PersonService;
 use App\Services\Tree\NodePresenter;
@@ -42,7 +43,13 @@ class PersonController extends Controller
 
         $query = Person::query()->with(['avatar', 'father:id,first_name,last_name']);
 
-        if ($q = trim((string) $request->input('q'))) {
+        $q = trim((string) $request->input('q'));
+        if (preg_match('/^@([a-z0-9._-]{1,30})$/i', $q, $m)) {
+            // جستجو با نام کاربری عمومی (مثل تلگرام): @sabertiger
+            // «_» و «%» در LIKE نویسه عام‌اند؛ با escape صریح (سازگار با SQLite، MariaDB و PostgreSQL) فقط پیشوند دقیق جستجو می‌شود
+            $prefix = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], strtolower($m[1]));
+            $query->whereIn('id', User::query()->whereNotNull('person_id')->whereRaw("username like ? escape '!'", [$prefix.'%'])->select('person_id'));
+        } elseif ($q !== '') {
             foreach (array_slice(explode(' ', PersianText::searchable($q)), 0, 5) as $word) {
                 if ($word !== '') {
                     $query->where('search_text', 'like', '%'.addcslashes($word, '%_\\').'%');
@@ -64,6 +71,15 @@ class PersonController extends Controller
             ]),
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
         ]);
+    }
+
+    /** پروفایلِ صاحب یک نام کاربری (لینک‌های @نام‌کاربری در سایت) */
+    public function byUsername(string $username): JsonResponse
+    {
+        $user = User::query()->where('username', strtolower($username))->whereNotNull('person_id')->first();
+        abort_if($user === null, 404, 'کاربری با این نام کاربری نیست.');
+
+        return response()->json(['data' => ['person_id' => $user->person_id, 'username' => $user->username, 'name' => $user->displayName()]]);
     }
 
     public function show(Person $person): PersonResource

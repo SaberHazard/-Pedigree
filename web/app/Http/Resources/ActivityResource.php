@@ -20,7 +20,7 @@ class ActivityResource extends JsonResource
         return [
             'id' => $log->id,
             'action' => $log->action,
-            'user' => $log->user ? ['id' => $log->user->id, 'name' => $log->user->displayName(), 'person_id' => $log->user->person_id] : null,
+            'user' => $log->user ? ['id' => $log->user->id, 'name' => $log->user->displayName(), 'username' => $log->user->username, 'person_id' => $log->user->person_id] : null,
             'subject_type' => $log->subject_type,
             'subject_id' => $log->subject_id,
             'properties' => $log->properties,

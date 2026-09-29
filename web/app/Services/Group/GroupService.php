@@ -393,6 +393,7 @@ class GroupService
                 'user' => $m->user ? [
                     'id' => $m->user->id,
                     'name' => $m->user->person ? $m->user->person->fullName() : $m->user->displayName(),
+                    'username' => $m->user->username,
                     'person' => $m->user->person ? NodePresenter::person($m->user->person) : null,
                 ] : null,
                 'reply_to' => $reply ? [

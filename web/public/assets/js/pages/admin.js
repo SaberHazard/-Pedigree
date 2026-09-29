@@ -18,6 +18,7 @@ import { adminOverview, adminGroup } from '../components/admin-overview.js';
 import { adminEdits } from '../components/admin-edits.js';
 import { adminSupport } from '../components/admin-support.js';
 import { adminDonate } from '../components/admin-donate.js';
+import { authorLink } from '../components/author.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
 
@@ -187,7 +188,7 @@ export default function adminPage(container, { params, query }) {
         h('thead', null, h('tr', null, ...['زمان', 'کاربر', 'رویداد', 'موضوع', 'IP'].map((t) => h('th', null, t)))),
         h('tbody', null, ...res.data.map((l) => h('tr', null,
           h('td', { class: 'small nowrap' }, dateTime(l.created_at)),
-          h('td', null, l.user?.name || '—'),
+          h('td', null, l.user ? [authorLink(l.user, { withIcon: false }), l.user.username ? h('div', { class: 'tiny muted' }, l.user.name) : null] : '—'),
           h('td', null, actionLabel(l.action), h('div', { class: 'tiny muted ltr' }, l.action)),
           h('td', { class: 'small' }, l.subject_type === 'Person' ? h('a', { href: `#/person/${l.subject_id}` }, l.properties?.name || 'مشاهده') : (l.subject_type || '')),
           h('td', { class: 'small muted ltr' }, l.ip_address || ''),

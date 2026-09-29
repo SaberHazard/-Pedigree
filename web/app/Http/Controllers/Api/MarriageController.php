@@ -11,6 +11,7 @@ use App\Services\Access\PersonAccess;
 use App\Services\AuditLogger;
 use App\Services\People\EditRequestService;
 use App\Services\Tree\NodePresenter;
+use App\Support\Author;
 use App\Support\PartialDate;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,6 +40,7 @@ class MarriageController extends Controller
             'marriage' => NodePresenter::marriage($marriage),
             'husband' => $husband ? NodePresenter::person($husband) : null,
             'wife' => $wife ? NodePresenter::person($wife) : null,
+            'creator' => Author::of($marriage->creator),
             'can_edit' => $canEdit,
             // بستگان درجه دو و سه: پیشنهاد ویرایش (با تأیید مدیر)
             'can_suggest' => ! $canEdit && collect([$husband, $wife])->filter()->contains(fn (Person $p) => $this->edits->suggestDegree($user, $p) !== null),

@@ -10,6 +10,7 @@ import { get, put, post } from '../core/api.js';
 import { store } from '../core/store.js';
 import { fa, timeAgo, dateTime } from '../core/format.js';
 import { modal, toast, toastError, withLoading, confirmDialog, loader, emptyState } from '../core/ui.js';
+import { authorLink } from './author.js';
 
 const PALETTE_SIZE = 10;
 
@@ -47,7 +48,12 @@ export function legend(contributors, usedIds = null) {
   if (!list.length) return null;
   return h('div', { class: 'author-legend', 'aria-label': 'راهنمای رنگ نویسندگان' },
     h('span', { class: 'muted' }, icon('palette'), ' نویسندگان:'),
-    ...list.map((c) => h('span', { class: 'legend-item' }, h('i', { style: { background: authorColor(c) } }), contributorLabel(c))),
+    // هر نویسنده با لینک به پروفایلش (@نام‌کاربری یا نام کامل) و نسبتش با صاحب پروفایل
+    ...list.map((c) => {
+      const role = c.color === 'admin' ? 'مدیر' : c.relation;
+      return h('span', { class: 'legend-item' }, h('i', { style: { background: authorColor(c) } }),
+        authorLink(c, { withIcon: false }) || contributorLabel(c), role ? h('span', { class: 'muted' }, ` (${role})`) : null);
+    }),
   );
 }
 
@@ -164,7 +170,7 @@ async function openRevisions(field, label, ctx, onRestored) {
   }
   list.replaceChildren(h('div', { class: 'timeline' }, ...rows.map((r) => h('div', { class: 't-item' },
     h('div', null,
-      h('b', null, r.user?.name || 'نامشخص'),
+      r.user ? authorLink(r.user, { cls: 'bold' }) : h('b', null, 'نامشخص'),
       ' ', r.restored_from ? `نسخه ${fa(r.restored_from)} را بازگرداند` : `نسخه ${fa(r.revision)}`,
       r.current ? h('span', { class: 'chip primary', style: { marginInlineStart: '6px' } }, 'فعلی') : null,
     ),

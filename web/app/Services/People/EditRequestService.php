@@ -14,6 +14,7 @@ use App\Services\Access\PersonAccess;
 use App\Services\AuditLogger;
 use App\Services\KinshipDegrees;
 use App\Services\Tree\NodePresenter;
+use App\Support\Author;
 use App\Support\PartialDate;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -228,7 +229,7 @@ class EditRequestService
             'decided_at' => $r->decided_at?->toIso8601String(),
             'person' => $r->person ? NodePresenter::person($r->person) : null,
             'marriage' => $r->marriage ? NodePresenter::marriage($r->marriage) : null,
-            'requester' => $r->requester ? ['id' => $r->requester->id, 'name' => $r->requester->displayName(), 'person_id' => $r->requester->person_id] : null,
+            'requester' => Author::of($r->requester),
             'decider' => $r->decider?->displayName(),
             'fields' => $fields,
         ];

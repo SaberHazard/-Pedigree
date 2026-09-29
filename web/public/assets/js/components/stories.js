@@ -13,6 +13,7 @@ import { store } from '../core/store.js';
 import { fa, timeAgo, duration } from '../core/format.js';
 import { modal, toast, toastError, confirmDialog, dropdown } from '../core/ui.js';
 import { shrinkImage } from '../core/shrink.js';
+import { authorLink } from './author.js';
 
 const PHOTO_SECONDS = 6;
 const isTouch = () => matchMedia('(pointer: coarse)').matches;
@@ -278,7 +279,8 @@ export function openViewer(items, index = 0, { onDeleted } = {}) {
     info.replaceChildren(...[
       h('div', null,
         m.caption ? h('div', { class: 'bold' }, m.caption) : null,
-        h('div', { class: 'tiny' }, [m.uploader?.name, timeAgo(m.created_at), m.status === 'pending' ? 'در انتظار تأیید' : null].filter(Boolean).join(' • ')),
+        h('div', { class: 'tiny sv-meta' }, authorLink(m.uploader, { label: 'ایجادکننده', withIcon: false }),
+          h('span', null, [timeAgo(m.created_at), m.status === 'pending' ? 'در انتظار تأیید' : null].filter(Boolean).join(' • '))),
       ),
       m.can?.delete ? h('button', { class: 'btn ghost sm', type: 'button', onclick: async () => {
         clearInterval(timer);

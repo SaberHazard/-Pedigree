@@ -8,6 +8,7 @@ import { get, post } from '../core/api.js';
 import { fa, fullName, timeAgo } from '../core/format.js';
 import { toast, toastError, loader, emptyState, segmented, modal } from '../core/ui.js';
 import { avatar } from './avatar.js';
+import { authorLink } from './author.js';
 
 export async function adminEdits(body) {
   let status = 'pending';
@@ -50,7 +51,7 @@ export async function adminEdits(body) {
         h('div', { class: 'grow', style: { minWidth: 0 } },
           h('div', null, h('b', null, `${what} ${p ? fullName(p) : ''}`), ' ', p ? h('a', { class: 'tiny', href: `#/person/${p.id}` }, 'دیدن پروفایل') : null),
           h('div', { class: 'muted small' },
-            `پیشنهاد ${r.requester?.name || '—'}`, r.degree ? ` • بستگان درجه ${fa(r.degree)}` : '', r.created_at ? ` • ${timeAgo(r.created_at)}` : '',
+            'پیشنهاد ', r.requester ? authorLink(r.requester) : '—', r.degree ? ` • بستگان درجه ${fa(r.degree)}` : '', r.created_at ? ` • ${timeAgo(r.created_at)}` : '',
             r.decider ? ` • بررسی: ${r.decider}` : ''),
         ),
         r.status !== 'pending' ? h('span', { class: `chip ${r.status === 'approved' ? 'success' : 'danger'}` }, r.status === 'approved' ? 'تأیید شد' : 'رد شد') : null,

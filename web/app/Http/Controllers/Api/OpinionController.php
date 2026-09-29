@@ -151,7 +151,7 @@ class OpinionController extends Controller
         $raters = null;
         if (config('pedigree.ratings.show_raters', true)) {
             $raters = $rows->groupBy('user_id')->map(fn ($items) => [
-                'user' => ['id' => $items->first()->user_id, 'name' => $items->first()->user?->displayName() ?? 'کاربر حذف‌شده', 'person_id' => $items->first()->user?->person_id],
+                'user' => ['id' => $items->first()->user_id, 'name' => $items->first()->user?->displayName() ?? 'کاربر حذف‌شده', 'username' => $items->first()->user?->username, 'person_id' => $items->first()->user?->person_id],
                 'scores' => $items->pluck('score', 'trait'),
                 'updated_at' => $items->max('updated_at')?->toIso8601String(),
             ])->values();
@@ -210,6 +210,7 @@ class OpinionController extends Controller
             'author' => $author ? [
                 'id' => $author->id,
                 'name' => $author->displayName(),
+                'username' => $author->username,
                 'person_id' => $author->person_id,
                 'avatar' => $author->person?->avatar?->isApproved() ? $author->person->avatar->url('thumb') : null,
                 'gender' => $author->person?->gender,

@@ -24,6 +24,7 @@ import { storiesStrip } from '../components/stories.js';
 import { miniMap, directionsLinks, coordText } from '../components/map.js';
 import { socialProfiles } from '../components/social.js';
 import { openMarriage } from '../components/marriage-sheet.js';
+import { authorLink } from '../components/author.js';
 
 const TABS = ['details', 'gallery', 'relatives', 'opinions', 'history'];
 
@@ -119,6 +120,7 @@ export default async function personPage(container, { params }) {
         avatarWrap,
         h('div', { class: 'ph-info' },
           h('h1', null, fullName(person)),
+          person.account?.username ? h('div', { class: 'ph-handle' }, h('bdi', null, `@${person.account.username}`)) : null,
           h('div', { class: 'row wrap', style: { marginTop: '6px' } },
             person.nickname ? h('span', { class: 'chip' }, `«${person.nickname}»`) : null,
             h('span', { class: `chip ${person.gender === 'f' ? 'female' : 'male'}` }, person.gender === 'f' ? 'زن' : 'مرد'),
@@ -188,8 +190,9 @@ export default async function personPage(container, { params }) {
     const row = (ic, label, value, fieldKey) => {
       if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) return null;
       const author = fieldKey ? byId.get(meta[fieldKey]?.u) : null;
+      // ایجادکننده هر مشخصه (مثلاً چه کسی مدرک تحصیلی را ثبت کرده)، با لینک به پروفایلش
       return h('div', { class: colored && author ? 'authored' : '', style: colored && author ? { '--c': authorColor(author) } : null, title: author ? `ثبت: ${contributorLabel(author)}` : null },
-        h('dt', null, icon(ic), label), h('dd', null, value));
+        h('dt', null, icon(ic), label), h('dd', null, h('span', { class: 'kv-value' }, value), author ? h('span', { class: 'field-author' }, authorLink(author, { label: 'ثبت', withIcon: false })) : null));
     };
     const group = (title, ic, rows, extra) => {
       const items = rows.filter(Boolean);
@@ -275,7 +278,8 @@ export default async function personPage(container, { params }) {
       ...texts.filter((t) => t !== summary),
       (person.resume?.length || perms.edit) ? resumeSection(ctx) : null,
       colorToggle,
-      h('p', { class: 'muted tiny mt' }, [person.created_by ? `ثبت توسط ${person.created_by}` : null, person.updated_at ? `آخرین به‌روزرسانی ${timeAgo(person.updated_at)}` : null].filter(Boolean).join(' • ')),
+      h('p', { class: 'muted tiny mt profile-origin' }, person.creator ? authorLink(person.creator, { label: 'ایجادکننده این پروفایل' }) : null,
+        person.updated_at ? h('span', null, `آخرین به‌روزرسانی ${timeAgo(person.updated_at)}`) : null),
     );
   }
 

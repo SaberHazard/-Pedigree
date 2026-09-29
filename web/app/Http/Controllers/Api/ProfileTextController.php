@@ -13,6 +13,7 @@ use App\Services\AuditLogger;
 use App\Services\People\PersonTextService;
 use App\Services\People\ProfileService;
 use App\Support\AttributedText;
+use App\Support\Author;
 use App\Support\PartialDate;
 use App\Support\PersianText;
 use Illuminate\Http\JsonResponse;
@@ -67,7 +68,7 @@ class ProfileTextController extends Controller
 
         return response()->json(['data' => $revisions->map(fn (PersonTextRevision $r) => [
             'revision' => $r->revision,
-            'user' => $r->user ? ['id' => $r->user->id, 'name' => $r->user->displayName()] : null,
+            'user' => Author::of($r->user),
             'added' => $r->added,
             'removed' => $r->removed,
             'restored_from' => $r->restored_from,

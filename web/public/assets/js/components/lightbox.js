@@ -5,6 +5,7 @@ import { h } from '../core/dom.js';
 import { icon } from '../core/icons.js';
 import { fa, formatDate } from '../core/format.js';
 import { saveFile } from '../core/native.js';
+import { authorLink } from './author.js';
 
 export function openLightbox(items, index = 0) {
   let i = index;
@@ -33,7 +34,8 @@ export function openLightbox(items, index = 0) {
     }
     caption.replaceChildren(
       h('div', { class: 'bold' }, m.caption || ''),
-      h('div', { class: 'small', style: { opacity: 0.7 } }, [m.taken_at ? formatDate(m.taken_at) : null, m.uploader ? `آپلود: ${m.uploader.name}` : null].filter(Boolean).join(' • ')),
+      h('div', { class: 'small lb-meta' }, m.taken_at ? h('span', null, formatDate(m.taken_at)) : null,
+        authorLink(m.uploader, { label: m.type === 'video' ? 'آپلود فیلم' : 'آپلود عکس' })),
     );
     counter.textContent = items.length > 1 ? `${fa(i + 1)} از ${fa(items.length)}` : '';
     prev.hidden = next.hidden = items.length < 2;

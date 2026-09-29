@@ -89,6 +89,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
     // اشخاص
     Route::get('persons', [PersonController::class, 'index']);
+    Route::get('u/{username}', [PersonController::class, 'byUsername'])->where('username', '[A-Za-z0-9._-]{1,30}')->middleware('throttle:60,1,by-username');
     Route::post('persons', [PersonController::class, 'store'])->middleware('throttle:writes');
     Route::match(['put', 'patch'], 'persons/{person}', [PersonController::class, 'update'])->middleware('throttle:writes');
     Route::delete('persons/{person}', [PersonController::class, 'destroy']);

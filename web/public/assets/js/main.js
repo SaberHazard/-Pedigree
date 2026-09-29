@@ -32,6 +32,8 @@ route('/person/:id/edit', () => import('./pages/person-edit.js'));
 route('/person/:id/interview', () => import('./pages/interview.js'));
 route('/person/:id', () => import('./pages/person.js'));
 route('/person/:id/:tab', () => import('./pages/person.js'));
+// @نام‌کاربری (مثل تلگرام) ← پروفایل همان شخص
+route('/@:username', () => import('./pages/user.js'));
 route('/approvals', () => import('./pages/approvals.js'));
 route('/map', () => import('./pages/map.js'), { layout: 'full' });
 route('/notifications', () => import('./pages/notifications.js'));

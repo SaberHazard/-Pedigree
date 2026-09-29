@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Models\Media;
 use App\Models\MediaVote;
 use App\Services\Access\PersonAccess;
+use App\Support\Author;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -49,7 +50,8 @@ class MediaResource extends JsonResource
                 'poster' => $media->isVideo() ? ($media->pathFor('poster') ? $media->url('poster') : null) : null,
                 'original' => $media->url('original'),
             ] : null,
-            'uploader' => $media->uploader ? ['id' => $media->uploader->id, 'name' => $media->uploader->displayName()] : null,
+            // آپلودکننده (نام کامل، @نام‌کاربری و لینک پروفایل)
+            'uploader' => Author::of($media->uploader),
             'votes' => [
                 'total' => $votes->count(),
                 'approve' => $votes->where('decision', MediaVote::APPROVE)->count(),

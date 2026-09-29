@@ -42,6 +42,12 @@ class Marriage extends Model
         });
     }
 
+    /** ثبت‌کننده این ازدواج */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function husband(): BelongsTo
     {
         return $this->belongsTo(Person::class, 'husband_id');

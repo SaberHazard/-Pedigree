@@ -10,6 +10,7 @@ import { formatDate } from '../core/format.js';
 import { modal, field, switchInput, toast, toastError, confirmDialog, showFormErrors, clearFormErrors, formData } from '../core/ui.js';
 import { dateInput } from './date-input.js';
 import { authorColor, contributorLabel } from './attributed-text.js';
+import { authorLink } from './author.js';
 
 const TYPE_ICONS = {
   education: 'graduation', work: 'briefcase', military: 'shield', award: 'star', certificate: 'file',
@@ -50,7 +51,7 @@ export function resumeSection(ctx) {
           item.organization || item.location ? h('div', { class: 'text-2 small' }, [item.organization, item.location].filter(Boolean).join(' • ')) : null,
           range ? h('div', { class: 'muted tiny' }, range) : null,
           item.description ? h('p', { class: 'small', style: { whiteSpace: 'pre-line', margin: '4px 0 0' } }, item.description) : null,
-          ctx.colored() && author ? h('div', { class: 'muted tiny', title: 'آخرین ویرایش' }, icon('edit'), ' ', contributorLabel(author)) : null,
+          author ? h('div', { class: 'muted tiny ri-author', title: contributorLabel(author) }, authorLink(author, { label: 'ثبت', withIcon: false })) : null,
         ),
         canEdit ? h('div', { class: 'row', style: { gap: '2px', alignSelf: 'flex-start' } },
           h('button', { class: 'icon-btn', type: 'button', title: 'ویرایش', onclick: () => openForm(item) }, icon('edit')),

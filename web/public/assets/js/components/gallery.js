@@ -10,6 +10,7 @@ import { toast, toastError, modal, field, confirmDialog, emptyState, dropdown } 
 import { openLightbox } from './lightbox.js';
 import { dateInput } from './date-input.js';
 import { shrinkImage } from '../core/shrink.js';
+import { authorLink } from './author.js';
 
 const STATUS = {
   pending: ['warning', 'در انتظار تأیید'],
@@ -47,7 +48,9 @@ export function gallery(person, { onChange } = {}) {
         m.urls?.thumb ? h('img', { src: m.urls.thumb, alt: m.caption || '', loading: 'lazy' }) : h('div', { class: 'g-play', style: { background: 'var(--surface-3)', color: 'var(--muted)' } }, icon('video')),
         m.type === 'video' ? h('div', { class: 'g-play' }, icon('play'), m.duration ? h('span', { class: 'chip', style: { position: 'absolute', bottom: '8px', insetInlineEnd: '8px' } }, duration(m.duration)) : null) : null,
         m.status !== 'approved' ? h('span', { class: `chip ${cls} g-badge` }, label) : m.is_avatar ? h('span', { class: 'chip primary g-badge' }, 'پروفایل') : m.category === 'memory' ? h('span', { class: 'chip g-badge', title: 'در گروه خاندان گذاشته شده' }, '📜 خاطره') : null,
-        m.caption ? h('div', { class: 'g-caption ellipsis' }, m.caption) : null,
+        h('div', { class: 'g-caption' },
+          m.caption ? h('div', { class: 'ellipsis' }, m.caption) : null,
+          authorLink(m.uploader, { cls: 'g-author' })),
       );
       item.addEventListener('click', () => (idx >= 0 ? openLightbox(viewable, idx) : null));
       item.addEventListener('contextmenu', (e) => {

@@ -12,6 +12,7 @@ import { fullName, formatDate } from '../core/format.js';
 import { modal, toast, toastError, field } from '../core/ui.js';
 import { avatar } from './avatar.js';
 import { dateInput } from './date-input.js';
+import { authorLink } from './author.js';
 
 const STATUS = {
   married: { label: 'متأهل', emoji: '❤️' },
@@ -40,6 +41,7 @@ export async function openMarriage(id, { onChange } = {}) {
       m.status === 'divorced' ? row('تاریخ طلاق', m.end_date ? formatDate(m.end_date) : 'ثبت نشده') : null,
       m.status === 'widowed' ? row('تاریخ فوت همسر', m.end_date ? formatDate(m.end_date) : 'ثبت نشده') : null,
     ),
+    data.creator ? h('div', { class: 'tiny muted mar-author' }, authorLink(data.creator, { label: 'ثبت این ازدواج' })) : null,
     data.pending_suggestion ? h('p', { class: 'chip warning', style: { margin: 0 } }, icon('clock'), 'پیشنهاد ویرایش شما در انتظار تأیید مدیر است') : null,
   );
 
