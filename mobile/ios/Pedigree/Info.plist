@@ -29,7 +29,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>برای گرفتن عکس پروفایل و عکس‌های خانوادگی</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>برای ضبط ویدیو از خاطرات خانوادگی</string>
+	<string>برای پیام صوتی، ضبط ویدیو از خاطرات خانوادگی و گفتگوی صوتی با دستیار هوشمند</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>برای انتخاب عکس و ویدیو از گالری</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

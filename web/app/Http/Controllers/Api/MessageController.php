@@ -9,6 +9,7 @@ use App\Models\DirectMessage;
 use App\Models\Person;
 use App\Models\User;
 use App\Models\UserBlock;
+use App\Services\Media\VoiceService;
 use App\Services\Messaging\MessagingService;
 use App\Services\Tree\NodePresenter;
 use Illuminate\Http\JsonResponse;
@@ -52,7 +53,7 @@ class MessageController extends Controller
                     'id' => $c->id,
                     'other' => $this->presentUser($other),
                     'last' => $message ? [
-                        'text' => $message->deleted_at ? null : mb_substr($message->body, 0, 80),
+                        'text' => $message->deleted_at ? null : ($message->body === '' && $message->voice_id ? '🎤 پیام صوتی' : mb_substr($message->body, 0, 80)),
                         'deleted' => $message->deleted_at !== null,
                         'mine' => $message->sender_id === $user->id,
                         'read' => $message->read_at !== null,
@@ -92,7 +93,7 @@ class MessageController extends Controller
             'after' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $query = DirectMessage::query()->where('conversation_id', $conv->id);
+        $query = DirectMessage::query()->with('voice')->where('conversation_id', $conv->id);
         if (isset($data['after'])) {
             $messages = $query->where('id', '>', $data['after'])->orderBy('id')->limit(100)->get();
         } else {
@@ -126,6 +127,33 @@ class MessageController extends Controller
         return response()->json(['data' => $this->presentMessage($message, $request->user())], 201);
     }
 
+    /** پیام صوتی (مثل تلگرام؛ فشرده روی سرور) */
+    public function sendVoice(Request $request, int $conversation, VoiceService $voices): JsonResponse
+    {
+        $this->assertEnabled();
+        $data = $request->validate([
+            'voice' => ['required', 'file', 'max:'.(int) config('pedigree.voice.max_kb', 10240)],
+            'waveform' => ['nullable', 'string', 'max:400'],
+        ]);
+        $user = $request->user();
+        $conv = $this->conversationFor($user, $conversation);
+        // پیش از ذخیره فایل: آیا اصلاً می‌شود به این شخص پیام داد؟
+        $other = User::query()->find($conv->otherId($user));
+        if ($other === null) {
+            throw new DomainException('گفتگو پیدا نشد.', 404);
+        }
+        $this->messaging->assertCanMessage($user, $other);
+        $voice = $voices->store($user, $data['voice'], 'dm', $data['waveform'] ?? null);
+        try {
+            $message = $this->messaging->send($user, $conv, '', $voice);
+        } catch (\Throwable $e) {
+            $voices->delete($voice);
+            throw $e;
+        }
+
+        return response()->json(['data' => $this->presentMessage($message->setRelation('voice', $voice), $user)], 201);
+    }
+
     /** حذف پیام توسط فرستنده (برای هر دو طرف) */
     public function destroy(Request $request, int $message): JsonResponse
     {
@@ -134,7 +162,10 @@ class MessageController extends Controller
         if ($msg === null || $msg->sender_id !== $user->id) {
             throw new DomainException('پیام پیدا نشد.', 404);
         }
-        $msg->forceFill(['body' => '', 'deleted_at' => now()])->save();
+        if ($msg->voice_id) {
+            app(VoiceService::class)->delete($msg->voice);
+        }
+        $msg->forceFill(['body' => '', 'voice_id' => null, 'deleted_at' => now()])->save();
 
         return response()->json(['data' => $this->presentMessage($msg, $user)]);
     }
@@ -200,6 +231,7 @@ class MessageController extends Controller
             'id' => $m->id,
             'mine' => $m->sender_id === $viewer->id,
             'body' => $m->deleted_at ? null : $m->body,
+            'voice' => ! $m->deleted_at && $m->voice_id && $m->voice ? $m->voice->present() : null,
             'deleted' => $m->deleted_at !== null,
             'read' => $m->read_at !== null,
             'at' => $m->created_at?->toIso8601String(),

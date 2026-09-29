@@ -199,6 +199,10 @@ final class SettingsSchema
                 'fields' => [
                     'pedigree.messaging.enabled' => ['label' => 'پیام‌رسان خصوصی اعضا', 'type' => 'bool'],
                     'pedigree.messaging.daily_limit' => ['label' => 'سقف پیام خصوصی هر عضو در روز', 'type' => 'int', 'min' => 10, 'max' => 5000],
+                    'pedigree.voice.enabled' => ['label' => 'پیام صوتی (پیام خصوصی، گروه و پشتیبانی)', 'type' => 'bool'],
+                    'pedigree.voice.max_seconds' => ['label' => 'سقف مدت هر پیام صوتی (ثانیه)', 'type' => 'int', 'min' => 15, 'max' => 900],
+                    'pedigree.voice.bitrate_kbps' => ['label' => 'کیفیت پیام صوتی', 'type' => 'select', 'options' => ['24' => '۲۴ کیلوبیت (کم‌حجم‌ترین)', '32' => '۳۲ کیلوبیت (مثل تلگرام، پیشنهادی)', '48' => '۴۸ کیلوبیت (باکیفیت‌تر)']],
+                    'pedigree.voice.daily_per_user' => ['label' => 'سقف پیام صوتی هر عضو در روز', 'type' => 'int', 'min' => 5, 'max' => 1000],
                     'pedigree.comments.enabled' => ['label' => 'نوشتن نظر و خاطره درباره اشخاص', 'type' => 'bool'],
                     'pedigree.ratings.enabled' => ['label' => 'امتیاز دادن به ویژگی‌های اشخاص', 'type' => 'bool'],
                     'pedigree.permissions.history_public' => ['label' => 'تاریخچه تغییرات پروفایل‌ها برای همه اعضا', 'type' => 'bool'],
@@ -245,7 +249,7 @@ final class SettingsSchema
             'ai' => [
                 'label' => 'دستیار هوش مصنوعی',
                 'icon' => 'bot',
-                'description' => 'گفتگو، بازی‌ها (مشاعره، بیست سؤالی، چیستان ...)، زنده کردن خاطره و بازسازی عکس قدیمی با هوش مصنوعی برای همه اعضا. رایگان‌ها: Google Gemini (کلید رایگان از AI Studio با سهمیه روزانه)، OpenRouter (مدل‌های «:free»)، Groq و Cerebras؛ Mistral سهمیه آزمایشی رایگان دارد. DeepSeek ارزان و ChatGPT، Claude و Grok پولی‌اند. با «سرویس پشتیبان» وقتی سهمیه یکی تمام شود دیگری جواب می‌دهد. گفتگوها در سرور ذخیره نمی‌شوند و هیچ اطلاعاتی از شجره‌نامه برای سرویس فرستاده نمی‌شود. سرویس‌های خارجی IP ایران را نمی‌پذیرند؛ اگر سرور در ایران است پراکسی بگذارید یا از یک درگاه داخلی سازگار با OpenAI استفاده کنید.',
+                'description' => 'گفتگو، بازی‌ها (مشاعره، بیست سؤالی، چیستان ...)، زنده کردن خاطره و بازسازی عکس قدیمی با هوش مصنوعی برای همه اعضا. رایگان‌ها: Google Gemini (کلید رایگان از AI Studio با سهمیه روزانه)، OpenRouter (مدل‌های «:free»)، Groq و Cerebras؛ Mistral سهمیه آزمایشی رایگان دارد. DeepSeek ارزان و ChatGPT، Claude و Grok پولی‌اند. با «سرویس پشتیبان» وقتی سهمیه یکی تمام شود دیگری جواب می‌دهد. گفتگوها در سرور ذخیره نمی‌شوند و از شجره‌نامه فقط در «مسابقه خاندان» (اگر روشن باشد) اطلاعات عمومی بستگان فرستاده می‌شود. سرویس‌های خارجی IP ایران را نمی‌پذیرند؛ اگر سرور در ایران است پراکسی بگذارید یا از یک درگاه داخلی سازگار با OpenAI استفاده کنید.',
                 'fields' => [
                     'pedigree.ai.enabled' => ['label' => 'دستیار هوش مصنوعی فعال باشد', 'type' => 'bool'],
                     'pedigree.ai.provider' => ['label' => 'سرویس اصلی', 'type' => 'select', 'options' => self::AI_PROVIDERS],
@@ -257,6 +261,24 @@ final class SettingsSchema
                     'pedigree.ai.image.model' => ['label' => 'مدل تصویری Gemini', 'type' => 'text', 'max' => 80, 'pattern' => '/^[A-Za-z0-9._-]*$/', 'placeholder' => 'gemini-2.5-flash-image'],
                     'pedigree.ai.image.daily_per_user' => ['label' => 'سقف بازسازی عکس هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 100],
                     'pedigree.ai.image.global_daily' => ['label' => 'سقف کل بازسازی عکس سایت در روز', 'type' => 'int', 'min' => 1, 'max' => 5000],
+                    'pedigree.ai.family_data' => ['label' => 'مسابقه خاندان با هوش مصنوعی', 'type' => 'bool', 'help' => 'برای طرح سؤال، نام، نسبت، سال تولد/وفات، زادگاه، شهر، شغل، تحصیلات و لقب حداکثر ۴۰ نفر از بستگانِ بازیکن برای سرویس فرستاده می‌شود (هرگز شماره، نشانی، ایمیل یا کد ملی)'],
+                ],
+            ],
+            'ai_voice' => [
+                'label' => 'صدا و گفتگوی صوتی با هوش مصنوعی',
+                'icon' => 'mic',
+                'description' => 'اعضا می‌توانند به دستیار و بازی‌ها پیام صوتی فارسی بدهند (تبدیل به متن)، پاسخ را با صدا بشنوند و حتی «تماس صوتی زنده» داشته باشند. در تماس زنده، سرور فقط یک کلید یک‌بارمصرف چنددقیقه‌ای می‌سازد و مرورگر مستقیم به Gemini Live یا OpenAI Realtime وصل می‌شود؛ صدا از سرور سایت عبور نمی‌کند (بدون مصرف منابع سایت). توجه: این سرویس‌ها از داخل ایران فقط با فیلترشکن در دسترس‌اند.',
+                'fields' => [
+                    'pedigree.ai.voice.stt' => ['label' => 'تبدیل پیام صوتی به متن', 'type' => 'select', 'options' => ['auto' => 'خودکار (اول Groq رایگان، بعد OpenAI، بعد Gemini)', 'groq' => 'Groq Whisper (رایگان با سهمیه)', 'openai' => 'OpenAI', 'gemini' => 'Gemini', 'off' => 'خاموش']],
+                    'pedigree.ai.voice.tts' => ['label' => 'خواندن پاسخ دستیار با صدا', 'type' => 'select', 'options' => ['browser' => 'صدای خود گوشی/مرورگر (رایگان)', 'gemini' => 'Gemini (صدای طبیعی فارسی)', 'openai' => 'OpenAI', 'off' => 'خاموش']],
+                    'pedigree.ai.voice.tts_models.gemini' => ['label' => 'مدل صدای Gemini', 'type' => 'text', 'max' => 80, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'gemini-2.5-flash-preview-tts'],
+                    'pedigree.ai.voice.tts_voice.gemini' => ['label' => 'نام صدای Gemini', 'type' => 'text', 'max' => 40, 'pattern' => '/^[A-Za-z0-9_-]*$/', 'placeholder' => 'Kore', 'help' => 'مثلاً Kore، Puck، Charon، Aoede، Fenrir'],
+                    'pedigree.ai.live.provider' => ['label' => 'تماس صوتی زنده با هوش مصنوعی', 'type' => 'select', 'options' => ['off' => 'خاموش', 'gemini' => 'Gemini Live (با کلید Gemini)', 'openai' => 'OpenAI Realtime (پولی)']],
+                    'pedigree.ai.live.gemini_model' => ['label' => 'مدل Gemini Live', 'type' => 'text', 'max' => 100, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'gemini-2.5-flash-native-audio-preview-09-2025'],
+                    'pedigree.ai.live.openai_model' => ['label' => 'مدل OpenAI Realtime', 'type' => 'text', 'max' => 80, 'pattern' => self::MODEL_PATTERN, 'placeholder' => 'gpt-realtime'],
+                    'pedigree.ai.live.max_minutes' => ['label' => 'سقف مدت هر تماس (دقیقه)', 'type' => 'int', 'min' => 1, 'max' => 30],
+                    'pedigree.ai.live.daily_per_user' => ['label' => 'سقف تماس هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 50],
+                    'pedigree.ai.live.global_daily' => ['label' => 'سقف کل تماس‌های سایت در روز', 'type' => 'int', 'min' => 1, 'max' => 5000],
                 ],
             ],
             'ai_keys' => [

@@ -414,6 +414,17 @@ return [
         'daily_limit' => 500,
     ],
 
+    // پیام صوتی در پیام خصوصی، گروه خاندان و گفتگو با پشتیبانی (مثل وویس تلگرام)
+    'voice' => [
+        'enabled' => (bool) env('PEDIGREE_VOICE_ENABLED', true),
+        // سقف مدت هر پیام صوتی (ثانیه)
+        'max_seconds' => (int) env('PEDIGREE_VOICE_MAX_SECONDS', 300),
+        // کیفیت: ۳۲ کیلوبیت تک‌کاناله = هر دقیقه حدود ۲۴۰ کیلوبایت (صدای انسان شفاف)
+        'bitrate_kbps' => (int) env('PEDIGREE_VOICE_KBPS', 32),
+        'max_kb' => 10240,
+        'daily_per_user' => (int) env('PEDIGREE_VOICE_DAILY', 150),
+    ],
+
     // اطلاعیه بالای صفحه اول همه اعضا (از پنل مدیریت)
     'announcement' => [
         'enabled' => false,
@@ -474,6 +485,32 @@ return [
         ],
         // اگر سرویس اصلی شلوغ بود یا سهمیه رایگانش تمام شد، این سرویس امتحان می‌شود (خالی = هیچ)
         'fallback_provider' => env('PEDIGREE_AI_FALLBACK', ''),
+        // مسابقه خاندان: اطلاعات عمومی بستگان (نام، نسبت، سال تولد، شغل ...) برای سرویس فرستاده شود
+        'family_data' => (bool) env('PEDIGREE_AI_FAMILY_DATA', true),
+        // صدا: گفتار به متن (پیام صوتی به دستیار) و خواندن پاسخ‌ها
+        'voice' => [
+            // auto (اول Groq رایگان، بعد OpenAI، بعد Gemini) | groq | openai | gemini | off
+            'stt' => env('PEDIGREE_AI_STT', 'auto'),
+            'stt_models' => ['groq' => env('GROQ_STT_MODEL', 'whisper-large-v3-turbo'), 'openai' => env('OPENAI_STT_MODEL', 'gpt-4o-mini-transcribe')],
+            'max_seconds' => 120,
+            // browser (صدای خود گوشی؛ رایگان) | gemini | openai | off
+            'tts' => env('PEDIGREE_AI_TTS', 'browser'),
+            'tts_models' => ['gemini' => env('GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts'), 'openai' => env('OPENAI_TTS_MODEL', 'gpt-4o-mini-tts')],
+            'tts_voice' => ['gemini' => 'Kore', 'openai' => 'alloy'],
+            'tts_daily_per_user' => 60,
+            'tts_global_daily' => 1500,
+        ],
+        // گفتگوی صوتی زنده (تماس با هوش مصنوعی): off | gemini | openai
+        // مرورگر مستقیم به سرویس وصل می‌شود؛ صدا از سرور سایت عبور نمی‌کند
+        'live' => [
+            'provider' => env('PEDIGREE_AI_LIVE', 'off'),
+            'gemini_model' => env('GEMINI_LIVE_MODEL', 'gemini-2.5-flash-native-audio-preview-09-2025'),
+            'openai_model' => env('OPENAI_REALTIME_MODEL', 'gpt-realtime'),
+            'voice' => ['gemini' => 'Kore', 'openai' => 'marin'],
+            'max_minutes' => (int) env('PEDIGREE_AI_LIVE_MINUTES', 10),
+            'daily_per_user' => (int) env('PEDIGREE_AI_LIVE_DAILY', 5),
+            'global_daily' => (int) env('PEDIGREE_AI_LIVE_GLOBAL', 100),
+        ],
         // بازسازی و رنگی کردن عکس‌های قدیمی با مدل تصویری Gemini (کلید همان Gemini)
         'image' => [
             'enabled' => (bool) env('PEDIGREE_AI_IMAGE_ENABLED', true),

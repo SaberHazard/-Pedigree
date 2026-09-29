@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\PersonController;
 use App\Http\Controllers\Api\ProfileTextController;
 use App\Http\Controllers\Api\RelativeController;
 use App\Http\Controllers\Api\SocialController;
+use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\TreeController;
 use Illuminate\Support\Facades\Route;
 
@@ -156,6 +157,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('messages/start', [MessageController::class, 'start'])->middleware('throttle:30,1,message-start');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->whereNumber('conversation');
     Route::post('messages/{conversation}', [MessageController::class, 'send'])->whereNumber('conversation')->middleware('throttle:40,1,message-send');
+    Route::post('messages/{conversation}/voice', [MessageController::class, 'sendVoice'])->whereNumber('conversation')->middleware(['throttle:uploads', 'throttle:12,1,message-voice']);
     Route::post('messages/{conversation}/block', [MessageController::class, 'block'])->whereNumber('conversation');
     Route::delete('direct-messages/{message}', [MessageController::class, 'destroy'])->whereNumber('message');
 
@@ -165,6 +167,13 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('group/messages', [GroupController::class, 'messages']);
     Route::post('group/messages', [GroupController::class, 'send'])->middleware('throttle:30,1,group-send');
     Route::post('group/media', [GroupController::class, 'sendMedia'])->middleware(['throttle:uploads', 'throttle:10,1,group-media']);
+    // گفتگو با پشتیبانی
+    Route::get('support', [SupportController::class, 'index']);
+    Route::post('support/messages', [SupportController::class, 'send'])->middleware('throttle:20,1,support-send');
+    Route::post('support/voice', [SupportController::class, 'sendVoice'])->middleware(['throttle:uploads', 'throttle:10,1,support-voice']);
+    Route::delete('support/messages/{message}', [SupportController::class, 'destroy'])->whereNumber('message');
+
+    Route::post('group/voice', [GroupController::class, 'sendVoice'])->middleware(['throttle:uploads', 'throttle:12,1,group-voice']);
     Route::post('group/read', [GroupController::class, 'read'])->middleware('throttle:60,1,group-read');
     Route::post('group/messages/{message}/react', [GroupController::class, 'react'])->whereNumber('message');
     Route::post('group/messages/{message}/report', [GroupController::class, 'report'])->whereNumber('message')->middleware('throttle:10,1,group-report');
@@ -176,6 +185,9 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     // دستیار هوش مصنوعی
     Route::get('assistant', [AssistantController::class, 'index']);
     Route::post('assistant/chat', [AssistantController::class, 'chat'])->middleware('throttle:8,1,assistant-chat');
+    Route::post('assistant/transcribe', [AssistantController::class, 'transcribe'])->middleware(['throttle:uploads', 'throttle:8,1,assistant-stt']);
+    Route::post('assistant/speak', [AssistantController::class, 'speak'])->middleware('throttle:10,1,assistant-tts');
+    Route::post('assistant/live', [AssistantController::class, 'live'])->middleware('throttle:3,1,assistant-live');
     Route::post('media/{media}/restore', [AssistantController::class, 'restorePhoto'])->middleware('throttle:4,1,ai-restore');
 
     Route::get('greetings', [GreetingController::class, 'index']);
@@ -209,6 +221,10 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         Route::post('users/{user}/logout-all', [OverviewController::class, 'logoutEverywhere'])->middleware('throttle:20,1,admin-logout');
         Route::post('users/{user}/approve', [UserController::class, 'approve'])->middleware('throttle:60,1,admin-approve');
         Route::get('edit-requests', [EditRequestController::class, 'index']);
+        Route::get('support', [SupportController::class, 'threads']);
+        Route::get('support/{thread}', [SupportController::class, 'thread'])->whereNumber('thread');
+        Route::post('support/{thread}/messages', [SupportController::class, 'reply'])->whereNumber('thread')->middleware('throttle:60,1,support-reply');
+        Route::post('support/{thread}/voice', [SupportController::class, 'replyVoice'])->whereNumber('thread')->middleware(['throttle:uploads', 'throttle:20,1,support-reply-voice']);
         Route::post('edit-requests/{editRequest}/approve', [EditRequestController::class, 'approve'])->middleware('throttle:120,1,edit-approve');
         Route::post('edit-requests/{editRequest}/reject', [EditRequestController::class, 'reject'])->middleware('throttle:120,1,edit-reject');
         Route::post('users/{user}/reject', [UserController::class, 'reject'])->middleware('throttle:60,1,admin-reject');

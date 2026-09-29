@@ -7,13 +7,14 @@
  */
 import { h } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { get, post, del } from '../core/api.js';
+import { get, post, del, upload } from '../core/api.js';
 import { store } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { fa, fullName, timeAgo } from '../core/format.js';
 import { toast, toastError, loader, emptyState, confirmDialog, dropdown } from '../core/ui.js';
 import { avatar } from '../components/avatar.js';
 import { emojiPanel, insertAtCursor } from '../components/emoji.js';
+import { voiceButton, voicePlayer, voiceForm, voiceSupported } from '../components/voice.js';
 
 const LIST_POLL = 20000;
 const CHAT_POLL = 4000;
@@ -130,9 +131,22 @@ export default async function messagesPage(container, { params }) {
     panel.hidden = true;
     const emojiBtn = h('button', { class: 'icon-btn', type: 'button', title: 'ایموجی', disabled: !current.can_send, onclick: () => { panel.hidden = !panel.hidden; } }, icon('smile'));
 
+    const compose = h('div', { class: 'msg-compose' });
+    // مثل تلگرام: وقتی متنی نیست دکمه میکروفون، وقتی متن هست دکمه ارسال
+    const voiceOn = store.config.voice?.enabled !== false && voiceSupported();
+    const micBtn = voiceOn ? voiceButton({ host: compose, maxSeconds: store.config.voice?.max_seconds || 300, send: sendVoice }) : null;
+    if (micBtn) micBtn.disabled = !current.can_send;
+    const toggleButtons = () => {
+      if (!micBtn) return;
+      const empty = !input.value.trim();
+      micBtn.hidden = !empty;
+      sendBtn.hidden = empty;
+    };
+    toggleButtons();
     input.addEventListener('input', () => {
       input.style.height = 'auto';
       input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+      toggleButtons();
     });
     input.addEventListener('keydown', (e) => {
       // دسکتاپ: Enter ارسال، Shift+Enter خط جدید
@@ -156,8 +170,9 @@ export default async function messagesPage(container, { params }) {
       ),
       messagesEl,
       current.blocked_by_me ? h('div', { class: 'msg-note' }, icon('ban'), ' این شخص را مسدود کرده‌اید.') : null,
-      h('div', { class: 'msg-compose' }, panel, h('div', { class: 'row', style: { gap: '6px', alignItems: 'flex-end' } }, emojiBtn, input, sendBtn)),
+      compose,
     ].filter(Boolean));
+    compose.append(panel, h('div', { class: 'row compose-row', style: { gap: '6px', alignItems: 'flex-end' } }, ...[emojiBtn, input, sendBtn, micBtn].filter(Boolean)));
     renderMessages(true);
     if (!matchMedia('(pointer: coarse)').matches) input.focus();
 
@@ -171,6 +186,7 @@ export default async function messagesPage(container, { params }) {
         input.value = '';
         input.style.height = 'auto';
         panel.hidden = true;
+        toggleButtons();
         renderMessages(true);
         loadList();
       } catch (e) {
@@ -179,6 +195,29 @@ export default async function messagesPage(container, { params }) {
         sendBtn.disabled = false;
       }
     }
+
+    async function sendVoice(blob, waveform) {
+      if (!current.can_send) return;
+      compose.classList.add('uploading');
+      try {
+        const res = await upload(`/api/messages/${current.id}/voice`, voiceForm(blob, waveform));
+        current.messages.push(res.data);
+        renderMessages(true);
+        loadList();
+      } catch (e) {
+        toastError(e);
+        throw e;
+      } finally {
+        compose.classList.remove('uploading');
+      }
+    }
+  }
+
+  // پخش‌کننده هر پیام صوتی یک بار ساخته می‌شود تا با به‌روزرسانی گفتگو، پخش قطع نشود
+  const players = new Map();
+  function playerFor(m) {
+    if (!players.has(m.id)) players.set(m.id, voicePlayer(m.voice, { mine: m.mine }));
+    return players.get(m.id);
   }
 
   async function toggleBlock() {
@@ -209,7 +248,7 @@ export default async function messagesPage(container, { params }) {
       }
       const read = m.mine && m.id <= (current.read_up_to || 0);
       items.push(h('div', { class: `msg ${m.mine ? 'mine' : 'theirs'} ${m.deleted ? 'deleted' : ''}` },
-        h('div', { class: 'msg-bubble', dir: 'auto' }, m.deleted ? 'این پیام حذف شد' : m.body),
+        h('div', { class: `msg-bubble ${m.voice ? 'has-voice' : ''}`, dir: 'auto' }, m.deleted ? 'این پیام حذف شد' : m.voice ? playerFor(m) : m.body),
         h('div', { class: 'msg-meta' },
           new Date(m.at).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }),
           m.mine && !m.deleted ? h('span', { class: `tick ${read ? 'read' : ''}`, title: read ? 'خوانده شد' : 'ارسال شد' }, icon(read ? 'check-double' : 'check')) : null,

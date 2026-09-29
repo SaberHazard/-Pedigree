@@ -27,7 +27,15 @@ class GroupMessage extends Model
 
     public const KIND_PROMPT = 'prompt';
 
-    protected $fillable = ['user_id', 'kind', 'body', 'media_id', 'reply_to_id'];
+    /** پیام صوتی (خاطره با صدای خود شخص) */
+    public const KIND_VOICE = 'voice';
+
+    protected $fillable = ['user_id', 'kind', 'body', 'media_id', 'reply_to_id', 'voice_id'];
+
+    public function voice(): BelongsTo
+    {
+        return $this->belongsTo(VoiceNote::class, 'voice_id');
+    }
 
     protected function casts(): array
     {

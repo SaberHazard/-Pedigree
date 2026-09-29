@@ -55,7 +55,7 @@ class SecurityHeaders
                     "img-src 'self' data: blob:".self::tileOrigin(),
                     "media-src 'self' blob:",
                     "font-src 'self' data:",
-                    "connect-src 'self'",
+                    "connect-src 'self'".self::liveOrigins(),
                     "worker-src 'self'",
                     "manifest-src 'self'",
                     "frame-ancestors 'self'",
@@ -67,6 +67,20 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /** تماس صوتی زنده با هوش مصنوعی: مرورگر مستقیم به همان سرویس وصل می‌شود */
+    private static function liveOrigins(): string
+    {
+        if (! config('pedigree.ai.enabled')) {
+            return '';
+        }
+
+        return match ((string) config('pedigree.ai.live.provider', 'off')) {
+            'gemini' => ' wss://generativelanguage.googleapis.com',
+            'openai' => ' https://api.openai.com',
+            default => '',
+        };
     }
 
     /** دامنه سرویس کاشی نقشه (مثلاً https://tile.openstreetmap.org) برای مجاز شدن تصاویر نقشه */

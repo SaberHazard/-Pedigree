@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\Ai\AssistantService;
+use App\Services\Ai\FamilyFacts;
 use App\Services\Ai\PhotoRestorer;
+use App\Services\Ai\VoiceAi;
 use App\Services\Social\SocialProfileFetcher;
 use App\Support\Countries;
 use App\Support\SocialNetworks;
@@ -46,6 +48,10 @@ class MetaController extends Controller
                 'max_depth' => (int) config('pedigree.tree.max_depth'),
             ],
             'dev_sms' => config('pedigree.sms.driver') === 'log',
+            'voice' => [
+                'enabled' => (bool) config('pedigree.voice.enabled', true),
+                'max_seconds' => (int) config('pedigree.voice.max_seconds', 300),
+            ],
 
             // گزینه‌های فرم پروفایل کامل
             'profile' => [
@@ -97,7 +103,12 @@ class MetaController extends Controller
                 'traits' => config('pedigree.ratings.traits'),
             ],
             'history_public' => (bool) config('pedigree.permissions.history_public', true),
-            'assistant' => ['enabled' => app(AssistantService::class)->configured(), 'restore' => app(PhotoRestorer::class)->enabled()],
+            'assistant' => [
+                'enabled' => app(AssistantService::class)->configured(),
+                'restore' => app(PhotoRestorer::class)->enabled(),
+                'family' => FamilyFacts::enabled(),
+                'voice' => app(VoiceAi::class)->sttProvider() !== null || app(VoiceAi::class)->liveProvider() !== null,
+            ],
             'group' => ['enabled' => (bool) config('pedigree.group.enabled', true), 'name' => (string) config('pedigree.group.name')],
             'messaging' => ['enabled' => (bool) config('pedigree.messaging.enabled', true)],
             'announcement' => config('pedigree.announcement.enabled') && trim((string) config('pedigree.announcement.text')) !== ''

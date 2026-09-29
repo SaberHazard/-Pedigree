@@ -16,6 +16,7 @@ const FAMILY = [
   { type: 'older', emoji: '🎂', title: 'کی بزرگ‌تره؟', text: 'از دو نفر، کدام زودتر به دنیا آمده؟' },
 ];
 const AI = [
+  ['family_quiz', '🌳', 'مسابقه خاندان (با هوش مصنوعی)'],
   ['mushaere', '📖', 'مشاعره'], ['twenty', '❓', 'بیست سؤالی'], ['riddle', '🧩', 'چیستان و معما'],
   ['quiz', '🏆', 'مسابقه ایران‌شناسی'], ['story', '📚', 'داستان‌سازی'], ['proverb', '🗝️', 'ضرب‌المثل'], ['memory', '📜', 'زنده کردن خاطره'],
 ];
@@ -56,8 +57,9 @@ export default function gamesPage(container, { query }) {
       ))),
       ai ? h('section', { class: 'card mt' },
         h('div', { class: 'card-title' }, h('h3', null, icon('bot'), ' بازی با هوش مصنوعی')),
-        h('div', { class: 'row wrap', style: { gap: '8px' } }, ...AI.map(([mode, emoji, label]) => h('button', {
-          class: 'btn soft', type: 'button', onclick: () => navigate(`/assistant?mode=${mode}`),
+        h('p', { class: 'muted small', style: { marginTop: 0 } }, store.config.assistant?.voice ? 'می‌توانید به‌جای نوشتن، پیام صوتی بدهید یا با دستیار «تماس صوتی» بگیرید.' : 'با دستیار بازی کنید؛ سؤال می‌پرسد، امتیاز می‌دهد و بازی را ادامه می‌دهد.'),
+        h('div', { class: 'row wrap', style: { gap: '8px' } }, ...AI.filter(([mode]) => mode !== 'family_quiz' || store.config.assistant?.family !== false).map(([mode, emoji, label]) => h('button', {
+          class: `btn ${mode === 'family_quiz' ? 'primary' : 'soft'}`, type: 'button', onclick: () => navigate(`/assistant?mode=${mode}`),
         }, emoji, ' ', label))),
       ) : null,
     ].filter(Boolean));

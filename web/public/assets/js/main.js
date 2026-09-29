@@ -41,6 +41,7 @@ route('/messages/:id', () => import('./pages/messages.js'), { layout: 'full' });
 route('/assistant', () => import('./pages/assistant.js'));
 route('/group', () => import('./pages/group.js'));
 route('/games', () => import('./pages/games.js'));
+route('/support', () => import('./pages/support.js'));
 route('/account', () => import('./pages/account.js'));
 route('/admin', () => import('./pages/admin.js'));
 route('/admin/:tab', () => import('./pages/admin.js'));

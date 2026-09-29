@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
  */
 class DirectMessage extends Model
 {
-    protected $fillable = ['conversation_id', 'sender_id', 'body'];
+    protected $fillable = ['conversation_id', 'sender_id', 'body', 'voice_id'];
 
     protected function casts(): array
     {
@@ -32,6 +32,11 @@ class DirectMessage extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    public function voice(): BelongsTo
+    {
+        return $this->belongsTo(VoiceNote::class, 'voice_id');
     }
 
     public function sender(): BelongsTo

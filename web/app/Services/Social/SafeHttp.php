@@ -47,11 +47,24 @@ class SafeHttp
     }
 
     /**
+     * ارسال فرم چندبخشی با فایل (مثلاً فایل صوتی برای تبدیل گفتار به متن)؛ بدون ریدایرکت
+     *
+     * @param  string[]  $allowedHosts
+     * @param  array<string, string>  $fields
+     * @param  array<string, array{0:string, 1:string, 2:string}>  $files  نام ← [محتوا، نام فایل، نوع]
+     * @return array{status:int, body:string, type:string}
+     */
+    public function postMultipart(string $url, array $allowedHosts, array $fields, array $files, int $maxBytes, array $headers = [], ?string $proxy = null, ?int $timeout = null): array
+    {
+        return $this->request('POST', $url, $allowedHosts, $maxBytes, $headers, null, 0, $proxy ?? '', $timeout, ['fields' => $fields, 'files' => $files]);
+    }
+
+    /**
      * @param  string[]  $allowedHosts
      * @param  ?string  $proxy  خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)
      * @return array{status:int, body:string, type:string}
      */
-    private function request(string $method, string $url, array $allowedHosts, int $maxBytes, array $headers, ?array $json, int $maxRedirects, ?string $proxy = null, ?int $timeout = null): array
+    private function request(string $method, string $url, array $allowedHosts, int $maxBytes, array $headers, ?array $json, int $maxRedirects, ?string $proxy = null, ?int $timeout = null, ?array $multipart = null): array
     {
         $proxy = $proxy === null || $proxy === '' ? config('pedigree.social.proxy') : $proxy;
         $timeout ??= (int) config('pedigree.social.timeout', 8);
@@ -81,7 +94,15 @@ class SafeHttp
                     'User-Agent' => 'Mozilla/5.0 (compatible; PedigreeLinkPreview/1.0)',
                     'Accept-Language' => 'fa,en;q=0.8',
                 ]);
-                $response = $method === 'POST' ? $pending->asJson()->post($url, $json ?? []) : $pending->get($url);
+                if ($method === 'POST' && $multipart !== null) {
+                    $pending = $pending->asMultipart();
+                    foreach ($multipart['files'] as $name => [$contents, $filename, $mime]) {
+                        $pending = $pending->attach($name, $contents, $filename, ['Content-Type' => $mime]);
+                    }
+                    $response = $pending->post($url, $multipart['fields']);
+                } else {
+                    $response = $method === 'POST' ? $pending->asJson()->post($url, $json ?? []) : $pending->get($url);
+                }
             } catch (Throwable) {
                 throw new DomainException('اتصال به سرور بیرونی برقرار نشد.', 502);
             }

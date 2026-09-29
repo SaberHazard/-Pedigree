@@ -65,6 +65,24 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> filePicker = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), this::onFilePicked);
 
+    /** درخواست میکروفون صفحه که منتظر اجازه اندروید است */
+    private PermissionRequest pendingMicRequest;
+
+    /** اجازه میکروفون (پیام صوتی و گفتگوی صوتی با دستیار) */
+    private final ActivityResultLauncher<String> micPermission = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                PermissionRequest request = pendingMicRequest;
+                pendingMicRequest = null;
+                if (request == null) {
+                    return;
+                }
+                if (Boolean.TRUE.equals(granted)) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                } else {
+                    request.deny();
+                }
+            });
+
     /** اجازه موقعیت مکانی (برای دکمه «موقعیت من» روی نقشه) */
     private final ActivityResultLauncher<String[]> locationPermission = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(), result -> {
@@ -278,10 +296,35 @@ public class MainActivity extends AppCompatActivity {
             locationPermission.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION});
         }
 
-        /** دوربین/میکروفون داخل صفحه لازم نیست (عکس و فیلم با اپ دوربین گوشی گرفته می‌شود) */
+        /**
+         * فقط میکروفون و فقط برای خود سایت شجره‌نامه (پیام صوتی و گفتگوی صوتی با دستیار).
+         * دوربین داخل صفحه لازم نیست (عکس و فیلم با اپ دوربین گوشی گرفته می‌شود).
+         */
         @Override
         public void onPermissionRequest(PermissionRequest request) {
-            request.deny();
+            runOnUiThread(() -> {
+                boolean audio = java.util.Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE);
+                if (!audio || !isOwnUrl(request.getOrigin())) {
+                    request.deny();
+                    return;
+                }
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                    return;
+                }
+                if (pendingMicRequest != null) {
+                    pendingMicRequest.deny();
+                }
+                pendingMicRequest = request;
+                micPermission.launch(Manifest.permission.RECORD_AUDIO);
+            });
+        }
+
+        @Override
+        public void onPermissionRequestCanceled(PermissionRequest request) {
+            if (request == pendingMicRequest) {
+                pendingMicRequest = null;
+            }
         }
 
         @Override

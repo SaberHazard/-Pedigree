@@ -135,6 +135,21 @@ class GroupController extends Controller
         return response()->json(['data' => $this->group->present(collect([$message]), $request->user())[0]], 201);
     }
 
+    /** پیام صوتی در گروه (خاطره با صدای خود شخص) */
+    public function sendVoice(Request $request): JsonResponse
+    {
+        $this->assertEnabled();
+        $data = $request->validate([
+            'voice' => ['required', 'file', 'max:'.(int) config('pedigree.voice.max_kb', 10240)],
+            'waveform' => ['nullable', 'string', 'max:400'],
+            'caption' => ['nullable', 'string', 'max:1000'],
+            'reply_to' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $message = $this->group->postVoice($request->user(), $data['voice'], $data['waveform'] ?? null, $data['caption'] ?? null, $data['reply_to'] ?? null);
+
+        return response()->json(['data' => $this->group->present(collect([$message]), $request->user())[0]], 201);
+    }
+
     public function react(Request $request, int $message): JsonResponse
     {
         $this->assertEnabled();

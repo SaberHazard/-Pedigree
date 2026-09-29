@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\DirectMessage;
 use App\Models\User;
 use App\Models\UserBlock;
+use App\Models\VoiceNote;
 use App\Notifications\MessageReceived;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -42,7 +43,7 @@ class MessagingService
      *
      * @throws DomainException
      */
-    public function send(User $from, Conversation $conversation, string $body): DirectMessage
+    public function send(User $from, Conversation $conversation, string $body, ?VoiceNote $voice = null): DirectMessage
     {
         if (! $conversation->hasParticipant($from)) {
             throw new DomainException('گفتگو پیدا نشد.', 404);
@@ -52,7 +53,8 @@ class MessagingService
             throw new DomainException('گفتگو پیدا نشد.', 404);
         }
         $this->assertCanMessage($from, $to);
-        $body = self::clean($body);
+        // پیام صوتی بدون متن هم مجاز است
+        $body = $voice !== null && trim($body) === '' ? '' : self::clean($body);
 
         // سقف ارسال: ۲۰ در دقیقه و ۵۰۰ در روز (جلوگیری از هرزنامه)
         foreach ([['msg-m:', 20, 60], ['msg-d:', (int) config('pedigree.messaging.daily_limit', 500), 86400]] as [$prefix, $max, $decay]) {
@@ -63,8 +65,8 @@ class MessagingService
         RateLimiter::hit('msg-m:'.$from->id, 60);
         RateLimiter::hit('msg-d:'.$from->id, 86400);
 
-        $message = DB::transaction(function () use ($from, $conversation, $body) {
-            $message = DirectMessage::create(['conversation_id' => $conversation->id, 'sender_id' => $from->id, 'body' => $body]);
+        $message = DB::transaction(function () use ($from, $conversation, $body, $voice) {
+            $message = DirectMessage::create(['conversation_id' => $conversation->id, 'sender_id' => $from->id, 'body' => $body, 'voice_id' => $voice?->id]);
             $conversation->forceFill(['last_message_at' => now()])->save();
 
             return $message;

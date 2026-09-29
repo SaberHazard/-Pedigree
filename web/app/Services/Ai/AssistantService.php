@@ -64,6 +64,10 @@ class AssistantService
             'label' => 'داستان‌سازی', 'emoji' => '📚', 'starter' => 'بیا با هم یک داستان بسازیم. تو شروع کن.',
             'prompt' => 'حالت «داستان‌سازی»: با کاربر یک داستان خانوادگی گرم و خیالی مناسب همه سنین بسازید. هر نوبت ۲ تا ۳ جمله به داستان اضافه کن و از کاربر بخواه ادامه دهد یا بین دو انتخاب کوتاه یکی را برگزیند.',
         ],
+        'family_quiz' => [
+            'label' => 'مسابقه خاندان', 'emoji' => '🌳', 'starter' => 'مسابقه خاندان را شروع کن!',
+            'prompt' => 'حالت «مسابقه خاندان»: مجری یک مسابقه شاد و خانوادگی باش و فقط از روی «برگه اطلاعات خاندان» که پایین آمده سؤال بپرس (مثلاً «پدربزرگت متولد کدام شهر است؟»، «کدام‌یک از عموهایت پزشک است؟»، «مادربزرگت چه سالی به دنیا آمد؟»). هر بار یک سؤال چهارگزینه‌ای (الف تا د) یا کوتاه‌پاسخ بپرس، پس از جواب درست یا غلط بودن را با یک جمله گرم بگو، امتیاز را اعلام کن و سؤال بعد را بپرس. هرگز چیزی بیرون از برگه اطلاعات نساز و اگر اطلاعاتی نبود، سؤال دیگری بپرس. اطلاعات را فقط برای همین بازی به کار ببر.',
+        ],
         'proverb' => [
             'label' => 'ضرب‌المثل', 'emoji' => '🗝️', 'starter' => 'بازی ضرب‌المثل را شروع کن.',
             'prompt' => 'حالت «ضرب‌المثل»: یک ضرب‌المثل فارسی را نیمه‌کاره بگو یا با توصیف یک موقعیت به آن اشاره کن تا کاربر کاملش کند. بعد معنی و ریشه کوتاهش را بگو، امتیاز را نگه دار و سراغ بعدی برو.',
@@ -141,8 +145,19 @@ class AssistantService
             throw new DomainException('دستیار هوش مصنوعی هنوز راه‌اندازی نشده است؛ مدیر سایت باید کلید یکی از سرویس‌ها را در «تنظیمات و اتصال‌ها» وارد کند.', 503, 'ai_off');
         }
         $messages = $this->prepare($messages);
+        $system = $this->instructionsFor($user, $mode);
+        $this->consumeQuota($user);
 
-        // سقف روزانه هر عضو و کل سایت (پیش از تماس با سرویس)
+        return $this->complete($system, $messages, (int) config('pedigree.ai.max_output_tokens', 1500));
+    }
+
+    /**
+     * سقف روزانه هر عضو و کل سایت (پیش از تماس با سرویس؛ گفتگو، تبدیل صدا به متن)
+     *
+     * @throws DomainException
+     */
+    public function consumeQuota(User $user): void
+    {
         $userKey = $this->userKey($user);
         $globalKey = 'ai-g:'.now('Asia/Tehran')->format('Ymd');
         if (RateLimiter::tooManyAttempts($userKey, $this->perUser())) {
@@ -153,13 +168,29 @@ class AssistantService
         }
         RateLimiter::hit($userKey, 86400);
         RateLimiter::hit($globalKey, 86400);
+    }
 
+    /**
+     * دستور سیستمی کامل یک حالت (برای گفتگوی متنی و گفتگوی صوتی زنده)
+     *
+     * @throws DomainException
+     */
+    public function instructionsFor(User $user, string $mode): string
+    {
+        $mode = isset(self::MODES[$mode]) ? $mode : 'chat';
         $system = $this->systemPrompt();
         if (self::MODES[$mode]['prompt']) {
             $system .= "\n\n".self::MODES[$mode]['prompt'];
         }
+        if ($mode === 'family_quiz') {
+            $facts = app(FamilyFacts::class)->forUser($user);
+            if ($facts === null) {
+                throw new DomainException(FamilyFacts::enabled() ? 'هنوز بستگان کافی در درخت شما ثبت نشده است.' : 'مسابقه خاندان را مدیر سایت خاموش کرده است.', 422, 'ai_family');
+            }
+            $system .= "\n\n«برگه اطلاعات خاندان» (فقط همین‌ها را درباره خانواده می‌دانی):\n".$facts;
+        }
 
-        return $this->complete($system, $messages, (int) config('pedigree.ai.max_output_tokens', 1500));
+        return $system;
     }
 
     /** آزمایش اتصال از پنل مدیریت (بدون مصرف سهمیه اعضا) */

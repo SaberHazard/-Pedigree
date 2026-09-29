@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Notifications\GroupReply;
 use App\Services\AuditLogger;
 use App\Services\Media\MediaService;
+use App\Services\Media\VoiceService;
 use App\Services\Occasions\BirthdayService;
 use App\Services\Tree\NodePresenter;
 use App\Support\PartialDate;
@@ -42,6 +43,7 @@ class GroupService
     public function __construct(
         private readonly MediaService $media,
         private readonly AuditLogger $audit,
+        private readonly VoiceService $voices,
     ) {}
 
     public function enabled(): bool
@@ -79,6 +81,31 @@ class GroupService
         $this->notifyReply($user, $reply, $message);
 
         return $message;
+    }
+
+    /**
+     * پیام صوتی (خاطره با صدای خود شخص؛ مثل وویس تلگرام). متن کوتاه اختیاری است.
+     *
+     * @throws DomainException
+     */
+    public function postVoice(User $user, UploadedFile $file, mixed $waveform = null, ?string $caption = null, ?int $replyTo = null): GroupMessage
+    {
+        $this->assertCanPost($user);
+        $caption = $caption !== null && trim($caption) !== '' ? $this->cleanBody($caption) : '';
+        $reply = $this->replyTarget($replyTo);
+        $this->hit($user);
+        $voice = $this->voices->store($user, $file, 'group', $waveform);
+
+        $message = GroupMessage::create([
+            'user_id' => $user->id,
+            'kind' => GroupMessage::KIND_VOICE,
+            'body' => $caption,
+            'voice_id' => $voice->id,
+            'reply_to_id' => $reply?->id,
+        ]);
+        $this->notifyReply($user, $reply, $message);
+
+        return $message->setRelation('voice', $voice);
     }
 
     /**
@@ -255,7 +282,10 @@ class GroupService
         if ($message->user_id !== $actor->id && ! $actor->isAdmin()) {
             throw new DomainException('فقط فرستنده یا مدیر می‌تواند این پیام را حذف کند.', 403);
         }
-        $message->forceFill(['body' => '', 'deleted_at' => now(), 'pinned_at' => null, 'media_id' => null])->save();
+        if ($message->voice_id) {
+            $this->voices->delete($message->voice);
+        }
+        $message->forceFill(['body' => '', 'deleted_at' => now(), 'pinned_at' => null, 'media_id' => null, 'voice_id' => null])->save();
         GroupReaction::query()->where('message_id', $message->id)->delete();
         if ($message->user_id !== $actor->id) {
             $this->audit->log('group.message_deleted', null, ['message' => $message->id, 'author' => $message->user_id], $actor);
@@ -337,7 +367,7 @@ class GroupService
         if ($messages->isEmpty()) {
             return [];
         }
-        $messages = (new EloquentCollection($messages->all()))->loadMissing(['user.person.avatar', 'media.taggedPeople', 'replyTo.user.person']);
+        $messages = (new EloquentCollection($messages->all()))->loadMissing(['user.person.avatar', 'media.taggedPeople', 'replyTo.user.person', 'voice']);
         $ids = $messages->pluck('id')->all();
         $reactions = GroupReaction::query()->whereIn('message_id', $ids)->get(['message_id', 'user_id', 'emoji'])->groupBy('message_id');
 
@@ -368,10 +398,11 @@ class GroupService
                 'reply_to' => $reply ? [
                     'id' => $reply->id,
                     'name' => $reply->user?->person?->first_name ?? ($reply->user ? $reply->user->displayName() : 'سؤال روز'),
-                    'text' => $reply->deleted_at ? 'پیام حذف شد' : mb_substr((string) $reply->body, 0, 80),
+                    'text' => $reply->deleted_at ? 'پیام حذف شد' : ($reply->kind === GroupMessage::KIND_VOICE && (string) $reply->body === '' ? '🎤 پیام صوتی' : mb_substr((string) $reply->body, 0, 80)),
                     'kind' => $reply->kind,
                 ] : null,
                 'media' => $media,
+                'voice' => ! $deleted && $m->voice ? $m->voice->present() : null,
                 'reactions' => $grouped,
                 'pinned' => $m->pinned_at !== null,
                 'at' => $m->created_at?->toIso8601String(),

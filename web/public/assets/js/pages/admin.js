@@ -16,6 +16,7 @@ import { adminSettings, adminSmsReport } from '../components/admin-settings.js';
 import { adminTemplates } from '../components/admin-templates.js';
 import { adminOverview, adminGroup } from '../components/admin-overview.js';
 import { adminEdits } from '../components/admin-edits.js';
+import { adminSupport } from '../components/admin-support.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
 
@@ -33,6 +34,7 @@ export default function adminPage(container, { params, query }) {
       { value: 'overview', label: 'نمای کلی', icon: 'shield' },
       { value: 'users', label: 'کاربران', icon: 'users' },
       { value: 'edits', label: 'تأیید ویرایش‌ها', icon: 'edit' },
+      { value: 'support', label: `پشتیبانی${store.user.counters?.support_admin ? ` (${fa(store.user.counters.support_admin)})` : ''}`, icon: 'headset' },
       { value: 'group', label: 'گروه خاندان', icon: 'flag' },
       superAdmin ? { value: 'settings', label: 'تنظیمات و اتصال‌ها (API)', icon: 'key' } : null,
       superAdmin ? { value: 'templates', label: 'قالب پیامک‌ها', icon: 'edit' } : null,
@@ -53,7 +55,7 @@ export default function adminPage(container, { params, query }) {
 
   function show(tab) {
     body.replaceChildren(loader());
-    ({ users, activity, trash, tools, edits: () => adminEdits(body), overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
+    ({ users, activity, trash, tools, edits: () => adminEdits(body), support: () => adminSupport(body, { threadId: query?.thread }), overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
   }
 
   // ------------------------------------------------------------ کاربران

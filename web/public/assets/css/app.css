@@ -2197,3 +2197,95 @@ textarea.input.grp-input { resize: none; min-height: 42px; height: 42px; max-hei
 .mar-btn { font-size: 1.05rem; flex: none; }
 .mar-btn.divorced { filter: grayscale(1); }
 @media (prefers-reduced-motion: reduce) { .mar-heart, .pending-icon { animation: none; } }
+
+/* ---------- پیام صوتی (ضبط و پخش مثل تلگرام) ---------- */
+.voice-btn { flex: none; }
+.msg-compose, .grp-compose { position: relative; }
+.recording > .compose-row, .recording > .compose-row * { visibility: hidden; }
+.rec-bar {
+  position: absolute; inset-inline: 8px; bottom: 8px; min-height: 46px; z-index: 3;
+  display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 10px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-sm);
+  animation: pageIn .2s var(--ease);
+}
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e11d48; flex: none; animation: recBlink 1s ease-in-out infinite; }
+@keyframes recBlink { 50% { opacity: .25; } }
+.rec-time { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 42px; }
+.rec-wave { flex: 1; min-width: 0; display: flex; align-items: center; gap: 2px; height: 30px; overflow: hidden; direction: ltr; justify-content: flex-end; }
+.rec-wave i { display: block; width: 3px; border-radius: 3px; background: var(--primary); opacity: .85; flex: none; transition: height .08s; }
+.rec-send { flex: none; }
+.rec-cancel { color: var(--danger, #dc2626); flex: none; }
+.uploading { opacity: .7; pointer-events: none; }
+.uploading::after { content: ''; position: absolute; inset-inline: 16px; top: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--primary), transparent); background-size: 200% 100%; animation: upSlide 1s linear infinite; }
+@keyframes upSlide { from { background-position: 200% 0; } to { background-position: 0 0; } }
+
+.voice-player { --p: 0%; display: flex; align-items: center; gap: 10px; min-width: min(240px, 62vw); max-width: 100%; padding: 2px 0; direction: ltr; }
+.vp-play { width: 40px; height: 40px; border-radius: 50%; border: 0; flex: none; display: grid; place-items: center; cursor: pointer; background: var(--primary); color: #fff; box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 35%, transparent); transition: transform .15s var(--ease-spring); }
+.vp-play:active { transform: scale(.92); }
+.vp-play .icon { width: 18px; height: 18px; }
+.voice-player.mine .vp-play { background: #fff; color: var(--primary); }
+.vp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.vp-wave { position: relative; display: flex; align-items: center; gap: 2px; height: 28px; cursor: pointer; outline: none; }
+.vp-wave i { flex: 1 1 0; max-width: 4px; min-width: 2px; border-radius: 3px; background: currentColor; opacity: .32; transition: opacity .12s; }
+.vp-wave i.on { opacity: 1; }
+.voice-player .vp-wave { color: var(--primary); }
+.voice-player.mine .vp-wave { color: #fff; }
+.vp-wave:focus-visible { box-shadow: var(--ring); border-radius: 6px; }
+.vp-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .75rem; opacity: .8; }
+.vp-time { font-variant-numeric: tabular-nums; }
+.vp-speed { border: 0; border-radius: 999px; padding: 0 7px; font: inherit; font-weight: 700; cursor: pointer; background: color-mix(in srgb, currentColor 14%, transparent); color: inherit; }
+.msg-bubble.has-voice, .grp-bubble .voice-player { padding-block: 6px; }
+
+/* ---------- پشتیبانی ---------- */
+.sup-chat { display: flex; flex-direction: column; height: calc(100dvh - var(--header-h, 64px) - var(--bottom-nav-h, 0px) - 48px); min-height: 420px; padding: 0; overflow: hidden; }
+.sup-chat .msg-thread { flex: 1; }
+.sup-icon { width: 38px; height: 38px; }
+.sup-sender { padding-inline: 6px; margin-bottom: 2px; }
+.sup-empty { margin: auto; max-width: 360px; text-align: center; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; }
+.sup-empty .icon { width: 42px; height: 42px; color: var(--primary); opacity: .75; }
+.sup-admin { display: grid; grid-template-columns: minmax(240px, 320px) 1fr; gap: 12px; }
+.sup-list { padding: 0; overflow: hidden; }
+.sup-list .msg-items { max-height: 70vh; overflow: auto; }
+.sup-list .msg-item { width: 100%; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.sup-admin .sup-chat { height: 70vh; }
+@media (max-width: 760px) {
+  .sup-admin { grid-template-columns: 1fr; }
+  .sup-admin.has-chat .sup-list { display: none; }
+  .sup-admin:not(.has-chat) .sup-chat-box { display: none; }
+}
+
+/* ---------- تماس صوتی با دستیار ---------- */
+.ai-tools { display: flex; flex-direction: column; gap: 2px; }
+.ai-tools .icon-btn.active { color: var(--primary); background: var(--primary-soft); }
+.call-start { flex: none; }
+.call-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(6, 20, 20, .55); backdrop-filter: blur(10px); animation: fadeIn .2s ease; }
+.call-overlay.closing { animation: fadeOut .2s ease forwards; }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeOut { to { opacity: 0; } }
+.call-card { width: min(420px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--surface); border-radius: 28px; padding: 22px 20px 16px; box-shadow: var(--shadow-lg, 0 20px 60px rgba(0,0,0,.25)); display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.call-title { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.call-orb { position: relative; width: 140px; height: 140px; margin: 8px 0; display: grid; place-items: center; color: #fff; }
+.call-orb .icon { position: relative; z-index: 2; width: 46px; height: 46px; }
+.call-orb span { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--primary) 70%, #fff), var(--primary)); }
+.call-orb span:nth-child(2), .call-orb span:nth-child(3) { opacity: .25; transform: scale(1); }
+.call-orb.connecting span:first-child { animation: orbBreath 1.6s ease-in-out infinite; }
+.call-orb.listening span:nth-child(2) { animation: orbRipple 2.2s ease-out infinite; }
+.call-orb.speaking span:nth-child(2) { animation: orbRipple 1s ease-out infinite; }
+.call-orb.speaking span:nth-child(3) { animation: orbRipple 1s ease-out .5s infinite; }
+.call-orb.speaking span:first-child { animation: orbBreath .5s ease-in-out infinite; }
+@keyframes orbBreath { 50% { transform: scale(1.06); } }
+@keyframes orbRipple { from { transform: scale(1); opacity: .35; } to { transform: scale(1.6); opacity: 0; } }
+.call-status { font-weight: 700; }
+.call-timer { font-variant-numeric: tabular-nums; color: var(--muted); font-size: .85rem; }
+.call-captions { width: 100%; min-height: 56px; max-height: 150px; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
+.call-captions .cap { margin: 0; padding: 8px 12px; border-radius: 14px; font-size: .92rem; text-align: start; }
+.call-captions .cap.user { background: var(--surface-2); align-self: flex-start; }
+.call-captions .cap.ai { background: var(--primary-soft); align-self: flex-end; }
+.call-actions { display: flex; gap: 18px; margin-top: 4px; }
+.call-btn { width: 60px; height: 60px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; background: var(--surface-2); color: var(--text); transition: transform .15s var(--ease-spring), background .15s; }
+.call-btn:active { transform: scale(.92); }
+.call-btn .icon { width: 26px; height: 26px; }
+.call-btn.off { background: var(--warning-soft); color: var(--warning); }
+.call-btn.end { background: #e11d48; color: #fff; box-shadow: 0 8px 22px rgba(225, 29, 72, .35); }
+.call-note { margin: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .call-orb span { animation: none !important; } }

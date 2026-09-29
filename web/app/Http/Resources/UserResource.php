@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Group\GroupService;
 use App\Services\Messaging\MessagingService;
 use App\Services\People\LinkService;
+use App\Services\Support\SupportService;
 use App\Services\Tree\NodePresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -37,7 +38,7 @@ class UserResource extends JsonResource
                 'username' => $user->username,
                 'join_note' => $user->join_note,
                 'person' => $person ? ['id' => $person->id, 'first_name' => $person->first_name, 'last_name' => $person->last_name, 'gender' => $person->gender] : null,
-                'counters' => ['notifications' => 0, 'votes' => 0, 'links' => 0, 'messages' => 0, 'group' => 0],
+                'counters' => ['notifications' => 0, 'votes' => 0, 'links' => 0, 'messages' => 0, 'group' => 0, 'support' => 0, 'support_admin' => 0],
             ];
         }
 
@@ -72,6 +73,8 @@ class UserResource extends JsonResource
                 'links' => $pendingLinks,
                 'messages' => app(MessagingService::class)->unreadCount($user),
                 'group' => app(GroupService::class)->unreadCount($user),
+                'support' => app(SupportService::class)->unreadForUser($user),
+                'support_admin' => $user->isAdmin() ? app(SupportService::class)->unreadThreadsForAdmins() : 0,
             ],
         ];
     }

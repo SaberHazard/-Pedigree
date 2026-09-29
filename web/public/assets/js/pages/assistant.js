@@ -6,10 +6,12 @@
  */
 import { h } from '../core/dom.js';
 import { icon } from '../core/icons.js';
-import { get, post } from '../core/api.js';
+import { get, post, upload, request } from '../core/api.js';
 import { store } from '../core/store.js';
 import { fa } from '../core/format.js';
 import { toast, toastError, loader, emptyState, confirmDialog } from '../core/ui.js';
+import { voiceButton, voiceForm, voiceSupported } from '../components/voice.js';
+import { openAiCall, callSupported } from '../components/ai-call.js';
 
 const MAX_KEEP = 40;
 const STARTERS = [
@@ -53,9 +55,28 @@ export default async function assistantPage(container, { query } = {}) {
   const input = h('textarea', { class: 'input ai-input', rows: 1, maxlength: info.max_chars, placeholder: 'پیامتان را بنویسید...', 'aria-label': 'پیام به دستیار' });
   const sendBtn = h('button', { class: 'btn primary icon-only', type: 'button', title: 'ارسال', onclick: () => send() }, icon('send'));
 
+  // صدا: پیام صوتی فارسی (تبدیل به متن)، خواندن پاسخ و تماس صوتی زنده
+  const voice = info.voice || {};
+  const compose = h('div', { class: 'ai-compose' });
+  const micBtn = voice.stt && voiceSupported()
+    ? voiceButton({ host: compose, maxSeconds: voice.max_seconds || 120, send: sendVoice, title: 'پیام صوتی به دستیار' }) : null;
+  const toggleButtons = () => {
+    if (!micBtn) return;
+    const empty = !input.value.trim();
+    micBtn.hidden = !empty;
+    sendBtn.hidden = empty;
+  };
+  toggleButtons();
+  const callBtn = voice.live && callSupported()
+    ? h('button', { class: 'btn soft sm call-start', type: 'button', title: 'گفتگوی صوتی زنده با دستیار', onclick: () => {
+      const m = modes.find((x) => x.key === mode);
+      openAiCall({ mode, modeLabel: m ? `${m.emoji} ${m.label}` : '' });
+    } }, icon('phone-call'), h('span', { class: 'hide-mobile' }, 'تماس صوتی'))
+    : null;
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+    toggleButtons();
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !matchMedia('(pointer: coarse)').matches) {
@@ -79,16 +100,20 @@ export default async function assistantPage(container, { query } = {}) {
         h('div', { class: 'grow', style: { minWidth: 0 } },
           h('b', null, 'دستیار هوشمند'),
           h('div', { class: 'muted tiny ellipsis' }, `با ${info.provider}`, ' • ', remainingEl)),
+        callBtn,
         h('button', { class: 'btn ghost sm', type: 'button', title: 'پاک کردن گفتگو و شروع دوباره', onclick: reset }, icon('refresh'), h('span', { class: 'hide-mobile' }, 'گفتگوی تازه')),
       ),
       modeBar,
       thread,
-      h('div', { class: 'ai-compose' },
-        h('div', { class: 'row', style: { gap: '6px', alignItems: 'flex-end' } }, input, sendBtn),
-        h('p', { class: 'muted tiny', style: { margin: '6px 2px 0' } }, icon('lock'), ' گفتگو در سرور ذخیره نمی‌شود و فقط همین متن‌ها برای سرویس هوش مصنوعی فرستاده می‌شود؛ کد ملی، رمز یا اطلاعات خصوصی ننویسید. پاسخ‌ها ممکن است اشتباه داشته باشند.'),
-      ),
+      compose,
     ),
   );
+  const privacy = h('p', { class: 'muted tiny', style: { margin: '6px 2px 0' } });
+  const drawPrivacy = () => privacy.replaceChildren(icon('lock'), mode === 'family_quiz'
+    ? ' در مسابقه خاندان، نام، نسبت، سال تولد، زادگاه، شغل و تحصیلات تعدادی از بستگانتان برای سرویس هوش مصنوعی فرستاده می‌شود (هرگز شماره، نشانی یا کد ملی).'
+    : ' گفتگو در سرور ذخیره نمی‌شود و فقط همین متن‌ها (و پیام صوتی شما) برای سرویس هوش مصنوعی فرستاده می‌شود؛ کد ملی، رمز یا اطلاعات خصوصی ننویسید. پاسخ‌ها ممکن است اشتباه داشته باشند.');
+  drawPrivacy();
+  compose.append(h('div', { class: 'row compose-row', style: { gap: '6px', alignItems: 'flex-end' } }, ...[input, sendBtn, micBtn].filter(Boolean)), privacy);
   setRemaining(info.remaining);
   render();
   if (!matchMedia('(pointer: coarse)').matches) input.focus();
@@ -99,6 +124,7 @@ export default async function assistantPage(container, { query } = {}) {
     storeKey = keyFor(mode);
     history = load();
     drawModes();
+    drawPrivacy();
     history_replace();
     render();
     const m = modes.find((x) => x.key === mode);
@@ -164,7 +190,9 @@ export default async function assistantPage(container, { query } = {}) {
       items.push(h('div', { class: `ai-msg ${m.role}` },
         m.role === 'assistant' ? h('div', { class: 'ai-avatar sm' }, icon('bot')) : null,
         h('div', { class: 'ai-bubble', dir: 'auto' }, ...(m.role === 'assistant' ? rich(m.content) : [m.content])),
-        m.role === 'assistant' ? h('button', { class: 'icon-btn ai-copy', type: 'button', title: 'کپی متن', onclick: () => copy(m.content) }, icon('copy')) : null,
+        m.role === 'assistant' ? h('div', { class: 'ai-tools' },
+          voice.tts ? h('button', { class: 'icon-btn ai-copy', type: 'button', title: 'خواندن با صدا', 'aria-label': 'خواندن با صدا', onclick: (e) => speak(m.content, e.currentTarget) }, icon('volume')) : null,
+          h('button', { class: 'icon-btn ai-copy', type: 'button', title: 'کپی متن', onclick: () => copy(m.content) }, icon('copy'))) : null,
       ));
     }
     if (pending) items.push(h('div', { class: 'ai-msg assistant' }, h('div', { class: 'ai-avatar sm' }, icon('bot')), h('div', { class: 'ai-bubble typing' }, h('i'), h('i'), h('i'))));
@@ -182,6 +210,7 @@ export default async function assistantPage(container, { query } = {}) {
     if (text === undefined) {
       input.value = '';
       input.style.height = 'auto';
+      toggleButtons();
     }
     render(true);
     try {
@@ -199,6 +228,64 @@ export default async function assistantPage(container, { query } = {}) {
     } finally {
       busy = false;
       sendBtn.disabled = false;
+    }
+  }
+
+  /** پیام صوتی ← متن ← ارسال مثل پیام نوشتاری */
+  async function sendVoice(blob) {
+    if (busy) return;
+    compose.classList.add('uploading');
+    try {
+      const res = await upload('/api/assistant/transcribe', voiceForm(blob, []));
+      setRemaining(res.data.remaining);
+      compose.classList.remove('uploading');
+      await send(res.data.text);
+    } catch (e) {
+      toastError(e);
+      throw e;
+    } finally {
+      compose.classList.remove('uploading');
+    }
+  }
+
+  // خواندن پاسخ: با صدای سرور (Gemini/OpenAI) یا صدای فارسی خود گوشی
+  let speaking = null;
+  async function speak(textValue, btn) {
+    if (speaking) {
+      speaking.stop();
+      speaking = null;
+      return;
+    }
+    if (voice.tts === 'browser') {
+      const synth = window.speechSynthesis;
+      const faVoice = synth?.getVoices().find((v) => /^fa/i.test(v.lang));
+      if (!synth || !faVoice) {
+        toast('صدای فارسی روی این دستگاه نصب نیست؛ مدیر سایت می‌تواند خواندن با صدای Gemini را روشن کند.', 'info', 6000);
+        return;
+      }
+      const u = new SpeechSynthesisUtterance(textValue.replace(/[*#`>_]+/g, ''));
+      u.voice = faVoice;
+      u.lang = faVoice.lang;
+      u.onend = () => { speaking = null; btn.classList.remove('active'); };
+      synth.cancel();
+      synth.speak(u);
+      btn.classList.add('active');
+      speaking = { stop: () => { synth.cancel(); btn.classList.remove('active'); } };
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const res = await request('POST', '/api/assistant/speak', { text: textValue.slice(0, 1200) }, { raw: true });
+      const blobUrl = URL.createObjectURL(await res.blob());
+      const audio = new Audio(blobUrl);
+      audio.onended = () => { URL.revokeObjectURL(blobUrl); speaking = null; btn.classList.remove('active'); };
+      await audio.play();
+      btn.classList.add('active');
+      speaking = { stop: () => { audio.pause(); URL.revokeObjectURL(blobUrl); btn.classList.remove('active'); } };
+    } catch (e) {
+      toastError(e);
+    } finally {
+      btn.disabled = false;
     }
   }
 

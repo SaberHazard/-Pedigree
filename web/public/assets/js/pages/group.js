@@ -18,6 +18,7 @@ import { emojiPanel, insertAtCursor } from '../components/emoji.js';
 import { openLightbox } from '../components/lightbox.js';
 import { searchBox } from '../components/person-search.js';
 import { shrinkImage } from '../core/shrink.js';
+import { voiceButton, voicePlayer, voiceForm, voiceSupported } from '../components/voice.js';
 
 const POLL = 4000;
 
@@ -50,9 +51,21 @@ export default async function groupPage(container, { query }) {
   panel.hidden = true;
   const fileInput = h('input', { type: 'file', hidden: true, accept: store.config.media?.accept || 'image/*,video/*', onchange: () => { const f = fileInput.files[0]; fileInput.value = ''; if (f) mediaDialog(f); } });
 
+  // مثل تلگرام: بدون متن دکمه میکروفون، با متن دکمه ارسال
+  const composeBox = h('div', { class: 'grp-compose' });
+  const voiceOn = store.config.voice?.enabled !== false && voiceSupported();
+  const micBtn = voiceOn && info.can_post ? voiceButton({ host: composeBox, maxSeconds: store.config.voice?.max_seconds || 300, send: sendVoice, title: 'خاطره صوتی' }) : null;
+  const toggleButtons = () => {
+    if (!micBtn) return;
+    const empty = !input.value.trim();
+    micBtn.hidden = !empty;
+    sendBtn.hidden = empty;
+  };
+  toggleButtons();
   input.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = `${Math.min(input.scrollHeight, 150)}px`;
+    toggleButtons();
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !matchMedia('(pointer: coarse)').matches) {
@@ -61,17 +74,27 @@ export default async function groupPage(container, { query }) {
     }
   });
 
-  const composer = info.can_post
-    ? h('div', { class: 'grp-compose' },
+  if (info.can_post) {
+    composeBox.append(
       replyBar,
       panel,
-      h('div', { class: 'row', style: { gap: '6px', alignItems: 'flex-end' } },
+      h('div', { class: 'row compose-row', style: { gap: '6px', alignItems: 'flex-end' } }, ...[
         h('button', { class: 'icon-btn', type: 'button', title: 'ایموجی', onclick: () => { panel.hidden = !panel.hidden; } }, icon('smile')),
         h('button', { class: 'icon-btn', type: 'button', title: 'عکس یا فیلم قدیمی', onclick: () => fileInput.click() }, icon('image')),
-        input, sendBtn, fileInput,
-      ),
-    )
+        input, sendBtn, micBtn, fileInput,
+      ].filter(Boolean)),
+    );
+  }
+  const composer = info.can_post
+    ? composeBox
     : h('div', { class: 'grp-compose muted small center' }, icon('lock'), ' ', info.problem || 'امکان پیام دادن نیست.');
+
+  // پخش‌کننده هر خاطره صوتی یک بار ساخته می‌شود تا با به‌روزرسانی گروه، پخش قطع نشود
+  const players = new Map();
+  const playerFor = (m) => {
+    if (!players.has(m.id)) players.set(m.id, voicePlayer(m.voice, { mine: m.mine }));
+    return players.get(m.id);
+  };
 
   page.replaceChildren(h('div', { class: 'grp-shell card' },
     h('div', { class: 'grp-head' },
@@ -220,6 +243,7 @@ export default async function groupPage(container, { query }) {
       body.push(h('div', { class: 'grp-text deleted' }, 'این پیام حذف شد'));
     } else {
       if (m.media) body.push(mediaBlock(m));
+      if (m.voice) body.push(playerFor(m));
       if (m.body) body.push(h('div', { class: 'grp-text', dir: 'auto' }, m.body));
     }
     const menuBtn = m.deleted ? null : h('button', { class: 'grp-menu', type: 'button', title: 'گزینه‌ها', onclick: () => menu(m, menuBtn) }, icon('more'));
@@ -376,12 +400,29 @@ export default async function groupPage(container, { query }) {
       input.value = '';
       input.style.height = 'auto';
       panel.hidden = true;
+      toggleButtons();
       clearReply();
       render(true);
     } catch (e) {
       toastError(e);
     } finally {
       sendBtn.disabled = false;
+    }
+  }
+
+  async function sendVoice(blob, waveform) {
+    composeBox.classList.add('uploading');
+    try {
+      const res = await upload('/api/group/voice', voiceForm(blob, waveform, { reply_to: replyTo?.id || null }));
+      messages.push(res.data);
+      index();
+      clearReply();
+      render(true);
+    } catch (e) {
+      toastError(e);
+      throw e;
+    } finally {
+      composeBox.classList.remove('uploading');
     }
   }
 
