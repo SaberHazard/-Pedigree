@@ -228,3 +228,11 @@ export function duration(seconds) {
   const s = seconds % 60;
   return fa(`${m}:${String(s).padStart(2, '0')}`);
 }
+
+/** نمایش خوانای شماره کارت (۴تا۴تا) و شبا (IRxx xxxx ...) */
+export function bankNumber(kind, value) {
+  const v = String(value ?? '');
+  if (kind === 'card') return v.replace(/(\d{4})(?=\d)/g, '$1 ');
+  if (kind === 'sheba') return v.replace(/^(IR\d{2})(\d{4})(\d{4})(\d{4})(\d{4})(\d{4})(\d{2})$/, '$1 $2 $3 $4 $5 $6 $7');
+  return v;
+}

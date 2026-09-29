@@ -84,6 +84,7 @@ final class SettingsSchema
                 'fields' => [
                     'pedigree.site_name' => ['label' => 'نام سایت', 'type' => 'text', 'max' => 80],
                     'pedigree.registration.enabled' => ['label' => 'ثبت‌نام اعضای جدید باز باشد', 'type' => 'bool'],
+                    'pedigree.iran_proxy' => ['label' => 'پراکسی داخل ایران (برای پیامک و درگاه پرداخت)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'فقط اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت IP خارجی را نمی‌پذیرد'],
                     'pedigree.registration.require_approval' => ['label' => 'عضو تازه تا تأیید مدیر هیچ‌چیز نبیند', 'type' => 'bool', 'help' => 'کسی که شماره‌اش را بستگان در شجره‌نامه ثبت کرده‌اند بی‌نیاز از تأیید وارد می‌شود؛ بقیه با یک معرفی کوتاه در «مدیریت ← کاربران ← در انتظار تأیید» می‌مانند. برای حفظ حریم خاندان روشن بماند.'],
                 ],
             ],
@@ -172,6 +173,24 @@ final class SettingsSchema
                     'pedigree.member_sms.monthly_per_user' => ['label' => 'سقف پیامک هر عضو در ماه', 'type' => 'int', 'min' => 1, 'max' => 10000],
                     'pedigree.member_sms.daily_per_recipient' => ['label' => 'سقف پیامکی که یک نفر در روز دریافت می‌کند', 'type' => 'int', 'min' => 1, 'max' => 100],
                     'pedigree.member_sms.global_daily' => ['label' => 'سقف کل پیامک‌های تبریک سایت در روز', 'type' => 'int', 'min' => 1, 'max' => 100000],
+                ],
+            ],
+            'donate' => [
+                'label' => 'حمایت از سازنده',
+                'icon' => 'gift',
+                'description' => 'صفحه «حمایت از سازنده» برای همه اعضا: پرداخت آنلاین با درگاه (پول مستقیم به حساب درگاه شما واریز می‌شود) و فهرست شماره کارت، شبا، حساب و لینک‌های پرداخت (مثل لینک بلو یا زرین‌لینک) که در تب «حمایت» همین پنل وارد می‌کنید. تأیید هر پرداخت سرور-به-سرور با خود درگاه است.',
+                'fields' => [
+                    'pedigree.donate.enabled' => ['label' => 'صفحه حمایت از سازنده فعال باشد', 'type' => 'bool'],
+                    'pedigree.donate.title' => ['label' => 'عنوان صفحه', 'type' => 'text', 'max' => 60],
+                    'pedigree.donate.message' => ['label' => 'متن معرفی', 'type' => 'text', 'max' => 600],
+                    'pedigree.donate.gateway' => ['label' => 'درگاه پرداخت آنلاین', 'type' => 'select', 'options' => ['' => 'بدون درگاه (فقط کارت و حساب)', 'zarinpal' => 'زرین‌پال', 'zibal' => 'زیبال', 'payir' => 'Pay.ir']],
+                    'pedigree.donate.zarinpal.merchant_id' => ['label' => 'زرین‌پال: مرچنت کد', 'type' => 'secret', 'link' => 'https://next.zarinpal.com/panel'],
+                    'pedigree.donate.zibal.merchant' => ['label' => 'زیبال: کد مرچنت', 'type' => 'secret', 'link' => 'https://zibal.ir'],
+                    'pedigree.donate.payir.api' => ['label' => 'Pay.ir: کلید API', 'type' => 'secret', 'link' => 'https://pay.ir'],
+                    'pedigree.donate.sandbox' => ['label' => 'حالت آزمایشی درگاه (بدون پول واقعی)', 'type' => 'bool'],
+                    'pedigree.donate.min_amount' => ['label' => 'کمترین مبلغ (تومان)', 'type' => 'int', 'min' => 1000, 'max' => 10000000],
+                    'pedigree.donate.max_amount' => ['label' => 'بیشترین مبلغ (تومان)', 'type' => 'int', 'min' => 10000, 'max' => 1000000000],
+                    'pedigree.donate.suggested' => ['label' => 'مبلغ‌های پیشنهادی (تومان، با کاما)', 'type' => 'text', 'max' => 100, 'pattern' => '/^[0-9,، ]*$/u', 'placeholder' => '50000,100000,200000,500000'],
                 ],
             ],
             'occasions' => [

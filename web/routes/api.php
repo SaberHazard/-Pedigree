@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\ActivityController;
+use App\Http\Controllers\Api\Admin\DonationAdminController;
 use App\Http\Controllers\Api\Admin\EditRequestController;
 use App\Http\Controllers\Api\Admin\OverviewController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DonateController;
 use App\Http\Controllers\Api\ExportController;
 use App\Http\Controllers\Api\FamilyController;
 use App\Http\Controllers\Api\GameController;
@@ -167,6 +169,11 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('group/messages', [GroupController::class, 'messages']);
     Route::post('group/messages', [GroupController::class, 'send'])->middleware('throttle:30,1,group-send');
     Route::post('group/media', [GroupController::class, 'sendMedia'])->middleware(['throttle:uploads', 'throttle:10,1,group-media']);
+    // حمایت از سازنده
+    Route::get('donate', [DonateController::class, 'index']);
+    Route::post('donate', [DonateController::class, 'start'])->middleware('throttle:6,10,donate-start');
+    Route::get('donate/{donation}', [DonateController::class, 'show'])->whereNumber('donation');
+
     // گفتگو با پشتیبانی
     Route::get('support', [SupportController::class, 'index']);
     Route::post('support/messages', [SupportController::class, 'send'])->middleware('throttle:20,1,support-send');
@@ -238,6 +245,12 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
         // قالب‌های ثابت پیامک تبریک (فقط مدیر کل)
         Route::middleware('super-admin')->group(function () {
+            Route::get('donations', [DonationAdminController::class, 'index']);
+            Route::post('donation-accounts', [DonationAdminController::class, 'store'])->middleware('throttle:30,1,donate-acc');
+            Route::post('donation-accounts/reorder', [DonationAdminController::class, 'reorder']);
+            Route::put('donation-accounts/{account}', [DonationAdminController::class, 'update'])->whereNumber('account');
+            Route::delete('donation-accounts/{account}', [DonationAdminController::class, 'destroy'])->whereNumber('account');
+
             Route::get('sms-templates', [SmsTemplateController::class, 'index']);
             Route::post('sms-templates', [SmsTemplateController::class, 'store'])->middleware('throttle:30,1,tpl-store');
             Route::post('sms-templates/preview', [SmsTemplateController::class, 'preview'])->middleware('throttle:120,1,tpl-preview');

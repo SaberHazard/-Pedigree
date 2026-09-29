@@ -382,6 +382,26 @@ return [
     |--------------------------------------------------------------------------
     | همه این مقدارها از پنل مدیریت ← «تنظیمات و اتصال‌ها» هم قابل تغییرند.
     */
+    // اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت فقط IP ایران را می‌پذیرد
+    'iran_proxy' => env('PEDIGREE_IRAN_PROXY'),
+
+    // حمایت از سازنده (پنل مدیریت ← تنظیمات ← حمایت از سازنده، و تب «حمایت» برای کارت و شبا)
+    'donate' => [
+        'enabled' => (bool) env('PEDIGREE_DONATE', true),
+        'title' => 'حمایت از سازنده',
+        'message' => 'این سایت با عشق برای خاندان ساخته شده و نگهداری سرور، پیامک و هوش مصنوعی هزینه دارد. اگر دوست داشتید، از ادامه کار حمایت کنید. ❤️',
+        // '' (فقط کارت و حساب) | zarinpal | zibal | payir
+        'gateway' => env('PEDIGREE_DONATE_GATEWAY', ''),
+        'sandbox' => (bool) env('PEDIGREE_DONATE_SANDBOX', false),
+        'zarinpal' => ['merchant_id' => env('ZARINPAL_MERCHANT_ID')],
+        'zibal' => ['merchant' => env('ZIBAL_MERCHANT')],
+        'payir' => ['api' => env('PAYIR_API_KEY')],
+        // مبلغ‌ها به تومان
+        'min_amount' => 10000,
+        'max_amount' => 50000000,
+        'suggested' => '50000,100000,200000,500000',
+    ],
+
     // مناسبت‌های تبریک (تولد همیشه فعال است؛ بقیه از پنل مدیریت روشن/خاموش می‌شوند)
     'occasions' => [
         'enabled' => ['anniversary', 'nowruz', 'yalda', 'sepandarmazgan', 'mother_day', 'father_day', 'nimeh_shaban', 'eid_fitr', 'eid_adha', 'eid_ghadir'],

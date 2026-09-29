@@ -103,6 +103,7 @@ export function renderHeader() {
       { label: 'بازی‌های خانوادگی', icon: 'gamepad', onClick: () => navigate('/games') },
       { label: 'تبریک مناسبت‌ها', icon: 'cake', onClick: () => navigate('/greetings') },
       { label: `پشتیبانی${u.counters?.support ? ` (${fa(u.counters.support)})` : ''}`, icon: 'headset', onClick: () => navigate('/support') },
+      store.config.donate?.enabled !== false ? { label: 'حمایت از سازنده ❤️', icon: 'gift', onClick: () => navigate('/donate') } : null,
       { label: 'جستجوی پیشرفته', icon: 'search', onClick: () => navigate('/search') },
       'sep',
       { label: 'تنظیمات حساب', icon: 'settings', onClick: () => navigate('/account') },

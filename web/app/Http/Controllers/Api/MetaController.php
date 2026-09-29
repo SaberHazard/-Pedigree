@@ -48,6 +48,7 @@ class MetaController extends Controller
                 'max_depth' => (int) config('pedigree.tree.max_depth'),
             ],
             'dev_sms' => config('pedigree.sms.driver') === 'log',
+            'donate' => ['enabled' => (bool) config('pedigree.donate.enabled', true)],
             'voice' => [
                 'enabled' => (bool) config('pedigree.voice.enabled', true),
                 'max_seconds' => (int) config('pedigree.voice.max_seconds', 300),

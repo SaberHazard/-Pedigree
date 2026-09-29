@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DonateCallbackController;
 use App\Http\Controllers\MediaFileController;
 use App\Http\Controllers\SpaController;
 use App\Http\Controllers\VoiceFileController;
@@ -19,3 +20,8 @@ Route::get('/v/{voice}', [VoiceFileController::class, 'show'])
     ->whereUuid('voice')
     ->middleware('signed:relative')
     ->name('voice.file');
+
+// بازگشت از درگاه پرداخت (زرین‌پال/زیبال/Pay.ir)؛ تأیید سرور-به-سرور
+Route::match(['get', 'post'], '/donate/callback/{token}', DonateCallbackController::class)
+    ->middleware('throttle:30,1,donate-callback')
+    ->name('donate.callback');

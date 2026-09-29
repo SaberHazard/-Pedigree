@@ -23,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // سشن کوکی‌محور برای وب‌اپ روی همان دامنه (Sanctum SPA) + توکن برای اپ موبایل
         $middleware->statefulApi();
+        // بازگشت درگاه پرداخت با POST از سایت درگاه می‌آید (توکن تصادفی خودش را دارد)
+        $middleware->validateCsrfTokens(except: ['donate/callback/*']);
         $middleware->prepend(ResetScopedServices::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([

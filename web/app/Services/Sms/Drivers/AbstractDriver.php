@@ -17,9 +17,13 @@ abstract class AbstractDriver implements SmsDriver
     protected function http(): PendingRequest
     {
         // فقط خطای اتصال دوباره تلاش می‌شود (نه پاسخ خطا) تا پیامک تکراری ارسال نشود
-        return Http::timeout($this->timeout)
+        $request = Http::timeout($this->timeout)
             ->acceptJson()
             ->retry(2, 300, fn ($e) => $e instanceof ConnectionException, throw: false);
+        // اگر سرور بیرون از ایران است و پنل پیامکی فقط IP ایران را می‌پذیرد: پراکسی داخلی
+        $proxy = (string) config('pedigree.iran_proxy');
+
+        return $proxy !== '' ? $request->withOptions(['proxy' => $proxy]) : $request;
     }
 
     /** مقدار تنظیم الزامی یا خطا */
