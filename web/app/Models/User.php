@@ -37,7 +37,13 @@ class User extends Authenticatable
 
     public const STATUS_BLOCKED = 'blocked';
 
+    /** ثبت‌نام کرده ولی هنوز مدیر عضویتش را تأیید نکرده است (هیچ‌چیز از شجره‌نامه نمی‌بیند) */
+    public const STATUS_PENDING = 'pending';
+
     protected $fillable = ['person_id', 'password', 'role', 'status', 'preferences'];
+
+    /** مقدار پیش‌فرض همان پیش‌فرض ستون‌ها (تا مدلِ تازه‌ساخته پیش از refresh «فعال» باشد) */
+    protected $attributes = ['role' => self::ROLE_MEMBER, 'status' => self::STATUS_ACTIVE];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -72,6 +78,16 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->role === self::ROLE_SUPER_ADMIN;
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->status === self::STATUS_BLOCKED;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
     }
 
     public function isActive(): bool

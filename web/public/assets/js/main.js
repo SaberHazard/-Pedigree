@@ -22,15 +22,16 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', (
 
 // ------------------------------------------------------------------ مسیرها
 route('/login', () => import('./pages/login.js'), { public: true, guestOnly: true, layout: 'bare' });
+route('/pending', () => import('./pages/pending.js'), { layout: 'bare' });
 route('/', () => import('./pages/dashboard.js'));
 route('/tree', () => import('./pages/tree.js'), { layout: 'full' });
-route('/tree/:id', () => import('./pages/tree.js'), { layout: 'full', public: true });
+route('/tree/:id', () => import('./pages/tree.js'), { layout: 'full' });
 route('/search', () => import('./pages/search.js'));
 route('/new-person', () => import('./pages/person-edit.js'));
 route('/person/:id/edit', () => import('./pages/person-edit.js'));
 route('/person/:id/interview', () => import('./pages/interview.js'));
-route('/person/:id', () => import('./pages/person.js'), { public: true });
-route('/person/:id/:tab', () => import('./pages/person.js'), { public: true });
+route('/person/:id', () => import('./pages/person.js'));
+route('/person/:id/:tab', () => import('./pages/person.js'));
 route('/approvals', () => import('./pages/approvals.js'));
 route('/map', () => import('./pages/map.js'), { layout: 'full' });
 route('/notifications', () => import('./pages/notifications.js'));
@@ -57,7 +58,7 @@ function renderLayout(match) {
     return container;
   }
 
-  // حالت مهمان (PEDIGREE_GUEST_VIEW): هدر ساده با دکمه ورود
+  // صفحه‌های عمومی (مثل نتیجه پرداخت) برای کسی که وارد نشده: هدر ساده با دکمه ورود
   if (!store.user) {
     shell = null;
     const header = h('header', { class: 'app-header' }, brand(), h('span', { class: 'grow' }),

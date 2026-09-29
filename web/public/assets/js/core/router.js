@@ -61,8 +61,17 @@ async function resolve() {
     return;
   }
 
-  if (!match.public && !store.user && !store.config.guest_view) {
+  if (!match.public && !store.user) {
     navigate('/login?next=' + encodeURIComponent(path), { replace: true });
+    return;
+  }
+  // عضو در انتظار تأیید فقط صفحه «در انتظار تأیید» را می‌بیند
+  if (store.user?.status === 'pending' && match.pattern !== '/pending') {
+    navigate('/pending', { replace: true });
+    return;
+  }
+  if (match.pattern === '/pending' && store.user?.status !== 'pending') {
+    navigate('/', { replace: true });
     return;
   }
   if (match.guestOnly && store.user) {

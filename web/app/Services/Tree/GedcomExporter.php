@@ -143,6 +143,11 @@ class GedcomExporter
         $this->line(0, 'HEAD');
         $this->line(1, 'SOUR PEDIGREE');
         $this->line(2, 'NAME '.config('pedigree.site_name'));
+        // نشانی سایت (برای معرفی سایت هنگام اشتراک خروجی)
+        if (preg_match('#^https?://[^\s]+$#', (string) config('app.url'))) {
+            $this->line(2, 'CORP '.config('pedigree.site_name'));
+            $this->line(3, 'WWW '.rtrim((string) config('app.url'), '/'));
+        }
         $this->line(1, 'DATE '.$d.' '.self::MONTHS[$m - 1].' '.$y);
         $this->line(1, 'GEDC');
         $this->line(2, 'VERS 5.5.1');

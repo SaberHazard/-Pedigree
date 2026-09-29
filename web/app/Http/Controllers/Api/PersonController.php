@@ -9,6 +9,7 @@ use App\Http\Resources\PersonResource;
 use App\Models\ActivityLog;
 use App\Models\Marriage;
 use App\Models\Person;
+use App\Services\People\EditRequestService;
 use App\Services\People\PersonService;
 use App\Services\Tree\NodePresenter;
 use App\Services\Tree\RelationshipCalculator;
@@ -81,9 +82,22 @@ class PersonController extends Controller
         return (new PersonResource($person->load(['avatar', 'user'])))->response()->setStatusCode(201);
     }
 
-    public function update(PersonRequest $request, Person $person): PersonResource
+    public function update(PersonRequest $request, Person $person, EditRequestService $edits): PersonResource|JsonResponse
     {
-        Gate::authorize('update', $person);
+        if (Gate::denies('update', $person)) {
+            // بستگان درجه دو و سه: ویرایش به صورت «پیشنهاد» برای تأیید مدیر ثبت می‌شود
+            if ($edits->suggestDegree($request->user(), $person) === null) {
+                Gate::authorize('update', $person);
+            }
+            $suggestion = $edits->suggestPerson($request->user(), $person, $request->validated(), $request->input('edit_reason'));
+
+            return response()->json([
+                'message' => 'پیشنهاد ویرایش شما برای تأیید مدیر سایت فرستاده شد؛ پس از تأیید در پروفایل نمایش داده می‌شود.',
+                'pending' => true,
+                'request_id' => $suggestion->id,
+                'fields' => array_keys($suggestion->changes),
+            ], 202);
+        }
         $person = $this->persons->update($person, $request->validated(), $request->user());
 
         return new PersonResource($person->load(['avatar', 'user', 'creator.person']));

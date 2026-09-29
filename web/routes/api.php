@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\ActivityController;
+use App\Http\Controllers\Api\Admin\EditRequestController;
 use App\Http\Controllers\Api\Admin\OverviewController;
 use App\Http\Controllers\Api\Admin\PersonAdminController;
 use App\Http\Controllers\Api\Admin\SettingsController;
@@ -52,7 +53,7 @@ Route::prefix('auth')->group(function () {
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
-        Route::get('me', [AuthController::class, 'me'])->middleware('active');
+        Route::get('me', [AuthController::class, 'me'])->middleware('active:pending');
     });
 });
 
@@ -119,7 +120,8 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('persons/{person}/relatives', [RelativeController::class, 'store'])->middleware('throttle:writes');
     Route::post('persons/{person}/link', [RelativeController::class, 'link'])->middleware('throttle:writes');
     Route::delete('persons/{person}/parents/{role}', [RelativeController::class, 'unlinkParent']);
-    Route::match(['put', 'patch'], 'marriages/{marriage}', [MarriageController::class, 'update']);
+    Route::get('marriages/{marriage}', [MarriageController::class, 'show']);
+    Route::match(['put', 'patch'], 'marriages/{marriage}', [MarriageController::class, 'update'])->middleware('throttle:writes');
     Route::delete('marriages/{marriage}', [MarriageController::class, 'destroy']);
     Route::get('link-requests', [LinkRequestController::class, 'index']);
     Route::post('link-requests/{linkRequest}/accept', [LinkRequestController::class, 'accept']);
@@ -205,6 +207,11 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
         // نمای کلی، سلامت سرور و ابزارهای کنترلی
         Route::get('overview', [OverviewController::class, 'index'])->middleware('throttle:30,1,admin-overview');
         Route::post('users/{user}/logout-all', [OverviewController::class, 'logoutEverywhere'])->middleware('throttle:20,1,admin-logout');
+        Route::post('users/{user}/approve', [UserController::class, 'approve'])->middleware('throttle:60,1,admin-approve');
+        Route::get('edit-requests', [EditRequestController::class, 'index']);
+        Route::post('edit-requests/{editRequest}/approve', [EditRequestController::class, 'approve'])->middleware('throttle:120,1,edit-approve');
+        Route::post('edit-requests/{editRequest}/reject', [EditRequestController::class, 'reject'])->middleware('throttle:120,1,edit-reject');
+        Route::post('users/{user}/reject', [UserController::class, 'reject'])->middleware('throttle:60,1,admin-reject');
         Route::post('broadcast', [OverviewController::class, 'broadcast'])->middleware(['super-admin', 'throttle:3,60,admin-broadcast']);
 
         // گروه خاندان: سنجاق، گزارش‌ها، سکوت

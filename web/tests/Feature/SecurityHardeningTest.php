@@ -76,7 +76,7 @@ class SecurityHardeningTest extends TestCase
         }
         $otp = $this->postJson('/api/auth/otp', ['phone' => '09350000009'])->json('debug_code');
         $token = $this->postJson('/api/auth/otp/verify', ['phone' => '09350000009', 'code' => $otp])->json('registration_token');
-        $base = ['registration_token' => $token, 'first_name' => 'x', 'last_name' => 'y', 'gender' => 'm'];
+        $base = ['registration_token' => $token, 'first_name' => 'x', 'last_name' => 'y', 'gender' => 'm', 'join_note' => 'پسر حسن احمدی'];
 
         $this->postJson('/api/auth/register', $base + ['national_code' => '0012345679'])->assertJsonValidationErrors('national_code');
         $this->postJson('/api/auth/register', $base + ['national_code' => '0023456787'])->assertJsonValidationErrors('national_code');

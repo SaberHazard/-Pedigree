@@ -406,6 +406,11 @@ legend { padding: 0 8px; font-weight: 700; color: var(--text-2); font-size: 0.92
 .switch input:checked + .track::after { transform: translateX(-18px); }
 [dir="ltr"] .switch input:checked + .track::after { transform: translateX(18px); }
 .switch input:focus-visible + .track { box-shadow: var(--ring); }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+.check-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); border: 1px solid transparent; cursor: pointer; font-size: .9rem; transition: border-color .15s, background .15s; min-width: 0; }
+.check-item:hover { border-color: var(--border); }
+.check-item input { width: 18px; height: 18px; accent-color: var(--primary); flex: none; margin: 0; }
+.check-item:has(input:checked) { background: var(--primary-soft); border-color: color-mix(in srgb, var(--primary) 35%, transparent); }
 
 /* کنترل چندگزینه‌ای (segmented) */
 .segmented {
@@ -2156,3 +2161,39 @@ textarea.input.grp-input { resize: none; min-height: 42px; height: 42px; max-hei
 .health-row .ltr { display: block; max-width: 100%; text-align: right; }
 .health-row code { overflow-wrap: anywhere; }
 .report-body { margin: 4px 0; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* درخواست‌های عضویت */
+.pending-banner { display: flex; align-items: center; gap: 8px; width: 100%; text-align: start; font: inherit; color: var(--warning); background: var(--warning-soft); border: 0; cursor: pointer; }
+.pending-banner .icon:last-child { margin-inline-start: auto; }
+.pending-list { display: flex; flex-direction: column; }
+.pending-row { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-bottom: 1px solid var(--border); }
+.pending-row:last-child { border-bottom: 0; }
+.join-note { margin-top: 6px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; font-size: .92rem; }
+.pending-page { grid-template-columns: 1fr; place-items: center; padding: 24px 16px; }
+.pending-card { text-align: center; padding: 28px 22px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.pending-card .brand { justify-content: center; margin-bottom: 4px; }
+.pending-card h1 { font-size: 1.3rem; margin: 0; }
+.pending-card p { margin: 0; }
+.pending-icon { width: 72px; height: 72px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); animation: pulseSoft 2.4s ease-in-out infinite; }
+.pending-icon .icon { width: 34px; height: 34px; }
+@keyframes pulseSoft { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary) 30%, transparent); } 50% { box-shadow: 0 0 0 14px transparent; } }
+
+/* پیشنهاد ویرایش و ازدواج */
+.suggest-note { display: flex; gap: 8px; align-items: flex-start; background: var(--primary-soft); border-color: transparent; font-size: .92rem; }
+.diff-table td.old { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger, #dc2626) 55%, transparent); }
+.diff-table td.new { color: var(--success, #16a34a); font-weight: 600; }
+.diff-table td { overflow-wrap: anywhere; min-width: 90px; }
+.diff-table tr.stale td { background: var(--warning-soft); }
+.mar-sheet { display: flex; flex-direction: column; gap: 14px; }
+.mar-couple { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; text-align: center; }
+.mar-spouse { display: flex; flex-direction: column; align-items: center; gap: 6px; color: inherit; text-decoration: none; min-width: 0; }
+.mar-spouse b { overflow-wrap: anywhere; font-size: .95rem; }
+.mar-heart { font-size: 1.9rem; animation: heartBeat 1.6s ease-in-out infinite; }
+.mar-sheet.divorced .mar-heart { animation: none; filter: grayscale(1); opacity: .8; }
+@keyframes heartBeat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(1); } 45% { transform: scale(1.1); } }
+.mar-facts { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border-radius: 14px; padding: 6px 12px; }
+.mar-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed var(--border); }
+.mar-row:last-child { border-bottom: 0; }
+.mar-btn { font-size: 1.05rem; flex: none; }
+.mar-btn.divorced { filter: grayscale(1); }
+@media (prefers-reduced-motion: reduce) { .mar-heart, .pending-icon { animation: none; } }

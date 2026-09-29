@@ -132,9 +132,12 @@ export class PdfDocument {
    * @param {number} height ارتفاع صفحه به point
    * @param {string} content دستورهای رسم (به واحد صفحه پس از UserUnit)
    * @param {number} userUnit هر واحد صفحه چند point است (برای صفحه‌های بزرگ‌تر از ۲۰۰ اینچ)
+   * @param {{rect:number[], uri:string}[]} links ناحیه‌های قابل کلیک (به واحد صفحه) که به یک نشانی https می‌روند
    */
-  addPage(width, height, content, userUnit = 1) {
-    this.pages.push({ width, height, content, userUnit, id: this.alloc(), contentId: this.alloc() });
+  addPage(width, height, content, userUnit = 1, links = []) {
+    const safe = links.filter((l) => /^https?:\/\/[A-Za-z0-9.\-]+(:\d+)?(\/[A-Za-z0-9._~\/?#&=%+-]*)?$/.test(l.uri || ''))
+      .map((l) => ({ ...l, id: this.alloc() }));
+    this.pages.push({ width, height, content, userUnit, links: safe, id: this.alloc(), contentId: this.alloc() });
   }
 
   // ---------------------------------------------------------------- ساخت فایل
@@ -160,8 +163,12 @@ export class PdfDocument {
 
     const needs16 = this.pages.some((p) => p.userUnit !== 1);
     for (const p of this.pages) {
+      for (const l of p.links) {
+        this.set(l.id, { dict: `/Type /Annot /Subtype /Link /Rect [${l.rect.map(num).join(' ')}] /Border [0 0 0] /A << /S /URI /URI (${l.uri}) >>`, bare: true });
+      }
+      const annots = p.links.length ? ` /Annots [${p.links.map((l) => `${l.id} 0 R`).join(' ')}]` : '';
       this.set(p.id, {
-        dict: `/Type /Page /Parent ${this.pagesId} 0 R /MediaBox [0 0 ${num(p.width / p.userUnit)} ${num(p.height / p.userUnit)}]${p.userUnit !== 1 ? ` /UserUnit ${num(p.userUnit)}` : ''} /Resources ${this.resourcesId} 0 R /Contents ${p.contentId} 0 R`,
+        dict: `/Type /Page /Parent ${this.pagesId} 0 R /MediaBox [0 0 ${num(p.width / p.userUnit)} ${num(p.height / p.userUnit)}]${p.userUnit !== 1 ? ` /UserUnit ${num(p.userUnit)}` : ''} /Resources ${this.resourcesId} 0 R /Contents ${p.contentId} 0 R${annots}`,
       });
       this.set(p.contentId, { dict: '', stream: enc.encode(p.content) });
     }

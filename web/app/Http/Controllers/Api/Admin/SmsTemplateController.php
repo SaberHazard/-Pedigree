@@ -25,11 +25,11 @@ class SmsTemplateController extends Controller
 {
     public function __construct(private readonly AuditLogger $audit) {}
 
-    public function index(): JsonResponse
+    public function index(OccasionCalendar $calendar): JsonResponse
     {
         $occasions = [];
         foreach (SmsTemplates::OCCASIONS as $key => $o) {
-            $occasions[] = $o + ['key' => $key, 'window' => OccasionCalendar::WINDOWS[$key]];
+            $occasions[] = $o + ['key' => $key, 'window' => OccasionCalendar::WINDOWS[$key], 'enabled' => OccasionCalendar::enabled($key), 'next' => $calendar->nextText($key)];
         }
         $variables = [];
         foreach (SmsTemplates::variables() as $key => $v) {

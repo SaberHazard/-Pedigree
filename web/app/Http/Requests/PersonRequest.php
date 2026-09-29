@@ -132,6 +132,8 @@ class PersonRequest extends FormRequest
         return [
             'first_name' => [$req, 'string', 'max:100'],
             'last_name' => ['nullable', 'string', 'max:100'],
+            // توضیح پیشنهاددهنده (بستگان درجه دو و سه) برای مدیر
+            'edit_reason' => ['nullable', 'string', 'max:300'],
             'nickname' => ['nullable', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:50'],
             'gender' => [$creating && $genderRequired ? 'required' : 'sometimes', 'in:m,f'],

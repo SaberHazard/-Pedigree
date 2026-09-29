@@ -10,6 +10,7 @@
  * صفحه دیده می‌شوند در DOM هستند و در بزرگ‌نمایی خیلی کم، کل درخت روی یک
  * canvas سبک کشیده می‌شود. به این ترتیب درخت چند هزار نفری هم روان است.
  */
+import { marriageMark } from './marks.js';
 import { s } from '../core/dom.js';
 import { buildDefs, buildNode, nodeTitle } from './node.js';
 import { Viewport } from './viewport.js';
@@ -31,6 +32,10 @@ export const TREE_CSS = `
 .t-mark circle{fill:var(--t-mark-bg,#fff);stroke:var(--t-marriage,#c9a24a);stroke-width:1.5}
 .t-mark path{fill:#e11d48}
 .t-mark.divorced path{fill:#94a3b8}
+.t-mark.divorced circle{stroke:#b8c2cf}
+.t-mark.clickable{cursor:pointer}
+.t-mark.clickable circle{transition:r .15s}
+.t-mark.clickable:hover circle{r:11}
 .t-btn-bg{fill:var(--t-btn-bg,#fff);stroke:var(--t-btn-border,#d8cebd);stroke-width:1.2}
 .t-btn{color:var(--t-btn-fg,#56666b)}
 .t-btn-label{font:700 10px Vazirmatn,Tahoma,sans-serif;fill:currentColor}
@@ -42,7 +47,7 @@ export const TREE_CSS = `
 .t-btn.family{color:#fff}
 `;
 
-const HEART = 'M0,4.6 C-6.4,0.2 -5.2,-5.2 -2.2,-5 C-1,-4.9 -0.3,-4.2 0,-3.4 C0.3,-4.2 1,-4.9 2.2,-5 C5.2,-5.2 6.4,0.2 0,4.6 Z';
+
 
 export class TreeView {
   /**
@@ -294,11 +299,8 @@ export class TreeView {
   }
 
   buildMarkEl(l) {
-    const mark = s('g', { class: `t-mark ${l.divorced ? 'divorced' : ''}`, transform: `translate(${l.mid.x},${l.mid.y})` },
-      s('circle', { r: 9.5 }),
-      s('path', { d: HEART }),
-    );
-    if (l.divorced) mark.append(s('path', { d: 'M0,-4.5 L-1.2,-1 L1.2,0.6 L0,4', stroke: '#fff', 'stroke-width': 1.2, fill: 'none' }));
+    const mark = marriageMark(l, { 'data-marriage': l.marriage?.id ?? null, role: l.marriage?.id ? 'button' : null });
+    if (l.marriage?.id) mark.append(s('title', null, l.divorced ? 'جدا شده — برای دیدن تاریخ‌ها بزنید' : 'ازدواج — برای دیدن تاریخ‌ها بزنید'));
     return mark;
   }
 
@@ -458,6 +460,12 @@ export class TreeView {
 
   // ------------------------------------------------------------ تعامل
   onClick(e) {
+    const markEl = e.target.closest('.t-mark[data-marriage]');
+    if (markEl) {
+      e.stopPropagation();
+      this.opts.onMarriage?.(markEl.dataset.marriage, markEl);
+      return;
+    }
     const btn = e.target.closest('.t-btn');
     const nodeEl = e.target.closest('.t-node');
     if (btn && nodeEl) {

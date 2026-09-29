@@ -2,6 +2,7 @@
 
 namespace App\Services\Access;
 
+use App\Models\Marriage;
 use App\Models\Person;
 use App\Models\User;
 use App\Services\Kinship;
@@ -37,7 +38,7 @@ class PersonAccess
     public function canView(?User $user, Person $target): bool
     {
         if ($user === null) {
-            return (bool) config('pedigree.guest_view');
+            return false;
         }
 
         return $user->isActive();
@@ -86,6 +87,54 @@ class PersonAccess
         }
 
         return $this->creatorMayEdit($user->id, $target);
+    }
+
+    /**
+     * ویرایش مستقیم یک ازدواج (وضعیت، تاریخ ازدواج و طلاق):
+     *  - هر کس که یکی از دو همسر را ویرایش می‌کند (خود شخص، بستگان درجه یک، مدیر ...)
+     *  - اگر هیچ‌کدام از دو همسر و بستگان درجه یکشان حساب فعال ندارند، بستگان درجه دو هم
+     */
+    public function canEditMarriage(?User $user, Marriage $marriage): bool
+    {
+        if ($user === null || ! $user->isActive()) {
+            return false;
+        }
+        $spouses = array_values(array_filter([$marriage->husband, $marriage->wife]));
+        foreach ($spouses as $spouse) {
+            if ($this->canEdit($user, $spouse)) {
+                return true;
+            }
+        }
+        if ($user->person === null) {
+            return false;
+        }
+        foreach ($spouses as $spouse) {
+            if ($this->hasFirstDegreeMember($spouse)) {
+                return false;
+            }
+        }
+        foreach ($spouses as $spouse) {
+            $degree = $this->degrees->relativeDegree($spouse, $user->person);
+            if ($degree !== null && $degree <= 2) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** آیا خود شخص یا یکی از بستگان درجه یکش (والدین، فرزندان، خواهر و برادر، همسران) حساب فعال دارد؟ */
+    public function hasFirstDegreeMember(Person $person): bool
+    {
+        $ids = array_merge(
+            [$person->id],
+            $this->kinship->parentsOf($person)->pluck('id')->all(),
+            $this->kinship->childrenOf($person)->pluck('id')->all(),
+            $this->kinship->siblingsOf($person)->pluck('id')->all(),
+            $this->kinship->spousesOf($person)->pluck('id')->all(),
+        );
+
+        return User::query()->whereIn('person_id', $ids)->where('status', User::STATUS_ACTIVE)->whereNotNull('last_login_at')->exists();
     }
 
     /** سازنده پروفایلِ ادعانشده، در بازه مجاز پس از ساخت */
@@ -248,10 +297,25 @@ class PersonAccess
     }
 
     /** مجموعه دسترسی‌ها برای ارسال به رابط کاربری */
+    /** بستگان تا درجه سه (که ویرایش مستقیم ندارند) می‌توانند ویرایش پیشنهاد دهند */
+    public function canSuggest(?User $user, Person $target): bool
+    {
+        if ($user === null || ! $user->isActive() || $user->person === null || $target->is_locked || $user->person_id === $target->id) {
+            return false;
+        }
+        $degree = $this->degrees->relativeDegree($target, $user->person);
+
+        return $degree !== null && $degree >= 1 && $degree <= 3;
+    }
+
     public function summary(?User $user, Person $target): array
     {
+        $edit = $this->canEdit($user, $target);
+
         return [
-            'edit' => $this->canEdit($user, $target),
+            'edit' => $edit,
+            // بستگان درجه دو و سه: ویرایش به صورت پیشنهاد (با تأیید مدیر)
+            'suggest' => ! $edit && $this->canSuggest($user, $target),
             'sensitive' => $this->canManageSensitive($user, $target),
             'upload' => $this->canUploadMedia($user, $target),
             'delete' => $this->canDelete($user, $target),

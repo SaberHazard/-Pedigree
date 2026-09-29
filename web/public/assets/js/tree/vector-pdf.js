@@ -11,6 +11,7 @@
 import { fa, dateTime } from '../core/format.js';
 import { url as assetUrl } from '../core/api.js';
 import { arcTexts } from './node.js';
+import { HEART, BROKEN_HEART } from './marks.js';
 import { TrueTypeFont } from './pdf/ttf.js';
 import { layoutText } from './pdf/shaping.js';
 import { PdfDocument, num } from './pdf/document.js';
@@ -41,6 +42,7 @@ const COLORS = {
   heartGray: [0.58, 0.639, 0.722],
   title: [0.059, 0.361, 0.333],
   subtitle: [0.478, 0.416, 0.31],
+  link: [0.07, 0.43, 0.4],
   frame: [0.89, 0.827, 0.69],
   frame2: [0.937, 0.894, 0.8],
 };
@@ -61,7 +63,6 @@ const SILHOUETTE = {
     ],
   },
 };
-const HEART = 'M0,4.6 C-6.4,0.2 -5.2,-5.2 -2.2,-5 C-1,-4.9 -0.3,-4.2 0,-3.4 C0.3,-4.2 1,-4.9 2.2,-5 C5.2,-5.2 6.4,0.2 0,4.6 Z';
 
 const hexRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 const rgb = (c, stroke = false) => `${c.map(num).join(' ')} ${stroke ? 'RG' : 'rg'}`;
@@ -310,7 +311,7 @@ async function photoJpeg(src, { gray = 0, maxSize = 480 } = {}) {
 /**
  * @param {object} layout خروجی layout.js
  * @param {object} opts
- *   title, subtitle, siteName, prefs, photos (bool), grayscale (bool)
+ *   title, subtitle, siteName, siteUrl, prefs, photos (bool), grayscale (bool)
  *   mode: 'fit' (تک‌صفحه با اندازه page) | 'tiles' (چند برگه با اندازه نهایی final)
  *   page: {w, h} میلی‌متر (حالت fit)؛ final: {w, h} میلی‌متر اندازه نهایی (حالت tiles)؛ sheet: 'A4' | 'A3' ...
  *   orientation: auto | portrait | landscape
@@ -404,7 +405,21 @@ export async function buildVectorPdf(layout, opts = {}) {
     if (l.type !== 'marriage' || l.implied) continue;
     const [mx, my] = tf(l.mid.x, l.mid.y);
     push(`1 1 1 rg ${rgb(COLORS.marriage, true)} 1.5 w ${circle(mx, my, 9.5)} B`);
-    push(`${rgb(l.divorced ? COLORS.heartGray : COLORS.heart)} ${svgPathToPdf(HEART, (x, y) => [mx + x, my - y])} f`);
+    if (l.divorced) {
+      // قلب خاکستری شکسته: دو نیمه چرخیده و کمی جدا از هم (همان شکل صفحه درخت)
+      const half = (d, deg, dx) => {
+        const a = (deg * Math.PI) / 180;
+        const [c, sn] = [Math.cos(a), Math.sin(a)];
+        return svgPathToPdf(d, (x, y) => {
+          const x1 = x + dx;
+          const y1 = y - 4.6;
+          return [mx + x1 * c - y1 * sn, my - (x1 * sn + y1 * c + 4.6)];
+        });
+      };
+      push(`${rgb(COLORS.heartGray)} ${half(BROKEN_HEART.left, -11, -0.9)} f ${half(BROKEN_HEART.right, 11, 0.9)} f`);
+    } else {
+      push(`${rgb(COLORS.heart)} ${svgPathToPdf(HEART, (x, y) => [mx + x, my - y])} f`);
+    }
   }
   progress(0.66);
 
@@ -467,9 +482,17 @@ export async function buildVectorPdf(layout, opts = {}) {
   }
   progress(0.85);
 
-  // پانویس
+  // پانویس: نام سایت، تاریخ، تعداد + نشانی سایت (قابل کلیک در PDF)
   const footer = [opts.siteName, `تاریخ تهیه: ${dateTime(new Date().toISOString(), false)}`, `${fa(layout.nodes.length)} نفر`].filter(Boolean).join('   •   ');
-  push(`BT ${rgb([0.545, 0.49, 0.388])} /${fMed.name} 13 Tf ${centeredText(fMed, footer, medium, W / 2, 30, 13)} ET`);
+  const siteUrl = /^https?:\/\//.test(opts.siteUrl || '') ? opts.siteUrl : '';
+  push(`BT ${rgb([0.545, 0.49, 0.388])} /${fMed.name} 13 Tf ${centeredText(fMed, footer, medium, W / 2, siteUrl ? 36 : 30, 13)} ET`);
+  let linkRect = null;
+  if (siteUrl) {
+    const shown = siteUrl.replace(/^https?:\/\//, '');
+    push(`BT ${rgb(COLORS.link)} /${fMed.name} 12 Tf ${centeredText(fMed, shown, medium, W / 2, 16, 12)} ET`);
+    const half = (layoutText(shown, medium).width * 12) / 2 + 6;
+    linkRect = [W / 2 - half, 10, W / 2 + half, 30];
+  }
 
   const form = doc.addForm(ops.join('\n'), [0, 0, W, H]);
 
@@ -489,7 +512,8 @@ export async function buildVectorPdf(layout, opts = {}) {
     const unit = Math.max(1, Math.ceil(Math.max(ptW, ptH) / MAX_PAGE_PT));
     const tx = (ptW - W * s) / 2;
     const ty = (ptH - H * s) / 2;
-    doc.addPage(ptW, ptH, `q ${num(s / unit)} 0 0 ${num(s / unit)} ${num(tx / unit)} ${num(ty / unit)} cm /${form} Do Q`, unit);
+    const links = linkRect ? [{ uri: siteUrl, rect: [linkRect[0] * s + tx, linkRect[1] * s + ty, linkRect[2] * s + tx, linkRect[3] * s + ty].map((v) => v / unit) }] : [];
+    doc.addPage(ptW, ptH, `q ${num(s / unit)} 0 0 ${num(s / unit)} ${num(tx / unit)} ${num(ty / unit)} cm /${form} Do Q`, unit, links);
   } else {
     // چند برگه با اندازه نهایی مشخص (مثلاً ۱۰×۵ متر روی برگه‌های A3) + ۶ میلی‌متر هم‌پوشانی برای چسباندن
     const final = opts.final || { w: 1000, h: 500 };

@@ -7,6 +7,7 @@ use App\Models\SmsMessage;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Services\Sms\GreetingService;
+use App\Services\Sms\SmsTemplates;
 use App\Support\Jalali;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -69,9 +70,9 @@ class SmsTemplateTest extends TestCase
         }
 
         $res = $this->actingAs($this->super, 'sanctum')->getJson('/api/admin/sms-templates')->assertOk();
-        $this->assertCount(8, $res->json('data'));
+        $this->assertCount(count(SmsTemplates::DEFAULTS), $res->json('data'));
         $this->assertContains('to_first_name', array_column($res->json('variables'), 'key'));
-        $this->assertSame(['birthday', 'anniversary', 'nowruz', 'yalda'], array_column($res->json('occasions'), 'key'));
+        $this->assertSame(array_keys(SmsTemplates::OCCASIONS), array_column($res->json('occasions'), 'key'));
     }
 
     public function test_template_validation(): void
@@ -89,7 +90,7 @@ class SmsTemplateTest extends TestCase
             $res = $this->postJson('/api/admin/sms-templates', $this->body($text))->assertStatus(422);
             $this->assertStringContainsString($expected, $res->json('errors.body.0'), $text);
         }
-        $this->assertSame(8, SmsTemplate::count());
+        $this->assertSame(count(SmsTemplates::DEFAULTS), SmsTemplate::count());
     }
 
     public function test_admin_edits_text_with_variables_and_members_send_it(): void

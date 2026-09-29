@@ -23,6 +23,7 @@ import { createDrawer } from '../components/person-drawer.js';
 import { pickPerson } from '../components/person-search.js';
 import { openExportDialog } from '../components/export-dialog.js';
 import { openRelativeDialog } from '../components/relative-dialog.js';
+import { openMarriage } from '../components/marriage-sheet.js';
 
 const DEFAULT_DEPTH = { descendants: 4, ancestors: 6, hourglass: 3, lineage: 1 };
 const MODE_TITLES = { descendants: 'درخت نوادگان', ancestors: 'درخت نیاکان', hourglass: 'درخت خانوادگی', lineage: 'مسیر نسبی' };
@@ -67,6 +68,7 @@ export default async function treePage(container, { params, query }) {
   const view = new TreeView(canvas, {
     minimap,
     onNode: (id, key, node) => drawer.open(id, node),
+    onMarriage: (id) => openMarriage(id, { onChange: () => load({ keepView: true }) }),
     onAction: handleAction,
     onBackground: () => drawer.close(),
   });

@@ -10,6 +10,8 @@ import { toast, toastError, loader, emptyState, confirmDialog, withLoading } fro
 import { avatar } from './avatar.js';
 
 const STAT_LABELS = [
+  ['pending_users', 'user', 'عضویت در انتظار تأیید'],
+  ['pending_edits', 'edit', 'پیشنهاد ویرایش در انتظار'],
   ['members', 'users', 'اعضای فعال'],
   ['active_30d', 'user', 'فعال در ۳۰ روز اخیر'],
   ['persons', 'tree', 'اشخاص شجره‌نامه'],
@@ -42,9 +44,9 @@ export async function adminOverview(body, { openTab } = {}) {
 
   body.replaceChildren(...[
     h('div', { class: 'admin-stats' }, ...STAT_LABELS.map(([key, ic, label]) => h('div', {
-      class: `card stat ${key === 'open_reports' && s[key] ? 'warn' : ''}`,
-      role: key === 'open_reports' || key === 'pending_media' ? 'button' : null,
-      onclick: key === 'open_reports' ? () => openTab?.('group') : key === 'pending_media' ? () => { location.hash = '#/approvals'; } : null,
+      class: `card stat ${['open_reports', 'pending_users', 'pending_edits'].includes(key) && s[key] ? 'warn' : ''}`,
+      role: ['open_reports', 'pending_media', 'pending_users', 'pending_edits'].includes(key) ? 'button' : null,
+      onclick: key === 'open_reports' ? () => openTab?.('group') : key === 'pending_edits' ? () => openTab?.('edits') : key === 'pending_media' ? () => { location.hash = '#/approvals'; } : key === 'pending_users' ? () => { location.hash = '#/admin/users?status=pending'; } : null,
     },
     h('div', { class: 's-icon' }, icon(ic)),
     h('div', null, h('div', { class: 'muted small' }, label), h('b', null, key === 'storage_bytes' ? fileSize(s[key]) : fa(s[key] ?? 0)))))),

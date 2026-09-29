@@ -12,6 +12,7 @@ import { s } from '../core/dom.js';
 import { fa, dateTime } from '../core/format.js';
 import { buildDefs, buildNode } from './node.js';
 import { TREE_CSS } from './renderer.js';
+import { marriageMark } from './marks.js';
 import { PdfWriter, PAPER, mmToPt } from './pdf.js';
 import { printPage, saveFile } from '../core/native.js';
 
@@ -63,7 +64,7 @@ async function embeddedFonts() {
 // ------------------------------------------------------------------ ساخت SVG مستقل
 /**
  * @param {object} layout خروجی layout.js
- * @param {object} opts   title, subtitle, prefs, photos(bool), grayscale(bool), siteName
+ * @param {object} opts   title, subtitle, prefs, photos(bool), grayscale(bool), siteName, siteUrl
  * @returns {Promise<{svg:string, width:number, height:number, box:object}>}
  */
 export async function buildExportSvg(layout, opts = {}) {
@@ -122,10 +123,7 @@ export async function buildExportSvg(layout, opts = {}) {
   world.append(links);
   for (const l of layout.links) {
     if (l.type !== 'marriage' || l.implied) continue;
-    world.append(s('g', { class: `t-mark ${l.divorced ? 'divorced' : ''}`, transform: `translate(${l.mid.x},${l.mid.y})` },
-      s('circle', { r: 9.5 }),
-      s('path', { d: 'M0,4.6 C-6.4,0.2 -5.2,-5.2 -2.2,-5 C-1,-4.9 -0.3,-4.2 0,-3.4 C0.3,-4.2 1,-4.9 2.2,-5 C5.2,-5.2 6.4,0.2 0,4.6 Z' }),
-    ));
+    world.append(marriageMark({ ...l, marriage: null }));
   }
   for (const node of layout.nodes) {
     const el = buildNode(node, g, {
@@ -139,9 +137,15 @@ export async function buildExportSvg(layout, opts = {}) {
   }
   svg.append(world);
 
-  // پانویس
+  // پانویس: نام سایت، تاریخ، تعداد + نشانی سایت (در SVG قابل کلیک)
   const footer = [opts.siteName, `تاریخ تهیه: ${dateTime(new Date().toISOString(), false)}`, `${fa(layout.nodes.length)} نفر`].filter(Boolean).join('   •   ');
-  svg.append(s('text', { x: cx, y: height - 30, 'text-anchor': 'middle', 'font-family': 'Vazirmatn', 'font-size': 13, fill: '#8b7d63' }, footer));
+  const siteUrl = /^https?:\/\//.test(opts.siteUrl || '') ? opts.siteUrl : '';
+  svg.append(s('text', { x: cx, y: height - (siteUrl ? 36 : 30), 'text-anchor': 'middle', 'font-family': 'Vazirmatn', 'font-size': 13, fill: '#8b7d63' }, footer));
+  if (siteUrl) {
+    const link = s('a', { href: siteUrl, target: '_blank' });
+    link.append(s('text', { x: cx, y: height - 16, 'text-anchor': 'middle', 'font-family': 'Vazirmatn', 'font-size': 12, fill: '#12706a', direction: 'ltr' }, siteUrl.replace(/^https?:\/\//, '')));
+    svg.append(link);
+  }
 
   const markup = new XMLSerializer().serializeToString(svg);
   return { svg: markup, width, height };

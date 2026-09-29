@@ -19,13 +19,15 @@ class MetaController extends Controller
     {
         return response()->json([
             'site_name' => config('pedigree.site_name'),
+            // نشانی سایت برای پانویس خروجی‌ها (PDF، عکس، SVG) و اشتراک‌گذاری
+            'site_url' => rtrim((string) config('app.url'), '/'),
             'version' => config('app.version', '1.0.0'),
             'registration_enabled' => (bool) config('pedigree.registration.enabled'),
             'registration' => [
                 'require_national_code' => (bool) config('pedigree.registration.require_national_code', true),
                 'allow_without_national_code' => (bool) config('pedigree.registration.allow_without_national_code', true),
+                'require_approval' => (bool) config('pedigree.registration.require_approval', true),
             ],
-            'guest_view' => (bool) config('pedigree.guest_view'),
             'otp' => [
                 'length' => (int) config('pedigree.otp.length'),
                 'ttl' => (int) config('pedigree.otp.ttl'),

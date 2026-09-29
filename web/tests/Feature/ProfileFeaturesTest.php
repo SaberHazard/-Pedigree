@@ -307,14 +307,18 @@ class ProfileFeaturesTest extends TestCase
         // من برای خودم فرزند می‌سازم؛ برادرم (عموی بچه) درجه یک او نیست
         $child = $this->actingAs($this->me, 'sanctum')->postJson("/api/persons/{$this->me->person_id}/relatives", ['type' => 'child', 'first_name' => 'کودک', 'gender' => 'f'])
             ->assertCreated()->json('data');
-        $this->actingAs($this->brother, 'sanctum')->patchJson("/api/persons/{$child['id']}", ['nickname' => 'x'])->assertForbidden();
+        // عمو (درجه دو) مستقیم ویرایش نمی‌کند؛ فقط پیشنهادی برای تأیید مدیر ثبت می‌شود
+        $this->actingAs($this->brother, 'sanctum')->patchJson("/api/persons/{$child['id']}", ['nickname' => 'x'])->assertStatus(202)->assertJsonPath('pending', true);
+        $this->assertNull(Person::find($child['id'])->nickname);
 
         // نوه (فرزند من) را پدرم ساخته باشد: پس از ۷۲ ساعت دیگر حق ویرایش ندارد
         $grandchild = Person::factory()->create(['created_by' => $this->father->id]);
         $grandchild->forceFill(['father_id' => $this->me->person_id])->save();
         $this->actingAs($this->father, 'sanctum')->patchJson("/api/persons/{$grandchild->id}", ['nickname' => 'نوه'])->assertOk();
         $this->travel(73)->hours();
-        $this->actingAs($this->father, 'sanctum')->patchJson("/api/persons/{$grandchild->id}", ['nickname' => 'نوه عزیز'])->assertForbidden();
+        // پدربزرگ درجه دو است: پس از پایان مهلت سازنده، ویرایشش پیشنهادی برای تأیید مدیر می‌شود
+        $this->actingAs($this->father, 'sanctum')->patchJson("/api/persons/{$grandchild->id}", ['nickname' => 'نوه عزیز'])->assertStatus(202);
+        $this->assertSame('نوه', $grandchild->fresh()->nickname);
         // پدرِ نوه (من) همچنان ویرایش می‌کند
         $this->actingAs($this->me, 'sanctum')->patchJson("/api/persons/{$grandchild->id}", ['nickname' => 'نوه عزیز'])->assertOk();
     }

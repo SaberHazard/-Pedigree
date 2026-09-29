@@ -62,9 +62,10 @@ class GreetingService
             return ['reason' => 'no_profile', 'message' => 'حساب شما به پروفایلی در شجره‌نامه وصل نیست.'] + $result;
         }
 
-        $done = $this->profiles->completenessOf($person);
-        $missing = array_map(fn ($k) => ['key' => $k, 'label' => ProfileService::COMPLETENESS_LABELS[$k] ?? $k], $done['missing']);
-        $result = ['percent' => $done['percent'], 'missing' => $missing] + $result;
+        // درصد فقط از روی بخش‌هایی که مدیر کل برای پیامک الزامی کرده است
+        $done = $this->profiles->smsCompleteness($person);
+        $missing = array_map(fn ($k) => ['key' => $k, 'label' => ProfileService::SMS_CHECK_LABELS[$k] ?? $k], $done['missing']);
+        $result = ['percent' => $done['percent'], 'missing' => $missing, 'checks' => array_map(fn ($k) => ProfileService::SMS_CHECK_LABELS[$k], $done['checks'])] + $result;
         if ($done['percent'] < $required) {
             $labels = implode('، ', array_column($missing, 'label'));
 
@@ -98,6 +99,9 @@ class GreetingService
         if (! isset(SmsTemplates::OCCASIONS[$occasion])) {
             return 'مناسبت معتبر نیست.';
         }
+        if (! OccasionCalendar::enabled($occasion)) {
+            return 'تبریک این مناسبت را مدیر سایت خاموش کرده است.';
+        }
         if ($sender->person_id === $recipient->id) {
             return 'به خودتان نمی‌توانید پیامک تبریک بفرستید.';
         }
@@ -119,6 +123,10 @@ class GreetingService
             }
         } elseif (! $this->calendar->isOpen($occasion)) {
             return "پیامک تبریک {$label} فقط ".OccasionCalendar::WINDOWS[$occasion].' قابل ارسال است.';
+        }
+        $audience = OccasionCalendar::DEFINITIONS[$occasion]['audience'] ?? null;
+        if ($audience !== null && ! self::fitsAudience($recipient, $audience)) {
+            return $audience === 'mothers' ? 'تبریک روز مادر فقط برای مادران است.' : 'تبریک روز پدر فقط برای پدران است.';
         }
         if (SmsTemplates::active($occasion)->isEmpty()) {
             return "مدیر سایت برای {$label} متنی تعیین نکرده است.";
@@ -272,6 +280,7 @@ class GreetingService
             'new_year' => $digits($this->calendar->newYear()),
             'note' => $note,
             'site_name' => (string) config('pedigree.site_name'),
+            'occasion' => SmsTemplates::OCCASIONS[$occasion]['label'] ?? null,
             'today' => $digits($this->calendar->todayText()),
             'year' => $digits($year),
         ];
@@ -279,7 +288,7 @@ class GreetingService
         // هر مقداری که از پروفایل‌ها می‌آید پاک‌سازی می‌شود تا کسی با گذاشتن لینک یا شماره در نام/لقب خود،
         // از خط رسمی سایت پیامک فریبنده نفرستد
         foreach ($values as $key => $value) {
-            if (! in_array($key, ['from_line', 'from_line_formal', 'site_name', 'note'], true)) {
+            if (! in_array($key, ['from_line', 'from_line_formal', 'site_name', 'note', 'occasion'], true)) {
                 $values[$key] = self::safe($value);
             }
         }
@@ -347,6 +356,16 @@ class GreetingService
             'title' => $t->title,
             'display' => SmsTemplates::display($t->body),
         ])->values()->all();
+    }
+
+    /** روز مادر فقط برای زنانی که در درخت فرزند دارند و روز پدر فقط برای مردانِ دارای فرزند */
+    public static function fitsAudience(Person $person, string $audience): bool
+    {
+        return match ($audience) {
+            'mothers' => $person->gender === Person::FEMALE && Person::query()->where('mother_id', $person->id)->exists(),
+            'fathers' => $person->gender === Person::MALE && Person::query()->where('father_id', $person->id)->exists(),
+            default => true,
+        };
     }
 
     public function alreadyGreeted(User $sender, Person $recipient, string $occasion = 'birthday'): bool

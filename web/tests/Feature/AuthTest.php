@@ -71,7 +71,8 @@ class AuthTest extends TestCase
             'gender' => 'f',
             'national_code' => '۰۰۱۲۳۴۵۶۷۹',
             'device_name' => 'iPhone',
-        ])->assertOk()->assertJsonStructure(['token']);
+            'join_note' => 'دختر حسن کریمی، ساکن شیراز',
+        ])->assertOk()->assertJsonStructure(['token'])->assertJsonPath('user.status', 'pending');
         $this->assertSame('0012345679', Person::findByPhone('09350000000')->national_code);
 
         $this->assertNotNull(Person::findByPhone('09350000000'));

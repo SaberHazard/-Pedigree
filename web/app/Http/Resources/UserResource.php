@@ -25,6 +25,22 @@ class UserResource extends JsonResource
         $user = $this->resource;
         $person = $user->person?->loadMissing('avatar');
 
+        // عضو در انتظار تأیید: فقط اطلاعات خودش (بدون شمارنده‌ها و چیزی از بقیه شجره‌نامه)
+        if ($user->isPending()) {
+            return [
+                'id' => $user->id,
+                'role' => $user->role,
+                'status' => $user->status,
+                'is_admin' => false,
+                'preferences' => (object) [],
+                'has_password' => $user->password !== null,
+                'username' => $user->username,
+                'join_note' => $user->join_note,
+                'person' => $person ? ['id' => $person->id, 'first_name' => $person->first_name, 'last_name' => $person->last_name, 'gender' => $person->gender] : null,
+                'counters' => ['notifications' => 0, 'votes' => 0, 'links' => 0, 'messages' => 0, 'group' => 0],
+            ];
+        }
+
         $pendingVotes = MediaVote::query()
             ->where('user_id', $user->id)
             ->whereNull('decision')

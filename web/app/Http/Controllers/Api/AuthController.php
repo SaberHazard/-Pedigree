@@ -8,6 +8,7 @@ use App\Http\Requests\PersonRequest;
 use App\Http\Resources\UserResource;
 use App\Models\Person;
 use App\Models\User;
+use App\Notifications\MemberPending;
 use App\Rules\NationalCodeRule;
 use App\Rules\PartialDateRule;
 use App\Services\AuditLogger;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -85,7 +87,8 @@ class AuthController extends Controller
         RateLimiter::hit($ipKey, 3600);
 
         $person = Person::findByPhone($phone);
-        $canLogin = $person && ! $person->is_deceased && (! $person->user || $person->user->isActive());
+        // عضو «در انتظار تأیید» هم می‌تواند وارد شود (فقط صفحه انتظار را می‌بیند)
+        $canLogin = $person && ! $person->is_deceased && (! $person->user || ! $person->user->isBlocked());
         $canRegister = ! $person && config('pedigree.registration.enabled');
 
         $code = null;
@@ -143,8 +146,8 @@ class AuthController extends Controller
             throw new DomainException('این پروفایل متعلق به شخص درگذشته است و امکان ورود با آن وجود ندارد.', 403);
         }
 
-        $user = $person->user ?? User::create(['person_id' => $person->id]);
-        if (! $user->isActive()) {
+        $user = $person->user ?? User::create(['person_id' => $person->id, 'role' => User::ROLE_MEMBER, 'status' => User::STATUS_ACTIVE]);
+        if ($user->isBlocked()) {
             throw new DomainException('حساب کاربری شما مسدود شده است.', 403);
         }
 
@@ -173,6 +176,8 @@ class AuthController extends Controller
             'birth_date' => ['nullable', new PartialDateRule],
             'password' => ['nullable', 'string', 'max:100', Password::min((int) config('pedigree.password.min_length', 8))->letters()->numbers()],
             'device_name' => ['nullable', 'string', 'max:100'],
+            // معرفی برای مدیر (مثلاً «پسر حسن احمدی از شاخه شیراز»)؛ وقتی تأیید عضویت لازم است
+            'join_note' => [config('pedigree.registration.require_approval', true) ? 'required' : 'nullable', 'string', 'min:5', 'max:300'],
         ]);
 
         $nationalCode = $withoutCode ? null : ($data['national_code'] ?? null);
@@ -198,7 +203,13 @@ class AuthController extends Controller
         $user = DB::transaction(function () use ($data, $phone, $persons, $nationalCode) {
             // اولین کاربر فقط در صورت فعال بودن تنظیم، مدیر کل می‌شود (پیشنهاد: از pedigree:install استفاده کنید)
             $firstAdmin = config('pedigree.registration.first_user_is_admin') && User::count() === 0;
-            $user = User::create(['role' => $firstAdmin ? User::ROLE_SUPER_ADMIN : User::ROLE_MEMBER]);
+            // غریبه‌ها تا تأیید مدیر هیچ‌چیز از شجره‌نامه نمی‌بینند
+            $pending = ! $firstAdmin && config('pedigree.registration.require_approval', true);
+            $user = User::create([
+                'role' => $firstAdmin ? User::ROLE_SUPER_ADMIN : User::ROLE_MEMBER,
+                'status' => $pending ? User::STATUS_PENDING : User::STATUS_ACTIVE,
+            ]);
+            $user->join_note = isset($data['join_note']) ? PersianText::normalize(trim(preg_replace('/[\x00-\x1F\x7F\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', ' ', $data['join_note']) ?? '')) : null;
             $person = $persons->create([
                 'first_name' => $data['first_name'],
                 'last_name' => $data['last_name'],
@@ -219,7 +230,10 @@ class AuthController extends Controller
             return $user;
         });
 
-        $this->audit->log('auth.registered', $user->person, [], $user);
+        $this->audit->log('auth.registered', $user->person, ['pending' => $user->isPending()], $user);
+        if ($user->isPending()) {
+            Notification::send(User::query()->whereIn('role', [User::ROLE_ADMIN, User::ROLE_SUPER_ADMIN])->where('status', User::STATUS_ACTIVE)->get(), new MemberPending($user));
+        }
 
         return $this->completeLogin($request, $user, 'register');
     }
@@ -277,7 +291,7 @@ class AuthController extends Controller
         if ($person->is_deceased) {
             throw new DomainException('این پروفایل متعلق به شخص درگذشته است.', 403);
         }
-        if (! $user->isActive()) {
+        if ($user->isBlocked()) {
             throw new DomainException('حساب کاربری شما مسدود شده است.', 403);
         }
 

@@ -224,6 +224,8 @@ export default function loginPage(container, { query }) {
         codeField.hidden = v;
       })) : null,
       field('رمز عبور برای ورود بدون پیامک (اختیاری)', h('input', { class: 'input ltr-input', name: 'password', type: 'password', autocomplete: 'new-password' }), { hint: 'حداقل ۸ کاراکتر شامل حرف و عدد' }),
+      reg.require_approval ? field('خودتان را معرفی کنید', h('textarea', { class: 'input', name: 'join_note', rows: 3, maxlength: 300, required: true, placeholder: 'مثلاً: پسر حسن احمدی و نوه حاج علی؛ ساکن شیراز' }),
+        { hint: 'مدیر سایت با این معرفی عضویت شما را تأیید می‌کند؛ تا آن موقع چیزی از شجره‌نامه دیده نمی‌شود.' }) : null,
       btn,
     );
     form.addEventListener('submit', async (e) => {
@@ -240,8 +242,9 @@ export default function loginPage(container, { query }) {
             national_code: form.no_national_code?.checked ? null : (latin(form.national_code.value).trim() || null),
             no_national_code: !!form.no_national_code?.checked,
             password: form.password.value || null,
+            join_note: form.join_note ? form.join_note.value.trim() : null,
           });
-          toast('به شجره‌نامه خوش آمدید!');
+          if (res.user?.status !== 'pending') toast('به شجره‌نامه خوش آمدید!');
           loggedIn(res.user);
         } catch (err) {
           showFormErrors(form, err);
@@ -284,6 +287,10 @@ export default function loginPage(container, { query }) {
   function loggedIn(user) {
     clearInterval(timer);
     store.setUser(user);
+    if (user.status === 'pending') {
+      navigate('/pending', { replace: true });
+      return;
+    }
     const name = user.person?.first_name;
     toast(name ? `${name} عزیز، خوش آمدید` : 'خوش آمدید');
     navigate(next.startsWith('/login') ? '/' : next, { replace: true });

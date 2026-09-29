@@ -71,6 +71,7 @@ return [
 
     'attributes' => [
         'phone' => 'شماره موبایل',
+        'join_note' => 'معرفی',
         'code' => 'کد تأیید',
         'national_code' => 'کد ملی',
         'password' => 'رمز عبور',

@@ -34,6 +34,9 @@ return [
         'require_national_code' => (bool) env('PEDIGREE_REQUIRE_NATIONAL_CODE', true),
         // کسی که کد ملی ایرانی ندارد (مثلاً ساکن خارج یا تبعه کشور دیگر) با تیک «کد ملی ندارم» ثبت‌نام کند
         'allow_without_national_code' => (bool) env('PEDIGREE_ALLOW_NO_NATIONAL_CODE', true),
+        // کسی که شماره‌اش در شجره‌نامه نیست و خودش ثبت‌نام می‌کند، تا تأیید مدیر هیچ‌چیز نمی‌بیند
+        // (کسانی که بستگانشان شماره‌شان را در پروفایل ثبت کرده‌اند بی‌نیاز از تأیید وارد می‌شوند)
+        'require_approval' => (bool) env('PEDIGREE_REQUIRE_APPROVAL', true),
     ],
 
     // نام کاربری: برای سالمندانی که موبایل و کد ملی ندارند؛ مدیر یا بستگان نام کاربری و رمز تعیین می‌کنند
@@ -48,7 +51,6 @@ return [
     'queue_via_scheduler' => (bool) env('PEDIGREE_QUEUE_VIA_SCHEDULER', true),
 
     // مهمان (کاربر واردنشده) اجازه دیدن درخت را دارد یا نه
-    'guest_view' => (bool) env('PEDIGREE_GUEST_VIEW', false),
 
     'otp' => [
         'length' => (int) env('PEDIGREE_OTP_LENGTH', 6),
@@ -380,9 +382,18 @@ return [
     |--------------------------------------------------------------------------
     | همه این مقدارها از پنل مدیریت ← «تنظیمات و اتصال‌ها» هم قابل تغییرند.
     */
+    // مناسبت‌های تبریک (تولد همیشه فعال است؛ بقیه از پنل مدیریت روشن/خاموش می‌شوند)
+    'occasions' => [
+        'enabled' => ['anniversary', 'nowruz', 'yalda', 'sepandarmazgan', 'mother_day', 'father_day', 'nimeh_shaban', 'eid_fitr', 'eid_adha', 'eid_ghadir'],
+        // اختلاف روز تقویم قمری رسمی ایران با محاسبه حسابی (مثلاً ‎-1 اگر عید یک روز دیرتر اعلام شد)
+        'hijri_offset' => (int) env('PEDIGREE_HIJRI_OFFSET', 0),
+    ],
+
     'member_sms' => [
         // فقط اعضایی که پروفایلشان حداقل این درصد کامل است
         'min_completeness' => (int) env('PEDIGREE_MEMBER_SMS_MIN_PROFILE', 95),
+        // درصد بالا از روی کدام بخش‌های پروفایل حساب شود (مدیر کل در پنل تیک می‌زند؛ فهرست در ProfileService::SMS_CHECK_LABELS)
+        'required_fields' => ['avatar', 'birth_date', 'birth_place', 'education_level', 'occupation', 'location', 'summary', 'biography', 'resume', 'father', 'mother', 'contact', 'social'],
         // دامنه تبریک خودکار: all | d4 | d3 | d2 | d1
         'auto_max_scope' => 'd2',
         'send_hour' => 9,

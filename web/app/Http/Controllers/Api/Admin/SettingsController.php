@@ -173,6 +173,23 @@ class SettingsController extends Controller
                 }
 
                 return $value;
+            case 'multi':
+                if (! is_array($value) || ! array_is_list($value)) {
+                    $fail('فهرست گزینه‌ها معتبر نیست.');
+                }
+                $picked = [];
+                foreach ($value as $item) {
+                    if (! is_string($item) || ! array_key_exists($item, $field['options'])) {
+                        $fail('گزینه انتخاب‌شده معتبر نیست.');
+                    }
+                    $picked[$item] = true;
+                }
+                if (count($picked) < ($field['min'] ?? 0)) {
+                    $fail('دست‌کم '.($field['min'] ?? 1).' گزینه را انتخاب کنید.');
+                }
+
+                // به ترتیب خود فهرست (تا تغییر ترتیب، «تغییر» حساب نشود)
+                return array_values(array_filter(array_keys($field['options']), fn ($k) => isset($picked[$k])));
             case 'url':
                 $value = is_string($value) ? trim($value) : '';
                 if (strlen($value) > 500 || ! preg_match('#^https://[^\s"\'<>]+$#i', $value) || ! parse_url($value, PHP_URL_HOST)) {
@@ -248,7 +265,11 @@ class SettingsController extends Controller
                     }
                     $missingSecrets += $string === '' ? 1 : 0;
                 } else {
-                    $item['value'] = $field['type'] === 'bool' ? (bool) $value : $value;
+                    $item['value'] = match ($field['type']) {
+                        'bool' => (bool) $value,
+                        'multi' => array_values(array_filter((array) $value, fn ($v) => is_string($v) && isset($field['options'][$v]))),
+                        default => $value,
+                    };
                 }
                 $fields[] = $item;
             }

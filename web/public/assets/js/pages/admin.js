@@ -7,7 +7,7 @@ import { get, patch, post, download } from '../core/api.js';
 import { store } from '../core/store.js';
 import { navigate } from '../core/router.js';
 import { fa, fullName, timeAgo, dateTime } from '../core/format.js';
-import { tabs, toast, toastError, loader, emptyState, confirmDialog, withLoading, dropdown } from '../core/ui.js';
+import { tabs, segmented, toast, toastError, loader, emptyState, confirmDialog, withLoading, dropdown } from '../core/ui.js';
 import { saveFile } from '../core/native.js';
 import { avatar } from '../components/avatar.js';
 import { personRow, pickPerson } from '../components/person-search.js';
@@ -15,10 +15,11 @@ import { actionLabel } from '../components/labels.js';
 import { adminSettings, adminSmsReport } from '../components/admin-settings.js';
 import { adminTemplates } from '../components/admin-templates.js';
 import { adminOverview, adminGroup } from '../components/admin-overview.js';
+import { adminEdits } from '../components/admin-edits.js';
 
 const ROLES = { member: 'عضو', admin: 'مدیر', super_admin: 'مدیر کل' };
 
-export default function adminPage(container, { params }) {
+export default function adminPage(container, { params, query }) {
   if (!store.user?.is_admin) {
     container.append(h('div', { class: 'page' }, emptyState('lock', 'این بخش فقط برای مدیران است.')));
     return;
@@ -31,6 +32,7 @@ export default function adminPage(container, { params }) {
     tabs([
       { value: 'overview', label: 'نمای کلی', icon: 'shield' },
       { value: 'users', label: 'کاربران', icon: 'users' },
+      { value: 'edits', label: 'تأیید ویرایش‌ها', icon: 'edit' },
       { value: 'group', label: 'گروه خاندان', icon: 'flag' },
       superAdmin ? { value: 'settings', label: 'تنظیمات و اتصال‌ها (API)', icon: 'key' } : null,
       superAdmin ? { value: 'templates', label: 'قالب پیامک‌ها', icon: 'edit' } : null,
@@ -51,39 +53,92 @@ export default function adminPage(container, { params }) {
 
   function show(tab) {
     body.replaceChildren(loader());
-    ({ users, activity, trash, tools, overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
+    ({ users, activity, trash, tools, edits: () => adminEdits(body), overview: () => adminOverview(body, { openTab }), group: () => adminGroup(body), settings: () => adminSettings(body), templates: () => adminTemplates(body), sms: () => adminSmsReport(body, { dateTime, fullName, avatar }) })[tab]?.();
   }
 
   // ------------------------------------------------------------ کاربران
+  let userStatus = query?.status === 'pending' ? 'pending' : '';
   async function users(q = '') {
-    const search = h('input', { class: 'input mb', type: 'search', placeholder: 'جستجوی نام...', value: q });
+    const search = h('input', { class: 'input', type: 'search', placeholder: 'جستجوی نام...', value: q });
+    const filter = segmented([
+      { value: '', label: 'همه' },
+      { value: 'pending', label: 'در انتظار تأیید' },
+      { value: 'active', label: 'فعال' },
+      { value: 'blocked', label: 'مسدود' },
+    ], userStatus, (v) => { userStatus = v; users(search.value); });
     const table = h('div', { class: 'card table-wrap' }, loader());
-    body.replaceChildren(search, table);
+    body.replaceChildren(h('div', { class: 'row wrap mb', style: { gap: '8px' } }, h('div', { class: 'grow', style: { minWidth: '200px' } }, search), h('div', { class: 'scroll-x', 'data-scroll-x': '' }, filter)), table);
     search.addEventListener('input', debounce(() => users(search.value), 400));
-    search.focus();
     try {
-      const res = await get('/api/admin/users', { q });
+      const res = await get('/api/admin/users', { q, status: userStatus });
+      if (res.pending && userStatus !== 'pending') {
+        body.insertBefore(h('button', { class: 'card pending-banner mb', type: 'button', onclick: () => { userStatus = 'pending'; users(); } },
+          icon('user'), ` ${fa(res.pending)} درخواست عضویت در انتظار تأیید شماست`, icon('chevron-left')), table);
+      }
+      if (userStatus === 'pending') {
+        table.replaceChildren(res.data.length ? h('div', { class: 'pending-list' }, ...res.data.map(pendingRow)) : emptyState('check', 'درخواست عضویتی در انتظار نیست.'));
+        return;
+      }
       table.replaceChildren(h('table', { class: 'table' },
         h('thead', null, h('tr', null, ...['شخص', 'نقش', 'وضعیت', 'آخرین ورود', ''].map((t) => h('th', null, t)))),
         h('tbody', null, ...res.data.map((u) => {
-          const role = h('select', { class: 'input', style: { minHeight: '34px' }, disabled: !store.user.role.includes('super') || u.id === store.user.id },
+          const role = h('select', { class: 'input', style: { minHeight: '34px' }, disabled: !store.user.role.includes('super') || u.id === store.user.id || u.status === 'pending' },
             ...Object.entries(ROLES).map(([v, l]) => h('option', { value: v, selected: v === u.role }, l)));
           role.addEventListener('change', () => update(u, { role: role.value }));
           const blocked = u.status === 'blocked';
+          const pending = u.status === 'pending';
           return h('tr', null,
             h('td', null, u.person ? h('a', { class: 'row', href: `#/person/${u.person.id}` }, avatar(u.person, 'xs'), fullName(u.person)) : '—'),
             h('td', null, role),
-            h('td', null, h('span', { class: `chip ${blocked ? 'danger' : 'success'}` }, blocked ? 'مسدود' : 'فعال')),
+            h('td', null, h('span', { class: `chip ${blocked ? 'danger' : pending ? 'warning' : 'success'}` }, blocked ? 'مسدود' : pending ? 'در انتظار تأیید' : 'فعال')),
             h('td', { class: 'small muted' }, u.last_login_at ? timeAgo(u.last_login_at) : 'هرگز'),
-            h('td', { class: 'nowrap' }, u.id === store.user.id ? '' : h('div', { class: 'row', style: { gap: '4px' } },
-              h('button', { class: `btn sm ${blocked ? 'success' : 'danger'}`, type: 'button', onclick: () => update(u, { status: blocked ? 'active' : 'blocked' }) }, blocked ? 'فعال‌سازی' : 'مسدودسازی'),
-              moreMenu(u),
-            )),
+            h('td', { class: 'nowrap' }, u.id === store.user.id ? '' : pending
+              ? h('div', { class: 'row', style: { gap: '4px' } },
+                h('button', { class: 'btn sm success', type: 'button', onclick: () => decide(u, 'approve') }, icon('check'), 'تأیید'),
+                h('button', { class: 'btn sm danger', type: 'button', onclick: () => decide(u, 'reject') }, 'رد'))
+              : h('div', { class: 'row', style: { gap: '4px' } },
+                h('button', { class: `btn sm ${blocked ? 'success' : 'danger'}`, type: 'button', onclick: () => update(u, { status: blocked ? 'active' : 'blocked' }) }, blocked ? 'فعال‌سازی' : 'مسدودسازی'),
+                moreMenu(u),
+              )),
           );
         })),
       ), h('div', { class: 'muted small', style: { padding: '10px' } }, `${fa(res.meta.total)} کاربر`));
     } catch (e) {
       table.replaceChildren(emptyState('alert', e.message));
+    }
+  }
+
+  /** یک درخواست عضویت: نام، معرفی و دکمه‌های تأیید/رد */
+  function pendingRow(u) {
+    return h('div', { class: 'pending-row' },
+      h('div', { class: 'row', style: { gap: '10px', alignItems: 'flex-start', minWidth: 0 } },
+        u.person ? avatar(u.person, 'sm') : null,
+        h('div', { class: 'grow', style: { minWidth: 0 } },
+          h('b', null, u.person ? fullName(u.person) : '—'), ' ',
+          h('span', { class: 'muted tiny' }, u.created_at ? `ثبت‌نام ${timeAgo(u.created_at)}` : ''),
+          h('div', { class: 'join-note', dir: 'auto' }, u.join_note || 'بدون معرفی'),
+        ),
+      ),
+      h('div', { class: 'row wrap', style: { gap: '6px', justifyContent: 'flex-end' } },
+        u.person ? h('a', { class: 'btn ghost sm', href: `#/person/${u.person.id}` }, icon('user'), 'پروفایل') : null,
+        h('button', { class: 'btn sm danger', type: 'button', onclick: () => decide(u, 'reject') }, 'رد درخواست'),
+        h('button', { class: 'btn sm primary', type: 'button', onclick: () => decide(u, 'approve') }, icon('check'), 'تأیید عضویت'),
+      ),
+    );
+  }
+
+  async function decide(u, action) {
+    const name = u.person ? fullName(u.person) : 'این شخص';
+    const question = action === 'approve'
+      ? `عضویت «${name}» تأیید شود؟ از این پس کل شجره‌نامه را می‌بیند.`
+      : `درخواست «${name}» رد شود؟ حساب مسدود و پروفایلی که خودش ساخته (اگر به کسی وصل نیست) حذف می‌شود.`;
+    if (!(await confirmDialog(question, { danger: action === 'reject' }))) return;
+    try {
+      const res = await post(`/api/admin/users/${u.id}/${action}`);
+      toast(res.message);
+      users();
+    } catch (e) {
+      toastError(e);
     }
   }
 

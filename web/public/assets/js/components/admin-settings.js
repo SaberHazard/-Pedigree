@@ -114,6 +114,29 @@ export async function adminSettings(body) {
         read: () => (input.checked !== !!f.value ? input.checked : undefined),
       };
     }
+    if (f.type === 'multi') {
+      const current = new Set(f.value || []);
+      const boxes = f.options.map((o) => h('input', { type: 'checkbox', value: o.value, checked: current.has(o.value) }));
+      const count = h('span', { class: 'chip tiny-chip' });
+      const update = () => { count.textContent = `${fa(boxes.filter((b) => b.checked).length)} از ${fa(boxes.length)}`; };
+      boxes.forEach((b) => b.addEventListener('change', update));
+      update();
+      const all = (on) => { boxes.forEach((b) => { b.checked = on; }); update(); };
+      return {
+        el: h('div', { class: 'field full', 'data-field': f.key },
+          h('label', null, f.label, ' ', count, ' ', source),
+          h('div', { class: 'row wrap', style: { gap: '6px', marginBottom: '6px' } },
+            h('button', { class: 'btn ghost xs', type: 'button', onclick: () => all(true) }, 'انتخاب همه'),
+            h('button', { class: 'btn ghost xs', type: 'button', onclick: () => all(false) }, 'هیچ‌کدام')),
+          h('div', { class: 'check-grid' }, ...f.options.map((o, i) => h('label', { class: 'check-item' }, boxes[i], h('span', null, o.label)))),
+          hint, resetBtn),
+        read: () => {
+          const picked = boxes.filter((b) => b.checked).map((b) => b.value);
+          const same = picked.length === current.size && picked.every((v) => current.has(v));
+          return same ? undefined : picked;
+        },
+      };
+    }
     if (f.type === 'select') {
       const input = h('select', { class: 'input', id, name: f.key }, ...f.options.map((o) => h('option', { value: o.value, selected: String(f.value ?? '') === o.value }, o.label)));
       return { el: h('div', { class: 'field' }, label, input, hint, resetBtn), read: () => (input.value !== String(f.value ?? '') ? input.value : undefined) };

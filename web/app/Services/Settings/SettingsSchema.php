@@ -2,6 +2,12 @@
 
 namespace App\Services\Settings;
 
+use App\Services\Occasions\OccasionCalendar;
+use App\Services\People\ProfileService;
+use App\Services\Sms\SmsTemplates;
+use App\Support\Hijri;
+use App\Support\PersianText;
+
 /**
  * فهرست تنظیماتی که مدیر کل از پنل مدیریت («تنظیمات و اتصال‌ها») تغییر می‌دهد.
  *
@@ -9,7 +15,7 @@ namespace App\Services\Settings;
  * فقط کلیدهای همین فهرست قابل تغییرند (کلید دلخواه پذیرفته نمی‌شود).
  *
  * نوع فیلدها:
- *   text | url | int | bool | select | secret (کلید/رمز؛ هرگز به مرورگر برنمی‌گردد) | secret_json
+ *   text | url | int | bool | select | multi (چند تیک از options) | secret (کلید/رمز؛ هرگز به مرورگر برنمی‌گردد) | secret_json
  */
 final class SettingsSchema
 {
@@ -46,6 +52,28 @@ final class SettingsSchema
         'd1' => 'فقط بستگان درجه ۱',
     ];
 
+    /** مناسبت‌های قابل خاموش کردن (تولد همیشه روشن است) */
+    private static function occasionOptions(): array
+    {
+        $out = [];
+        foreach (SmsTemplates::OCCASIONS as $key => $o) {
+            if ($key !== 'birthday') {
+                $out[$key] = $o['emoji'].' '.$o['label'].' — '.OccasionCalendar::WINDOWS[$key];
+            }
+        }
+
+        return $out;
+    }
+
+    /** راهنمای تنظیم اختلاف تقویم قمری با تاریخ قمری امروز طبق محاسبه سایت */
+    private static function hijriHelp(): string
+    {
+        $today = now('Asia/Tehran');
+        [$y, $m, $d] = Hijri::fromGregorian((int) $today->format('Y'), (int) $today->format('n'), (int) $today->format('j'), OccasionCalendar::hijriOffset());
+
+        return PersianText::toPersianDigits("امروز طبق محاسبه سایت: {$d} ".Hijri::MONTHS[$m]." {$y}. اگر با تقویم رسمی فرق دارد، اختلاف را وارد کنید (‎+1 = یک روز جلوتر، ‎-1 = یک روز عقب‌تر).");
+    }
+
     /** @return array<string, array> گروه‌ها به ترتیب نمایش */
     public static function groups(): array
     {
@@ -56,7 +84,7 @@ final class SettingsSchema
                 'fields' => [
                     'pedigree.site_name' => ['label' => 'نام سایت', 'type' => 'text', 'max' => 80],
                     'pedigree.registration.enabled' => ['label' => 'ثبت‌نام اعضای جدید باز باشد', 'type' => 'bool'],
-                    'pedigree.guest_view' => ['label' => 'دیدن درخت بدون ورود (مهمان)', 'type' => 'bool', 'help' => 'برای حفظ حریم خانواده معمولاً خاموش بماند.'],
+                    'pedigree.registration.require_approval' => ['label' => 'عضو تازه تا تأیید مدیر هیچ‌چیز نبیند', 'type' => 'bool', 'help' => 'کسی که شماره‌اش را بستگان در شجره‌نامه ثبت کرده‌اند بی‌نیاز از تأیید وارد می‌شود؛ بقیه با یک معرفی کوتاه در «مدیریت ← کاربران ← در انتظار تأیید» می‌مانند. برای حفظ حریم خاندان روشن بماند.'],
                 ],
             ],
 
@@ -136,13 +164,23 @@ final class SettingsSchema
                 'icon' => 'cake',
                 'description' => 'اعضایی که پروفایلشان به اندازه کافی کامل است با پنل پیامکی سایت تبریک تولد می‌فرستند (دستی یا خودکار از طرف خودشان). متن ثابت است: نام کامل با عنوان دکتر/مهندس و نسبت فامیلی که خود سایت حساب می‌کند، به‌علاوه یادداشتی خیلی کوتاه. هزینه از اعتبار پنل کم می‌شود؛ سقف‌ها را متناسب تنظیم کنید.',
                 'fields' => [
-                    'pedigree.member_sms.min_completeness' => ['label' => 'حداقل درصد تکمیل پروفایل فرستنده', 'type' => 'int', 'min' => 0, 'max' => 100],
+                    'pedigree.member_sms.min_completeness' => ['label' => 'حداقل درصد تکمیل پروفایل فرستنده', 'type' => 'int', 'min' => 0, 'max' => 100, 'help' => 'درصد فقط از روی بخش‌هایی که پایین تیک زده‌اید حساب می‌شود. برای اینکه همه بخش‌های تیک‌خورده الزامی باشند ۱۰۰ بگذارید.'],
+                    'pedigree.member_sms.required_fields' => ['label' => 'بخش‌هایی از پروفایل که برای پیامک از پنل سایت باید تکمیل شده باشد', 'type' => 'multi', 'options' => ProfileService::SMS_CHECK_LABELS, 'min' => 1],
                     'pedigree.member_sms.auto_max_scope' => ['label' => 'بیشترین دامنه تبریک خودکار', 'type' => 'select', 'options' => self::SCOPES],
                     'pedigree.member_sms.send_hour' => ['label' => 'ساعت ارسال تبریک خودکار (به وقت تهران)', 'type' => 'int', 'min' => 6, 'max' => 22],
                     'pedigree.member_sms.daily_per_user' => ['label' => 'سقف پیامک هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 1000],
                     'pedigree.member_sms.monthly_per_user' => ['label' => 'سقف پیامک هر عضو در ماه', 'type' => 'int', 'min' => 1, 'max' => 10000],
                     'pedigree.member_sms.daily_per_recipient' => ['label' => 'سقف پیامکی که یک نفر در روز دریافت می‌کند', 'type' => 'int', 'min' => 1, 'max' => 100],
                     'pedigree.member_sms.global_daily' => ['label' => 'سقف کل پیامک‌های تبریک سایت در روز', 'type' => 'int', 'min' => 1, 'max' => 100000],
+                ],
+            ],
+            'occasions' => [
+                'label' => 'مناسبت‌های تبریک',
+                'icon' => 'calendar',
+                'description' => 'مناسبت‌هایی که اعضا می‌توانند با پیامک از پنل سایت تبریک بگویند (تبریک تولد همیشه فعال است). متن هر مناسبت در تب «قالب پیامک‌ها» است. مناسبت‌های قمری با تقویم قمری حسابی محاسبه می‌شوند؛ اگر تاریخ رسمی ایران یک روز فرق داشت، «اختلاف روز» را تنظیم کنید.',
+                'fields' => [
+                    'pedigree.occasions.enabled' => ['label' => 'مناسبت‌های فعال', 'type' => 'multi', 'options' => self::occasionOptions(), 'min' => 0],
+                    'pedigree.occasions.hijri_offset' => ['label' => 'اختلاف روز تقویم قمری', 'type' => 'int', 'min' => -3, 'max' => 3, 'help' => self::hijriHelp()],
                 ],
             ],
             'birthdays' => [

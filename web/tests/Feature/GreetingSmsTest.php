@@ -114,7 +114,7 @@ class GreetingSmsTest extends TestCase
         $this->assertFalse($res->json('eligibility.eligible'));
         $this->assertSame('incomplete', $res->json('eligibility.reason'));
         $this->assertNotEmpty($res->json('eligibility.missing'));
-        $this->assertContains('عکس پروفایل', array_column($res->json('eligibility.missing'), 'label'));
+        $this->assertContains('عکس پروفایل (تأییدشده)', array_column($res->json('eligibility.missing'), 'label'));
         $this->assertFalse(collect($res->json('birthdays'))->firstWhere('person.id', $this->birthdayUser->person_id)['can_sms']);
 
         $this->postJson('/api/greetings/sms', ['person_id' => $this->birthdayUser->person_id, 'template' => $this->tpl('warm')])

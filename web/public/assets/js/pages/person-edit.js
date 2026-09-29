@@ -23,16 +23,21 @@ export default async function personEdit(container, { params }) {
       page.replaceChildren(emptyState('alert', e.message));
       return;
     }
-    if (!person.permissions?.edit) {
-      page.replaceChildren(emptyState('lock', 'شما اجازه ویرایش این پروفایل را ندارید. فقط خود شخص، بستگان نزدیک و (برای درگذشتگان) نوادگان می‌توانند ویرایش کنند.', h('a', { class: 'btn', href: `#/person/${person.id}` }, 'بازگشت به پروفایل')));
+    if (!person.permissions?.edit && !person.permissions?.suggest) {
+      page.replaceChildren(emptyState('lock', 'شما اجازه ویرایش این پروفایل را ندارید. خود شخص و بستگان درجه یک ویرایش می‌کنند و بستگان درجه دو و سه می‌توانند پیشنهاد ویرایش بدهند.', h('a', { class: 'btn', href: `#/person/${person.id}` }, 'بازگشت به پروفایل')));
       return;
     }
   }
+  // بستگان درجه دو و سه: فرم همان است ولی تغییرها پس از تأیید مدیر اعمال می‌شوند
+  const suggesting = !creating && !person.permissions?.edit && person.permissions?.suggest;
+  const reasonInput = suggesting ? h('textarea', { class: 'input', rows: 2, maxlength: 300, placeholder: 'مثلاً: از پدرم پرسیدم / از روی شناسنامه' }) : null;
 
   const sensitive = creating || person.permissions?.sensitive;
-  const saveBtn = h('button', { class: 'btn primary lg', type: 'submit' }, icon('check'), creating ? 'ساخت شخص' : 'ذخیره تغییرات');
+  const saveBtn = h('button', { class: 'btn primary lg', type: 'submit' }, icon('check'), creating ? 'ساخت شخص' : suggesting ? 'فرستادن برای تأیید مدیر' : 'ذخیره تغییرات');
   const form = h('form', { novalidate: true },
+    suggesting ? h('div', { class: 'card suggest-note mb' }, icon('info'), h('span', null, ' شما از بستگان درجه دو یا سه هستید. تغییرات شما به صورت «پیشنهاد» برای مدیر سایت فرستاده می‌شود و پس از تأیید در پروفایل نمایش داده می‌شود. نشانی، شماره‌ها و تنظیم حریم خصوصی فقط با خود شخص و بستگان درجه یک است.')) : null,
     personFields(person, { sensitive, gender: true, full: true }),
+    suggesting ? h('div', { class: 'field full' }, h('label', null, 'توضیح برای مدیر (اختیاری)'), reasonInput) : null,
     !sensitive && person.has_national_code ? h('p', { class: 'muted small' }, icon('lock'), ' اطلاعات هویتی این شخص فقط توسط خودش قابل مشاهده و تغییر است.') : null,
     h('div', { class: 'row between wrap', style: { position: 'sticky', bottom: 'calc(12px + var(--bottom-nav-h))', background: 'var(--glass)', backdropFilter: 'blur(12px)', padding: '12px', borderRadius: '16px', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' } },
       h('div', { class: 'row' },
@@ -60,9 +65,18 @@ export default async function personEdit(container, { params }) {
     if (!sensitive) {
       ['national_code', 'phone', 'birth_cert_no', 'email', 'password', 'username', 'is_locked'].forEach((k) => delete data[k]);
     }
+    if (suggesting) {
+      ['address', 'postal_code', 'home_lat', 'home_lng', 'landline', 'contact_visibility', 'location_visibility'].forEach((k) => delete data[k]);
+      data.edit_reason = reasonInput.value.trim() || null;
+    }
     await withLoading(saveBtn, async () => {
       try {
         const res = creating ? await post('/api/persons', data) : await patch(`/api/persons/${person.id}`, data);
+        if (res.pending) {
+          toast(res.message);
+          navigate(`/person/${person.id}`);
+          return;
+        }
         toast('ذخیره شد.');
         if (!creating && store.user?.person?.id === person.id) store.refreshCounters?.();
         navigate(`/person/${res.data.id}`);

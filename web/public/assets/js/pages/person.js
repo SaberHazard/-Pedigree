@@ -23,6 +23,7 @@ import { opinionsTab } from '../components/opinions.js';
 import { storiesStrip } from '../components/stories.js';
 import { miniMap, directionsLinks, coordText } from '../components/map.js';
 import { socialProfiles } from '../components/social.js';
+import { openMarriage } from '../components/marriage-sheet.js';
 
 const TABS = ['details', 'gallery', 'relatives', 'opinions', 'history'];
 
@@ -137,6 +138,7 @@ export default async function personPage(container, { params }) {
           h('a', { class: 'btn soft', href: `#/tree/${person.id}?mode=hourglass` }, icon('tree'), 'درخت'),
           canMessage(person) ? h('button', { class: 'btn', type: 'button', title: 'پیام متنی به این عضو', onclick: () => import('./messages.js').then((m) => m.startConversation(person)) }, icon('chat'), 'پیام') : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/edit` }, icon('edit'), 'ویرایش') : null,
+          !perms.edit && perms.suggest ? h('a', { class: 'btn', href: `#/person/${person.id}/edit`, title: 'بستگان درجه دو و سه: تغییر شما پس از تأیید مدیر نمایش داده می‌شود' }, icon('edit'), 'پیشنهاد ویرایش') : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/interview`, title: 'تکمیل پروفایل با جواب دادن به سؤال‌های کوتاه' }, icon('sparkles'), 'پرسش‌وپاسخ') : null,
           perms.edit ? h('button', { class: 'btn', type: 'button', onclick: () => openRelativeDialog(person, 'child', { onDone: () => show('relatives') }) }, icon('user-plus'), 'افزودن بستگان') : null,
           h('button', { class: 'btn ghost icon-only', type: 'button', title: 'اشتراک‌گذاری', onclick: share }, icon('share')),
@@ -284,12 +286,14 @@ export default async function personPage(container, { params }) {
     } catch (e) {
       return emptyState('alert', e.message);
     }
-    const card = (p, extra) => h('div', { class: 'person-card', onclick: () => navigate(`/person/${p.id}`) },
+    const card = (p, extra, marriage = null) => h('div', { class: 'person-card', onclick: () => navigate(`/person/${p.id}`) },
       avatar(p, 'sm'),
       h('div', { class: 'grow', style: { minWidth: 0 } },
         h('div', { class: 'bold ellipsis' }, fullName(p)),
         h('div', { class: 'muted tiny ellipsis' }, [extra, lifespan(p)].filter(Boolean).join(' • ')),
       ),
+      marriage ? h('button', { class: `icon-btn mar-btn ${marriage.status}`, type: 'button', title: 'جزئیات ازدواج و تاریخ‌ها', onclick: (e) => { e.stopPropagation(); openMarriage(marriage.id, { onChange: () => show('relatives') }); } },
+        marriage.status === 'divorced' ? '💔' : marriage.status === 'widowed' ? '🖤' : '❤️') : null,
     );
     const addCard = (type, label) => (perms.edit ? h('div', { class: 'person-card add', onclick: () => openRelativeDialog(person, type, { onDone: () => show('relatives') }) }, icon('plus'), label) : null);
     const group = (title, ic, items) => h('div', { class: 'relatives-group' }, h('h3', null, icon(ic), title), h('div', { class: 'person-cards' }, ...items.filter(Boolean)));
@@ -301,7 +305,7 @@ export default async function personPage(container, { params }) {
         r.mother ? card(r.mother, 'مادر') : addCard('mother', 'افزودن مادر'),
       ]),
       group(r.spouses.length > 1 ? `همسران (${fa(r.spouses.length)})` : 'همسر', 'heart', [
-        ...r.spouses.map((sp, i) => card(sp.person, [r.spouses.length > 1 ? `همسر ${ordinal[i] || fa(i + 1)}` : null, MARRIAGE_STATUS[sp.marriage.status], sp.marriage.marriage_date ? `ازدواج ${formatDate(sp.marriage.marriage_date)}` : null].filter(Boolean).join(' - '))),
+        ...r.spouses.map((sp, i) => card(sp.person, [r.spouses.length > 1 ? `همسر ${ordinal[i] || fa(i + 1)}` : null, MARRIAGE_STATUS[sp.marriage.status], sp.marriage.marriage_date ? `ازدواج ${formatDate(sp.marriage.marriage_date)}` : null, sp.marriage.status === 'divorced' && sp.marriage.end_date ? `طلاق ${formatDate(sp.marriage.end_date)}` : null].filter(Boolean).join(' - '), sp.marriage)),
         addCard('spouse', r.spouses.length ? 'افزودن همسر دیگر' : 'افزودن همسر'),
       ]),
       group(`فرزندان${r.children.length ? ` (${fa(r.children.length)})` : ''}`, 'baby', [

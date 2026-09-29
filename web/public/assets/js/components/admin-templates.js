@@ -24,7 +24,7 @@ export async function adminTemplates(body) {
   }
 
   const listBox = h('div');
-  const tabBar = segmented(state.occasions.map((o) => ({ value: o.key, label: `${o.emoji} ${o.label}` })), occasion, (v) => { occasion = v; renderList(); });
+  const tabBar = segmented(state.occasions.map((o) => ({ value: o.key, label: `${o.emoji} ${o.label}${o.enabled ? '' : ' (خاموش)'}` })), occasion, (v) => { occasion = v; renderList(); });
 
   body.replaceChildren(
     h('div', { class: 'card' },
@@ -50,7 +50,8 @@ export async function adminTemplates(body) {
     const items = current();
     listBox.replaceChildren(
       h('div', { class: 'row between mt', style: { flexWrap: 'wrap', gap: '8px' } },
-        h('span', { class: 'muted small' }, icon('calendar'), ` زمان ارسال: ${o.window}`),
+        h('span', { class: 'muted small' }, icon('calendar'), ` زمان ارسال: ${o.window}`, o.next ? ` — امسال: ${o.next}` : '',
+          o.enabled ? null : h('span', { class: 'chip warning', style: { marginInlineStart: '6px' } }, 'این مناسبت خاموش است؛ از «تنظیمات ← مناسبت‌های تبریک» روشن کنید')),
         h('button', { class: 'btn primary sm', type: 'button', disabled: items.length >= state.limits.per_occasion, onclick: () => edit(null) }, icon('plus'), 'افزودن قالب'),
       ),
       items.length

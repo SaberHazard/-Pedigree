@@ -20,12 +20,12 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 /**
- * تبریک مناسبت‌ها (تولد، سالگرد ازدواج، نوروز، یلدا): فهرست کسانی که امروز می‌شود به آن‌ها تبریک گفت،
+ * تبریک مناسبت‌ها (تولد، سالگرد ازدواج، نوروز، یلدا، اعیاد و ...): فهرست کسانی که امروز می‌شود به آن‌ها تبریک گفت،
  * ارسال پیامک تبریک با قالب‌های ثابت مدیر کل، تبریک خودکار تولد و پیامک‌های ارسالی خود کاربر.
  */
 class GreetingController extends Controller
 {
-    /** بیشترین تعداد بستگان در فهرست تبریک نوروز/یلدا */
+    /** بیشترین تعداد بستگان در فهرست تبریک مناسبت‌های همگانی */
     private const SEASONAL_MAX = 300;
 
     public function __construct(
@@ -70,13 +70,16 @@ class GreetingController extends Controller
         }
 
         $occasions = [];
-        foreach (SmsTemplates::OCCASIONS as $key => $o) {
+        foreach (OccasionCalendar::enabledKeys() as $key) {
+            $o = SmsTemplates::OCCASIONS[$key];
             $occasions[] = [
                 'key' => $key,
                 'label' => $o['label'],
                 'emoji' => $o['emoji'],
+                'kind' => OccasionCalendar::DEFINITIONS[$key]['kind'],
                 'open' => $this->calendar->isOpen($key),
                 'window' => OccasionCalendar::WINDOWS[$key],
+                'next' => $this->calendar->nextText($key),
                 'templates' => GreetingService::templates($key),
             ];
         }
@@ -106,13 +109,13 @@ class GreetingController extends Controller
     }
 
     /**
-     * بستگان تا درجه ۴ (زنده و دارای موبایل) برای تبریک نوروز و یلدا؛ فقط وقتی بازه یکی از آن‌ها باز است
+     * بستگان تا درجه ۴ (زنده و دارای موبایل) برای تبریک مناسبت‌های همگانی (نوروز، یلدا، اعیاد ...)؛ فقط وقتی بازه یکی از آن‌ها باز است
      *
      * @return array<int, array>
      */
     private function seasonalRelatives(User $user, bool $eligible, KinshipDegrees $degrees, RelationshipCalculator $relations): array
     {
-        $open = array_values(array_filter(['nowruz', 'yalda'], fn ($o) => $this->calendar->isOpen($o) && SmsTemplates::active($o)->isNotEmpty()));
+        $open = array_values(array_filter(OccasionCalendar::enabledKeys(), fn ($o) => OccasionCalendar::isSeasonal($o) && $this->calendar->isOpen($o) && SmsTemplates::active($o)->isNotEmpty()));
         $me = $user->person;
         if (! $open || ! $me) {
             return [];
@@ -139,17 +142,31 @@ class GreetingController extends Controller
         }
         $relations->preload($paths);
 
+        // روز مادر / روز پدر فقط برای مادران و پدرانی که در درخت فرزند دارند
+        $mothers = Person::query()->whereIn('mother_id', array_keys($rows))->distinct()->pluck('mother_id')->flip();
+        $fathers = Person::query()->whereIn('father_id', array_keys($rows))->distinct()->pluck('father_id')->flip();
+
         $out = [];
         foreach ($rows as $id => $k) {
             $done = [];
+            $allowed = [];
             foreach ($open as $o) {
                 $done[$o] = isset($greeted[$o][$id]);
+                $audience = OccasionCalendar::DEFINITIONS[$o]['audience'] ?? null;
+                if ($audience === null || ($audience === 'mothers' && isset($mothers[$id]) && $people[$id]->gender === Person::FEMALE)
+                    || ($audience === 'fathers' && isset($fathers[$id]) && $people[$id]->gender === Person::MALE)) {
+                    $allowed[] = $o;
+                }
+            }
+            if (! $allowed) {
+                continue;
             }
             $out[] = [
                 'person' => NodePresenter::person($people[$id]),
                 'degree' => $k['degree'],
                 'relation' => $relations->labelForPath($k['path']),
                 'greeted' => $done,
+                'occasions' => $allowed,
                 'can_sms' => $eligible,
             ];
         }

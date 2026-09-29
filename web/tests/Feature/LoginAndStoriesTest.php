@@ -76,7 +76,7 @@ class LoginAndStoriesTest extends TestCase
         $token = $this->postJson('/api/auth/otp/verify', ['phone' => '09350000001', 'code' => $code])->json('registration_token');
         $register = function (array $extra) use ($token) {
             return $this->postJson('/api/auth/register', $extra + [
-                'registration_token' => $token, 'first_name' => 'سارا', 'last_name' => 'نوری', 'gender' => 'f', 'device_name' => 'x',
+                'registration_token' => $token, 'first_name' => 'سارا', 'last_name' => 'نوری', 'gender' => 'f', 'device_name' => 'x', 'join_note' => 'نوه حاج علی نوری',
             ]);
         };
 

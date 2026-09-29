@@ -34,9 +34,9 @@ export default async function greetingsPage(container, { query }) {
   const occ = (key) => state.occasions.find((o) => o.key === key);
   let tab = occ(query?.occasion) ? query.occasion : 'birthday';
   if (!query?.occasion && !state.birthdays.some((r) => r.in_days <= 0)) {
-    // اگر امروز تولدی نیست ولی سالگرد یا نوروز/یلدا باز است، همان را نشان بده
+    // اگر امروز تولدی نیست ولی سالگرد یا یکی از مناسبت‌های همگانی (نوروز، یلدا، اعیاد ...) باز است، همان را نشان بده
     if (state.anniversaries.some((r) => r.in_days <= 0)) tab = 'anniversary';
-    else tab = ['nowruz', 'yalda'].find((k) => occ(k)?.open) || 'birthday';
+    else tab = state.occasions.find((o) => o.kind === 'seasonal' && o.open)?.key || 'birthday';
   }
 
   render();
@@ -46,16 +46,17 @@ export default async function greetingsPage(container, { query }) {
   }
 
   function render() {
+    // مناسبت‌های باز اول، بقیه به ترتیب زمان
     const tabs = segmented(state.occasions.map((o) => ({
       value: o.key,
-      label: `${o.emoji} ${o.label}`,
-      title: o.open ? o.label : `${o.label} — ${o.window}`,
+      label: `${o.emoji} ${o.label}${o.kind === 'seasonal' && o.open ? ' •' : ''}`,
+      title: o.open ? o.label : `${o.label} — ${o.window}${o.next ? ` (${o.next})` : ''}`,
     })), tab, (v) => { tab = v; render(); });
     page.replaceChildren(...[
       h('div', { class: 'page-head' },
         h('div', null,
           h('h1', null, icon('cake'), ' تبریک مناسبت‌ها'),
-          h('p', { class: 'muted', style: { margin: 0 } }, 'تولد، سالگرد ازدواج، نوروز و شب یلدای بستگان را با پنل پیامکی سایت به نام خودتان تبریک بگویید.'),
+          h('p', { class: 'muted', style: { margin: 0 } }, 'تولد، سالگرد ازدواج، نوروز، یلدا، روز پدر و مادر و اعیاد را با پنل پیامکی سایت به نام خودتان به بستگان تبریک بگویید.'),
         ),
       ),
       eligibilityBox(),
@@ -96,10 +97,10 @@ export default async function greetingsPage(container, { query }) {
     ];
   }
 
-  /** نوروز و یلدا: فهرست بستگان تا درجه ۴ و جستجوی هر عضو دیگر */
+  /** مناسبت‌های همگانی (نوروز، یلدا، اعیاد، روز پدر و مادر): فهرست بستگان تا درجه ۴ و جستجوی هر عضو دیگر */
   function seasonalTab(o) {
     if (!o.open) {
-      return [h('section', { class: 'card mt' }, emptyState('calendar', `پیامک تبریک ${o.label} ${o.window} فعال می‌شود.`))];
+      return [h('section', { class: 'card mt' }, emptyState('calendar', `پیامک تبریک ${o.label} ${o.window} فعال می‌شود.${o.next ? ` امسال: ${o.next}` : ''}`))];
     }
     if (!o.templates.length) {
       return [h('section', { class: 'card mt' }, emptyState('mail', `مدیر سایت هنوز متنی برای ${o.label} تعیین نکرده است.`))];
@@ -108,7 +109,7 @@ export default async function greetingsPage(container, { query }) {
     const filter = h('input', { class: 'input', type: 'search', placeholder: 'جستجو در بستگان...' });
     const draw = () => {
       const q = filter.value.trim();
-      const rows = state.relatives.filter((r) => !q || fullName(r.person).includes(q) || (r.relation || '').includes(q));
+      const rows = state.relatives.filter((r) => (r.occasions || []).includes(o.key) && (!q || fullName(r.person).includes(q) || (r.relation || '').includes(q)));
       list.replaceChildren(...(rows.length ? rows.map((r) => relativeRow(r, o)) : [h('p', { class: 'muted' }, 'کسی پیدا نشد.')]));
     };
     filter.addEventListener('input', debounce(draw, 200));
@@ -119,7 +120,7 @@ export default async function greetingsPage(container, { query }) {
     } }, icon('search'), 'شخص دیگر');
     return [h('section', { class: 'card mt' },
       h('div', { class: 'card-title' }, h('h3', null, `${o.emoji} تبریک ${o.label} به بستگان`), other),
-      h('p', { class: 'muted small', style: { marginTop: 0 } }, `بستگان تا درجه ۴ که موبایلشان ثبت شده؛ به هر نفر برای ${o.label} سالی یک بار.`),
+      h('p', { class: 'muted small', style: { marginTop: 0 } }, `بستگان تا درجه ۴ که موبایلشان ثبت شده${o.key === 'mother_day' ? ' (فقط مادران)' : o.key === 'father_day' ? ' (فقط پدران)' : ''}؛ به هر نفر برای ${o.label} سالی یک بار.`),
       filter,
       list,
     )];
@@ -157,6 +158,7 @@ export default async function greetingsPage(container, { query }) {
             h('b', null, `پیامک تبریک از پنل سایت برای پروفایل‌های بالای ${fa(e.required)}٪ است`),
             h('p', { class: 'small', style: { margin: '6px 0' } }, `پروفایل شما ${fa(pct)}٪ کامل است. با تکمیل این بخش‌ها می‌توانید به نام خودتان (حتی خودکار) پیامک تبریک بفرستید:`),
             h('div', { class: 'row wrap', style: { gap: '6px' } }, ...(e.missing || []).map((m) => h('span', { class: 'chip warning' }, m.label))),
+            e.checks?.length ? h('details', { class: 'tiny muted mt-sm' }, h('summary', null, `درصد از روی ${fa(e.checks.length)} بخشی که مدیر سایت تعیین کرده حساب می‌شود`), e.checks.join('، ')) : null,
             h('div', { class: 'sms-progress mt-sm' }, h('div', { style: { width: `${pct}%` } }), h('i', { style: { insetInlineStart: `${e.required}%` } })),
             me ? h('div', { class: 'row wrap mt-sm', style: { gap: '8px' } },
               h('a', { class: 'btn primary sm', href: `#/person/${me.id}/interview` }, icon('sparkles'), 'تکمیل با پرسش‌وپاسخ'),

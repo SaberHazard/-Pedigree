@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
 use App\Models\DirectMessage;
+use App\Models\EditRequest;
 use App\Models\GroupMessage;
 use App\Models\GroupReport;
 use App\Models\Marriage;
@@ -40,6 +41,8 @@ class OverviewController extends Controller
             'members' => User::query()->where('status', User::STATUS_ACTIVE)->whereNotNull('last_login_at')->count(),
             'active_30d' => User::query()->where('last_login_at', '>=', now()->subDays(30))->count(),
             'blocked' => User::query()->where('status', User::STATUS_BLOCKED)->count(),
+            'pending_users' => User::query()->where('status', User::STATUS_PENDING)->count(),
+            'pending_edits' => EditRequest::query()->where('status', EditRequest::STATUS_PENDING)->count(),
             'persons' => Person::query()->count(),
             'deceased' => Person::query()->where('is_deceased', true)->count(),
             'marriages' => Marriage::query()->count(),

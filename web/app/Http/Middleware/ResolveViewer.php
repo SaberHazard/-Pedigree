@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * برای مسیرهای «فقط خواندنی» (درخت، پروفایل): اگر حالت مهمان فعال باشد
- * بدون ورود هم قابل مشاهده‌اند؛ وگرنه ورود لازم است.
+ * مسیرهای «فقط خواندنی» (درخت، پروفایل): فقط اعضای واردشده.
+ * هیچ بخشی از شجره‌نامه بدون ورود دیده نمی‌شود (حریم خاندان).
  */
 class ResolveViewer
 {
@@ -17,7 +17,7 @@ class ResolveViewer
     {
         Auth::shouldUse('sanctum');
 
-        if (! $request->user() && ! config('pedigree.guest_view')) {
+        if (! $request->user()) {
             return response()->json(['message' => 'لطفاً ابتدا وارد حساب کاربری شوید.'], 401);
         }
 

@@ -96,6 +96,101 @@ class ProfileService
         'contact' => 'راه ارتباطی', 'social' => 'شبکه‌های اجتماعی',
     ];
 
+    /**
+     * بخش‌هایی از پروفایل که مدیر کل می‌تواند برای «مجاز بودن پیامک از پنل سایت» الزامی کند
+     * (پنل مدیریت ← تنظیمات ← پیامک تبریک اعضا؛ هر بخش یک تیک)
+     */
+    public const SMS_CHECK_LABELS = [
+        'avatar' => 'عکس پروفایل (تأییدشده)',
+        'birth_date' => 'تاریخ تولد',
+        'birth_place' => 'محل تولد',
+        'national_code' => 'کد ملی',
+        'mobile' => 'شماره موبایل',
+        'email' => 'ایمیل',
+        'nickname' => 'شهرت / لقب',
+        'education_level' => 'مقطع تحصیلی',
+        'education_field' => 'رشته تحصیلی',
+        'occupation' => 'شغل یا محل کار',
+        'location' => 'شهر یا کشور محل زندگی',
+        'home' => 'نشانی یا موقعیت خانه روی نقشه',
+        'father' => 'پدر (در درخت)',
+        'mother' => 'مادر (در درخت)',
+        'summary' => 'بیوگرافی',
+        'biography' => 'زندگی‌نامه کامل',
+        'resume' => 'رزومه',
+        'contact' => 'یک راه ارتباطی (موبایل، ایمیل یا تلفن ثابت)',
+        'social' => 'شبکه‌های اجتماعی',
+        'blood_type' => 'گروه خونی',
+        'languages' => 'زبان‌ها',
+        'interests' => 'علاقه‌مندی‌ها',
+        'custom_fields' => 'ویژگی‌های دلخواه (مثل غذای محبوب)',
+    ];
+
+    /** پیش‌فرض: همان بخش‌های «درصد تکمیل» پروفایل یک عضو زنده */
+    public const SMS_DEFAULT_CHECKS = [
+        'avatar', 'birth_date', 'birth_place', 'education_level', 'occupation', 'location',
+        'summary', 'biography', 'resume', 'father', 'mother', 'contact', 'social',
+    ];
+
+    /** بخش‌هایی که مدیر برای پیامک الزامی کرده است (فقط کلیدهای معتبر؛ خالی = پیش‌فرض) */
+    public static function smsRequiredChecks(): array
+    {
+        $keys = array_values(array_intersect((array) config('pedigree.member_sms.required_fields', self::SMS_DEFAULT_CHECKS), array_keys(self::SMS_CHECK_LABELS)));
+
+        return $keys ?: self::SMS_DEFAULT_CHECKS;
+    }
+
+    /**
+     * درصد تکمیل برای پیامک از پنل سایت: فقط از روی بخش‌هایی که مدیر کل تیک زده است
+     *
+     * @return array{percent:int, missing:string[], checks:string[]}
+     */
+    public function smsCompleteness(Person $person): array
+    {
+        $keys = self::smsRequiredChecks();
+        $texts = array_intersect($keys, ['summary', 'biography', 'resume'])
+            ? $person->texts()->get()->filter(fn ($t) => trim((string) $t->plain) !== '')->pluck('field')->all()
+            : [];
+        $filled = fn ($v) => $v !== null && $v !== '' && $v !== [];
+        $all = [
+            'avatar' => fn () => (bool) $person->avatar?->isApproved(),
+            'birth_date' => fn () => (bool) $person->birth_date,
+            'birth_place' => fn () => $filled($person->birth_place),
+            'national_code' => fn () => (bool) $person->national_code_hash,
+            'mobile' => fn () => (bool) $person->phone_hash,
+            'email' => fn () => $filled($person->email),
+            'nickname' => fn () => $filled($person->nickname),
+            'education_level' => fn () => $filled($person->education_level),
+            'education_field' => fn () => $filled($person->education_field),
+            'occupation' => fn () => $filled($person->occupation) || $filled($person->workplace),
+            'location' => fn () => $filled($person->city) || $filled($person->country),
+            'home' => fn () => $filled($person->address) || $person->home_lat !== null,
+            'father' => fn () => (bool) $person->father_id,
+            'mother' => fn () => (bool) $person->mother_id,
+            'summary' => fn () => in_array('summary', $texts, true),
+            'biography' => fn () => in_array('biography', $texts, true),
+            'resume' => fn () => in_array('resume', $texts, true) || $person->resumeItems()->exists(),
+            'contact' => fn () => (bool) ($person->phone_hash || $person->email || $person->landline),
+            'social' => fn () => ! empty($person->social),
+            'blood_type' => fn () => $filled($person->blood_type),
+            'languages' => fn () => $filled($person->languages),
+            'interests' => fn () => $filled($person->interests),
+            'custom_fields' => fn () => ! empty($person->custom_fields),
+        ];
+        $missing = [];
+        foreach ($keys as $key) {
+            if (! $all[$key]()) {
+                $missing[] = $key;
+            }
+        }
+
+        return [
+            'percent' => (int) floor((count($keys) - count($missing)) * 100 / count($keys)),
+            'missing' => $missing,
+            'checks' => $keys,
+        ];
+    }
+
     /** درصد تکمیل یک پروفایل (همه داده لازم خودش بارگذاری می‌شود) */
     public function completenessOf(Person $person): array
     {

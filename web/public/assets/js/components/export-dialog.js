@@ -399,6 +399,7 @@ export function openExportDialog(ctx) {
         photos: opts.photos,
         grayscale: opts.grayscale,
         siteName: store.config.site_name,
+        siteUrl: store.config.site_url || location.origin,
       });
       if (my !== buildToken) return;
       built = { ...result, count: layout.nodes.length, layout };
@@ -430,6 +431,7 @@ export function openExportDialog(ctx) {
           title: opts.title,
           subtitle: `${store.config.site_name || ''} - ${dateTime(new Date().toISOString(), false)}`,
           siteName: store.config.site_name,
+          siteUrl: store.config.site_url || location.origin,
           prefs: store.prefs,
           photos: opts.photos,
           grayscale: opts.grayscale,
