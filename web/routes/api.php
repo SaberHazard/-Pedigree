@@ -229,7 +229,7 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::post('calls/{call}/leave', [CallController::class, 'leave'])->where('call', '[0-9a-z]{26}')->middleware('throttle:30,1,call-leave');
     Route::get('calls/{call}/poll', [CallController::class, 'poll'])->where('call', '[0-9a-z]{26}')->middleware('throttle:150,1,call-poll');
     Route::post('calls/{call}/signal', [CallController::class, 'signal'])->where('call', '[0-9a-z]{26}')->middleware('throttle:240,1,call-signal');
-    Route::post('call-invites', [CallController::class, 'invite'])->middleware('throttle:10,60,call-invite');
+    Route::post('call-invites', [CallController::class, 'invite'])->middleware('throttle:5,60,call-invite');
     Route::delete('call-invites/{invite}', [CallController::class, 'destroyInvite'])->whereNumber('invite')->middleware('throttle:30,1,call-invite-delete');
 
     // بینش‌های خاندان و ابزارهای هوشمند

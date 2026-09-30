@@ -123,7 +123,7 @@ class CallTest extends TestCase
         $id = $this->dial($this->ali, [$this->sara])->json('data.id');
         $this->actingAs($this->ali, 'sanctum')->postJson("/api/calls/{$id}/leave")->assertOk();
         $this->assertSame('ended', Call::query()->find($id)->status);
-        $this->assertSame(2, $this->sara->notifications()->where('data->kind', 'missed_call')->count());
+        $this->assertSame(2, $this->sara->notifications()->get()->filter(fn ($n) => $n->data['kind'] === 'missed_call')->count());
 
         // شرکت‌کننده‌ای که دیگر خبری از او نیست (بسته شدن صفحه بدون قطع) ← تماس تمام
         $id = $this->dial($this->ali, [$this->sara])->json('data.id');

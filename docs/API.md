@@ -433,7 +433,7 @@
 | GET | `/admin/sms-messages?status=` — گزارش پیامک‌های تبریک + آمار |
 | GET | `/admin/settings` — (مدیر کل) گروه‌های تنظیمات؛ کلیدها فقط با `is_set` و `hint` |
 | PUT | `/admin/settings` — `{values: {"pedigree.sms.drivers.kavenegar.api_key": "...", ...}, clear: [keys]}`؛ کلید خالی = بدون تغییر |
-| POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social|ai, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر؛ `ai` یک پیام کوتاه با سرویس هوش مصنوعی انتخاب‌شده) |
+| POST | `/admin/settings/test` — `{action: sms_credit|sms_send|push|social|ai|proxy|calendar|storage, provider?, network?, handle?}` (پیامک آزمایشی فقط به موبایل خود مدیر؛ `ai` یک پیام کوتاه با سرویس هوش مصنوعی انتخاب‌شده؛ `proxy` IP و کشور خروجی؛ `calendar` همگام‌سازی چند روز تقویم رسمی؛ `storage` نوشتن/خواندن/لینک موقت فضای ابری) |
 | GET | `/admin/overview` — `{stats{members, active_30d, persons, images, videos, storage_bytes, pending_media, video_queue, messages_today, group_today, open_reports, sms_today, ai_today, ...}, checks[{key, ok, label, value, fix}]}` (سلامت سرور) |
 | POST | `/admin/users/{id}/logout-all` — خروج کاربر از همه دستگاه‌ها (خروج مدیران فقط با مدیر کل) |
 | POST | `/admin/broadcast` — (مدیر کل) `{title, body}` اعلان به همه اعضا؛ ۳ بار در ساعت |
@@ -474,6 +474,34 @@
 | GET | `/persons/{id}/timeline` | خط زمان زندگی: `events[{date, year, kind, title, person?, age, approx, category?}]` — `kind`: birth, death, marriage, divorce, child, grandchild, sibling, parent_death, spouse_death, child_death, sibling_death, child_marriage, history؛ `category` برای history: iran, world, science, disaster |
 | POST | `/persons/{id}/ai/biography` | `{tone: warm\|formal\|story\|short}` ← `{text, remaining}` پیش‌نویس زندگی‌نامه (ذخیره نمی‌شود؛ فقط ویرایشگران پروفایل؛ ۴ در دقیقه) |
 | POST | `/media/{id}/ai/read` | `{task: describe\|transcribe}` ← `{text, can_save, remaining}` توضیح عکس و حدس دهه یا خواندن دست‌خط (هر کسی که عکس را می‌بیند؛ ۶ در دقیقه). خطای `ai_vision` یعنی مدل انتخاب‌شده عکس نمی‌پذیرد |
+
+## تقویم، هشدارها و ساعت
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/calendar?y=&m=` | یک ماه خورشیدی (پیش‌فرض ماه جاری): `{year, month, month_name, length, leap, gregorian_label, hijri_label, official, days[{date, day, weekday (۰=شنبه), g[y,m,d], h[y,m,d], holiday, official, today, events[{title, note, kind: national\|religious\|international, holiday}], family[{type: birthday\|birth_memorial\|anniversary\|death_anniversary, person{id,name,gender}, years}], reminders[...]}]}` — سال ۱ تا ۳۱۷۷، `throttle:60,1` |
+| GET | `/calendar/convert?cal=jalali\|hijri\|gregorian&y=&m=&d=` | تبدیل تاریخ: `{jalali, gregorian, hijri, weekday, weekday_name}` (قمری مطابق تقویم رسمی) |
+| GET | `/time` | ساعت سرور: `{epoch_ms, tehran, jalali}` (برای همگام کردن ساعت و زنگ دقیق) |
+| GET | `/reminders` | هشدارهای من + `settings{enabled, time, categories, days_before, degree}` + `options` |
+| POST | `/reminders` | `{title, note?, starts_on (YYYY-MM-DD خورشیدی), time (HH:MM تهران), repeat: none\|daily\|weekly\|monthly\|yearly\|monthly_hijri\|yearly_hijri, until_on?, remind_before? (دقیقه: 0,5,10,15,30,60,120,180,360,720,1440,2880,4320,10080), person_id?}` ← `{data, message}` (حداکثر ۳۰۰ هشدار) |
+| PUT | `/reminders/{id}` | ویرایش (همان فیلدها + `active`)؛ هشدار دیگران `404` |
+| DELETE | `/reminders/{id}` | حذف |
+| PUT | `/reminders/settings` | یادآوری مناسبت‌ها: `{enabled, time, categories[birthday,anniversary,death,official], days_before[0,1,2,3,7,14], degree 1..4}` |
+| GET | `/reminders/upcoming?days=1..60&native=1` | زنگ‌های پیش رو `[{key, id, title, body, at (ms), link}]`؛ `native=1` یعنی اپ گوشی این‌ها را خودش زنگ می‌زند و پوش تکراری فرستاده نمی‌شود |
+
+## تماس‌ها
+
+| روش | مسیر | توضیح |
+|---|---|---|
+| GET | `/calls` | تماس‌های اخیر من، دعوت‌های با لینک (۱۴ روز) و `config{enabled, max_participants, links, providers}` |
+| GET | `/calls/people?q=` | اعضای فعال قابل تماس (بدون مسدودها) |
+| POST | `/calls` | `{person_ids[1..5], kind: audio\|video}` ← وضعیت تماس + `ice{servers, relay_only}` (۸ در دقیقه، ۱۵۰ در روز) |
+| GET | `/calls/ring` | تماسی که همین حالا برای من زنگ می‌خورد (فقط از کش؛ هر ۵ ثانیه وقتی صفحه باز است) |
+| POST | `/calls/{id}/answer`، `/decline`، `/leave` | پاسخ (با `ice`)، رد، خروج |
+| GET | `/calls/{id}/poll?after=` | `{signals[{id, from, type, data}], call{status, participants[{user_id, name, state, online}]}}` |
+| POST | `/calls/{id}/signal` | `{to, type: offer\|answer\|candidates\|bye, data{}}` فقط به شرکت‌کنندگان همان تماس، حداکثر ۳۰ کیلوبایت |
+| POST | `/call-invites` | `{url, title, person_ids[1..60], starts_at?}` — لینک تماس واتس‌اپ، گوگل‌میت، جیتسی، اسکای‌روم، زوم یا ویدیوچت تلگرام (فقط https و مسیر دقیق هر سرویس)؛ ۵ در ساعت، ۱۰ در روز |
+| DELETE | `/call-invites/{id}` | حذف دعوت خودم |
 
 ## خطاها
 

@@ -165,6 +165,10 @@ class CallController extends Controller
             throw new DomainException('این لینک پذیرفته نیست. لینک تماس واتس‌اپ (call.whatsapp.com)، گوگل‌میت، جیتسی، اسکای‌روم، زوم یا ویدیوچت تلگرام را کامل بچسبانید.');
         }
         $user = $request->user();
+        // جلوگیری از اعلان انبوه: حداکثر ۱۰ دعوت در شبانه‌روز
+        if (CallInvite::query()->where('user_id', $user->id)->where('created_at', '>=', now()->subDay())->count() >= 10) {
+            throw new DomainException('امروز دعوت زیادی فرستاده‌اید؛ فردا دوباره امتحان کنید.', 429, 'invite_limit');
+        }
         $recipients = User::query()->whereIn('person_id', array_unique($data['person_ids']))->where('id', '!=', $user->id)
             ->where('status', User::STATUS_ACTIVE)->whereNotNull('last_login_at')->get()
             ->reject(fn (User $u) => UserBlock::between($user->id, $u->id));
