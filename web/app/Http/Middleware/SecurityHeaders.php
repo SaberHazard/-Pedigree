@@ -52,10 +52,10 @@ class SecurityHeaders
                     "default-src 'self'",
                     "script-src 'self' 'nonce-{$nonce}'",
                     "style-src 'self' 'unsafe-inline'",
-                    "img-src 'self' data: blob:".self::tileOrigin(),
-                    "media-src 'self' blob:",
+                    "img-src 'self' data: blob:".self::tileOrigin().self::storageOrigins(),
+                    "media-src 'self' blob:".self::storageOrigins(),
                     "font-src 'self' data:",
-                    "connect-src 'self'".self::liveOrigins(),
+                    "connect-src 'self'".self::liveOrigins().self::storageOrigins(),
                     "worker-src 'self'",
                     "manifest-src 'self'",
                     "frame-ancestors 'self'",
@@ -67,6 +67,29 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /**
+     * فضای ابری عکس و ویدیو (S3): فایل‌ها با لینک امضاشده موقت مستقیم از همان‌جا بارگذاری می‌شوند
+     */
+    private static function storageOrigins(): string
+    {
+        $bucket = strtolower((string) config('filesystems.disks.s3.bucket'));
+        if (! preg_match('/^[a-z0-9][a-z0-9.\-]{1,62}$/', $bucket)) {
+            return '';
+        }
+        $endpoint = (string) config('filesystems.disks.s3.endpoint');
+        if ($endpoint === '') {
+            $region = strtolower((string) config('filesystems.disks.s3.region'));
+
+            return preg_match('/^[a-z0-9\-]{2,30}$/', $region) ? " https://{$bucket}.s3.{$region}.amazonaws.com https://s3.{$region}.amazonaws.com" : '';
+        }
+        if (! preg_match('#^https://([A-Za-z0-9.\-]+)(:\d{2,5})?/?$#', $endpoint, $m)) {
+            return '';
+        }
+        $host = strtolower($m[1]).($m[2] ?? '');
+
+        return ' https://'.$host.(config('filesystems.disks.s3.use_path_style_endpoint') ? '' : ' https://'.$bucket.'.'.$host);
     }
 
     /** تماس صوتی زنده با هوش مصنوعی: مرورگر مستقیم به همان سرویس وصل می‌شود */

@@ -25,8 +25,11 @@ use App\Support\PersianText;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use League\Flysystem\AwsS3V3\AwsS3V3Adapter;
 use Throwable;
 
 /**
@@ -99,7 +102,7 @@ class SettingsController extends Controller
     {
         $this->authorizeSuperAdmin($request);
         $data = $request->validate([
-            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai', 'proxy', 'calendar'])],
+            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai', 'proxy', 'calendar', 'storage'])],
             'provider' => ['required_if:action,sms_credit,sms_send', 'nullable', Rule::in(SmsManager::names())],
             'network' => ['required_if:action,social', 'nullable', Rule::in(SocialProfileFetcher::FETCHABLE)],
             'handle' => ['required_if:action,social', 'nullable', 'string', 'max:200'],
@@ -114,6 +117,7 @@ class SettingsController extends Controller
                 'ai' => $assistant->ping(),
                 'proxy' => $this->proxyTest($http),
                 'calendar' => $this->calendarTest(app(OfficialCalendarSync::class)),
+                'storage' => $this->storageTest(),
             };
         } catch (SmsException|DomainException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -148,6 +152,32 @@ class SettingsController extends Controller
     }
 
     /** آزمایش پراکسی خروجی: IP و کشور خروجی و دسترسی به سرویس‌های گوگل (هوش مصنوعی و Firebase) */
+    /** فضای ابری: نوشتن، خواندن، لینک امضاشده موقت و پاک کردن یک فایل کوچک آزمایشی */
+    private function storageTest(): string
+    {
+        if ((string) config('filesystems.disks.s3.bucket') === '' || (string) config('filesystems.disks.s3.key') === '') {
+            throw new DomainException('نام باکت و کلیدهای دسترسی را وارد و ذخیره کنید.');
+        }
+        if (! class_exists(AwsS3V3Adapter::class)) {
+            throw new DomainException('بسته S3 روی سرور نصب نیست؛ در پوشه سایت «composer install» را اجرا کنید.');
+        }
+        $path = 'pedigree-test/'.Str::random(20).'.txt';
+        $disk = Storage::disk('s3');
+        try {
+            $ok = $disk->put($path, 'pedigree-ok') && $disk->get($path) === 'pedigree-ok';
+            $url = $ok ? $disk->temporaryUrl($path, now()->addMinutes(2)) : null;
+            $disk->delete($path);
+        } catch (Throwable $e) {
+            ErrorReporter::record($e);
+            $ok = false;
+        }
+        if (! $ok || ! $url) {
+            throw new DomainException('اتصال به فضای ابری برقرار نشد؛ نشانی سرویس، منطقه، نام باکت و کلیدها را بررسی کنید.');
+        }
+
+        return 'فضای ابری درست کار می‌کند: نوشتن، خواندن و لینک امضاشده موقت آزمایش شد.'.(config('pedigree.media.disk') === 's3' ? ' فایل‌های تازه در فضای ابری ذخیره می‌شوند.' : ' حالا «محل ذخیره فایل‌های تازه» را روی فضای ابری بگذارید.');
+    }
+
     /** چند روز از تقویم رسمی همین حالا گرفته می‌شود (بقیه را زمان‌بند هر ده دقیقه می‌گیرد) و وضعیت گزارش می‌شود */
     private function calendarTest(OfficialCalendarSync $sync): string
     {

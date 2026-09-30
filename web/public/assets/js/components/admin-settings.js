@@ -224,6 +224,10 @@ export async function adminSettings(body) {
       const test = h('button', { class: 'btn soft sm', type: 'button', title: 'پس از ذخیره: IP و کشور خروجی و دسترسی به هوش مصنوعی و Firebase', onclick: () => run(test, { action: 'proxy' }) }, icon('compass'), 'آزمایش پراکسی');
       out.push(test);
     }
+    if (g.key === 'storage') {
+      const test = h('button', { class: 'btn soft sm', type: 'button', title: 'پس از ذخیره: نوشتن، خواندن و لینک موقت در فضای ابری', onclick: () => run(test, { action: 'storage' }) }, icon('refresh'), 'آزمایش فضای ابری');
+      out.push(test);
+    }
     if (g.key === 'calendar') {
       const test = h('button', { class: 'btn soft sm', type: 'button', title: 'پس از ذخیره: اتصال به تقویم رسمی و همگام‌سازی چند روز', onclick: () => run(test, { action: 'calendar' }) }, icon('refresh'), 'همگام‌سازی و آزمایش');
       out.push(test);

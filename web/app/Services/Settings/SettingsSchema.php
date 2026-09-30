@@ -139,6 +139,22 @@ ufw allow 49152:65535/udp'],
         ];
     }
 
+    /**
+     * راهنمای فضای ابری سازگار با S3 (ابرآروان، لیارا ...)
+     *
+     * @return array<int, array{text: string, code?: string}>
+     */
+    private static function storageGuide(): array
+    {
+        return [
+            ['text' => 'ابرآروان: پنل ← «فضای ابری» ← ساخت سطل (Bucket) «خصوصی»؛ از «کلیدهای دسترسی» یک Access Key و Secret Key بسازید. نشانی سرویس برای دیتاسنتر تهران: https://s3.ir-thr-at1.arvanstorage.ir و منطقه: ir-thr-at1 (آدرس‌دهی مسیری خاموش).'],
+            ['text' => 'لیارا: «ذخیره‌سازی ابری» ← ساخت باکت خصوصی ← کلیدها. نشانی سرویس همان است که لیارا نشان می‌دهد (مثل https://storage.c2.liara.space)، منطقه: default و «آدرس‌دهی مسیری» روشن.'],
+            ['text' => 'اگر خروجی PDF درخت با عکس می‌گیرید، در تنظیمات CORS باکت دسترسی GET را برای دامنه سایت باز کنید (فقط همان دامنه):', 'code' => '[{"AllowedOrigins":["https://YOUR-SITE"],"AllowedMethods":["GET","HEAD"],"AllowedHeaders":["*"],"MaxAgeSeconds":3600}]'],
+            ['text' => 'مقادیر را اینجا وارد و ذخیره کنید، «آزمایش فضای ابری» را بزنید، بعد «محل ذخیره فایل‌های تازه» را روی فضای ابری بگذارید. فایل‌های قبلی سر جایشان کار می‌کنند؛ برای انتقال آن‌ها (بدون قطعی سایت):', 'code' => 'php artisan pedigree:media-move --to=s3'],
+            ['text' => 'دسترسی به فایل‌ها همچنان فقط برای اعضای مجاز است: سایت پس از بررسی اجازه، یک لینک امضاشده ۳۰ دقیقه‌ای می‌سازد و فایل مستقیم از فضای ابری به گوشی عضو می‌رسد (بدون مصرف پهنای باند سرور سایت).'],
+        ];
+    }
+
     /** @return array<string, array> گروه‌ها به ترتیب نمایش */
     public static function groups(): array
     {
@@ -284,6 +300,21 @@ ufw allow 49152:65535/udp'],
                 'fields' => [
                     'pedigree.calendar.official_sync' => ['label' => 'همگام‌سازی با تقویم رسمی کشور', 'type' => 'bool', 'help' => 'خاموش = فقط تقویم داخلی سایت (مناسبت‌های ثابت و قمری حسابی)'],
                     'pedigree.calendar.proxy' => ['label' => 'پراکسی جداگانه برای تقویم رسمی (اختیاری)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'سرور ایران: لازم نیست. سرور خارج: خالی = همان «پراکسی داخل ایران» اگر تنظیم شده باشد'],
+                ],
+            ],
+            'storage' => [
+                'label' => 'فضای ذخیره عکس و ویدیو (فضای ابری)',
+                'icon' => 'image',
+                'description' => 'به‌طور پیش‌فرض عکس‌ها، ویدیوها و پیام‌های صوتی روی دیسک همین سرور است. با فضای ابری سازگار با S3 (ابرآروان، لیارا، پارس‌پک، MinIO ...) فایل‌ها آنجا نگه داشته می‌شوند و مستقیم از آنجا به اعضا می‌رسند: دیسک و پهنای باند (ترافیک) سرور سایت آزاد می‌ماند و سرور ارزان‌تری کافی است. باکت را «خصوصی» بسازید؛ هر فایل فقط با لینک امضاشده موقت برای عضو مجاز باز می‌شود.',
+                'guide' => self::storageGuide(),
+                'fields' => [
+                    'pedigree.media.disk' => ['label' => 'محل ذخیره فایل‌های تازه', 'type' => 'select', 'options' => ['media' => 'دیسک همین سرور', 's3' => 'فضای ابری سازگار با S3']],
+                    'filesystems.disks.s3.endpoint' => ['label' => 'نشانی سرویس (Endpoint)', 'type' => 'text', 'max' => 200, 'pattern' => '#^(https://[A-Za-z0-9.\-]+(:\d{2,5})?/?)?$#', 'placeholder' => 'https://s3.ir-thr-at1.arvanstorage.ir'],
+                    'filesystems.disks.s3.region' => ['label' => 'منطقه (Region)', 'type' => 'text', 'max' => 40, 'pattern' => '/^[A-Za-z0-9\-]*$/', 'placeholder' => 'ir-thr-at1'],
+                    'filesystems.disks.s3.bucket' => ['label' => 'نام باکت (Bucket)', 'type' => 'text', 'max' => 63, 'pattern' => '/^[a-z0-9.\-]*$/'],
+                    'filesystems.disks.s3.key' => ['label' => 'کلید دسترسی (Access Key)', 'type' => 'secret'],
+                    'filesystems.disks.s3.secret' => ['label' => 'کلید مخفی (Secret Key)', 'type' => 'secret'],
+                    'filesystems.disks.s3.use_path_style_endpoint' => ['label' => 'آدرس‌دهی مسیری (Path-style)', 'type' => 'bool', 'help' => 'لیارا و MinIO: روشن؛ ابرآروان و AWS: خاموش'],
                 ],
             ],
             'calls' => [
