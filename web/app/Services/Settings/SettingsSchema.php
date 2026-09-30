@@ -6,6 +6,7 @@ use App\Services\Occasions\OccasionCalendar;
 use App\Services\People\ProfileService;
 use App\Services\Sms\SmsTemplates;
 use App\Support\Hijri;
+use App\Support\Outbound;
 use App\Support\PersianText;
 
 /**
@@ -74,6 +75,37 @@ final class SettingsSchema
         return PersianText::toPersianDigits("امروز طبق محاسبه سایت: {$d} ".Hijri::MONTHS[$m]." {$y}. اگر با تقویم رسمی فرق دارد، اختلاف را وارد کنید (‎+1 = یک روز جلوتر، ‎-1 = یک روز عقب‌تر).");
     }
 
+    /**
+     * راهنمای ساخت پراکسی خروجی امن با سرور خارج (تونل SSH؛ هیچ پورت بازی روی اینترنت نمی‌ماند)
+     *
+     * @return array<int, array{text: string, code?: string}>
+     */
+    private static function proxyGuide(): array
+    {
+        return [
+            ['text' => 'یک سرور ارزان خارج بگیرید (مثلاً هتزنر آلمان، کوچک‌ترین سرور ابری کافی است) و در آن یک کاربر محدود برای تونل بسازید:', 'code' => 'adduser --disabled-password --gecos "" tunnel'],
+            ['text' => 'در سرور ایران (همان سرور سایت) یک کلید SSH بسازید:', 'code' => 'ssh-keygen -t ed25519 -N "" -f /root/.ssh/pedigree_tunnel'],
+            ['text' => 'محتوای فایل ‎/root/.ssh/pedigree_tunnel.pub‎ را در سرور خارج در ‎/home/tunnel/.ssh/authorized_keys‎ بگذارید و اول آن این محدودیت را اضافه کنید تا این کلید فقط برای تونل کار کند:', 'code' => 'restrict,port-forwarding,command="/bin/false" ssh-ed25519 AAAA...'],
+            ['text' => 'در سرور ایران تونل دائمی بسازید (با قطع اینترنت خودکار دوباره وصل می‌شود). فایل ‎/etc/systemd/system/pedigree-tunnel.service‎:', 'code' => '[Unit]
+Description=Pedigree foreign proxy tunnel
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/autossh -M 0 -N -D 127.0.0.1:1080 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -i /root/.ssh/pedigree_tunnel tunnel@IP_SERVER_ALMAN
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target'],
+            ['text' => 'نصب و روشن کردن:', 'code' => 'apt install -y autossh
+systemctl daemon-reload
+systemctl enable --now pedigree-tunnel'],
+            ['text' => 'در همین فرم، «پراکسی خروجی به سرویس‌های خارجی» را ‎socks5h://127.0.0.1:1080‎ بگذارید، ذخیره کنید و «آزمایش پراکسی» را بزنید؛ باید IP و کشور سرور خارج نمایش داده شود.'],
+            ['text' => 'اگر SSH به خارج کند یا بسته بود: روی سرور خارج Xray (VLESS + Reality) و روی سرور ایران کلاینت Xray با ورودی socks روی ‎127.0.0.1:1080‎ راه بیندازید؛ آدرس پراکسی همان می‌ماند. پورت ۱۰۸۰ فقط روی 127.0.0.1 باشد و هرگز روی اینترنت باز نشود.'],
+            ['text' => 'تماس صوتی زنده با هوش مصنوعی و تماس‌های تصویری مستقیم بین گوشی کاربر و سرویس برقرار می‌شوند و از این پراکسی نمی‌گذرند.'],
+        ];
+    }
+
     /** @return array<string, array> گروه‌ها به ترتیب نمایش */
     public static function groups(): array
     {
@@ -84,11 +116,21 @@ final class SettingsSchema
                 'fields' => [
                     'pedigree.site_name' => ['label' => 'نام سایت', 'type' => 'text', 'max' => 80],
                     'pedigree.registration.enabled' => ['label' => 'ثبت‌نام اعضای جدید باز باشد', 'type' => 'bool'],
-                    'pedigree.iran_proxy' => ['label' => 'پراکسی داخل ایران (برای پیامک و درگاه پرداخت)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'فقط اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت IP خارجی را نمی‌پذیرد'],
                     'pedigree.registration.require_approval' => ['label' => 'عضو تازه تا تأیید مدیر هیچ‌چیز نبیند', 'type' => 'bool', 'help' => 'کسی که شماره‌اش را بستگان در شجره‌نامه ثبت کرده‌اند بی‌نیاز از تأیید وارد می‌شود؛ بقیه با یک معرفی کوتاه در «مدیریت ← کاربران ← در انتظار تأیید» می‌مانند. برای حفظ حریم خاندان روشن بماند.'],
                 ],
             ],
 
+            'network' => [
+                'label' => 'محل سرور و پراکسی (ایران / خارج)',
+                'icon' => 'compass',
+                'description' => 'سرور در ایران: سایت سریع است و در زمان «اینترنت ملی» هم کار می‌کند، ولی سرویس‌های خارجی (هوش مصنوعی، Firebase برای نوتیفیکیشن گوشی، عکس پروفایل تلگرام و اینستاگرام) IP ایران را نمی‌پذیرند یا فیلترند؛ برای این‌ها یک «پراکسی خروجی» به سرور خارج (مثلاً هتزنر آلمان) بگذارید. پیامک، درگاه پرداخت و تقویم رسمی همیشه مستقیم‌اند. سرور خارج: برعکس؛ اگر پنل پیامک یا درگاه IP خارجی را نپذیرفت، «پراکسی داخل ایران» را پر کنید.',
+                'guide' => self::proxyGuide(),
+                'fields' => [
+                    'pedigree.network.location' => ['label' => 'سرور سایت کجاست؟', 'type' => 'select', 'options' => Outbound::LOCATIONS],
+                    'pedigree.network.foreign_proxy' => ['label' => 'پراکسی خروجی به سرویس‌های خارجی (سرور ایران)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'برای هوش مصنوعی، Firebase و شبکه‌های اجتماعی؛ هر بخش اگر پراکسی جداگانه خودش را داشته باشد همان را به کار می‌برد. فقط http، https، socks5 یا socks5h'],
+                    'pedigree.iran_proxy' => ['label' => 'پراکسی داخل ایران (سرور خارج؛ برای پیامک و درگاه پرداخت)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'فقط اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت IP خارجی را نمی‌پذیرد'],
+                ],
+            ],
             'sms' => [
                 'label' => 'پنل پیامکی',
                 'icon' => 'mail',
@@ -273,7 +315,7 @@ final class SettingsSchema
                     'pedigree.ai.enabled' => ['label' => 'دستیار هوش مصنوعی فعال باشد', 'type' => 'bool'],
                     'pedigree.ai.provider' => ['label' => 'سرویس اصلی', 'type' => 'select', 'options' => self::AI_PROVIDERS],
                     'pedigree.ai.fallback_provider' => ['label' => 'سرویس پشتیبان (اگر اصلی شلوغ بود)', 'type' => 'select', 'options' => ['' => 'هیچ'] + self::AI_PROVIDERS, 'help' => 'مثلاً Gemini اصلی و Groq پشتیبان؛ وقتی سهمیه رایگان اولی تمام شود دومی جواب می‌دهد'],
-                    'pedigree.ai.proxy' => ['label' => 'پراکسی خروجی (اگر سرور در ایران است)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)'],
+                    'pedigree.ai.proxy' => ['label' => 'پراکسی جداگانه برای هوش مصنوعی (اختیاری)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'خالی = همان «پراکسی خروجی به سرویس‌های خارجی» (بخش محل سرور و پراکسی)'],
                     'pedigree.ai.daily_per_user' => ['label' => 'سقف پیام هر عضو در روز', 'type' => 'int', 'min' => 1, 'max' => 1000],
                     'pedigree.ai.global_daily' => ['label' => 'سقف کل پیام‌های سایت در روز', 'type' => 'int', 'min' => 10, 'max' => 100000],
                     'pedigree.ai.image.enabled' => ['label' => 'بازسازی و رنگی کردن عکس‌های قدیمی (با کلید Gemini)', 'type' => 'bool', 'help' => 'اعضا از منوی هر عکس، نسخه بازسازی‌شده یا رنگی می‌سازند؛ ممکن است هزینه داشته باشد'],
@@ -337,7 +379,7 @@ final class SettingsSchema
                 'description' => 'دریافت نام و عکس پروفایل عمومی. تلگرام، گیت‌هاب، بلواسکای و آپارات کلید لازم ندارند؛ اینستاگرام (فقط حساب‌های تجاری/تولیدکننده)، ایکس و یوتیوب با کلید رسمی خودشان.',
                 'fields' => [
                     'pedigree.social.fetch_enabled' => ['label' => 'دریافت خودکار عکس پروفایل', 'type' => 'bool'],
-                    'pedigree.social.proxy' => ['label' => 'پراکسی خروجی (اگر سرور در ایران است)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'فقط http، https، socks5 یا socks5h'],
+                    'pedigree.social.proxy' => ['label' => 'پراکسی جداگانه برای شبکه‌های اجتماعی (اختیاری)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'socks5h://127.0.0.1:1080', 'help' => 'خالی = همان «پراکسی خروجی به سرویس‌های خارجی»'],
                     'pedigree.social.hourly_limit' => ['label' => 'سقف درخواست به هر شبکه در ساعت', 'type' => 'int', 'min' => 10, 'max' => 10000],
                     'pedigree.social.instagram.graph_token' => ['label' => 'اینستاگرام: توکن Graph API', 'type' => 'secret', 'link' => 'https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-user/business_discovery'],
                     'pedigree.social.instagram.graph_user_id' => ['label' => 'اینستاگرام: شناسه عددی حساب تجاری شما', 'type' => 'text', 'max' => 30, 'pattern' => '/^\d*$/'],

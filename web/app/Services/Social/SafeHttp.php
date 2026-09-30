@@ -3,6 +3,7 @@
 namespace App\Services\Social;
 
 use App\Exceptions\DomainException;
+use App\Support\Outbound;
 use Closure;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -33,9 +34,9 @@ class SafeHttp
      * @param  string[]  $allowedHosts
      * @return array{status:int, body:string, type:string}
      */
-    public function get(string $url, array $allowedHosts, int $maxBytes, array $headers = [], int $maxRedirects = 3): array
+    public function get(string $url, array $allowedHosts, int $maxBytes, array $headers = [], int $maxRedirects = 3, ?string $proxy = null, ?int $timeout = null): array
     {
-        return $this->request('GET', $url, $allowedHosts, $maxBytes, $headers, null, $maxRedirects);
+        return $this->request('GET', $url, $allowedHosts, $maxBytes, $headers, null, $maxRedirects, $proxy ?? '', $timeout);
     }
 
     /**
@@ -64,14 +65,14 @@ class SafeHttp
 
     /**
      * @param  string[]  $allowedHosts
-     * @param  ?string  $proxy  خالی = همان پراکسی شبکه‌های اجتماعی (اگر تنظیم شده باشد)؛ self::DIRECT = بدون پراکسی
+     * @param  ?string  $proxy  خالی = پراکسی شبکه‌های اجتماعی یا پراکسی عمومی خارج (اگر تنظیم شده باشد)؛ self::DIRECT = بدون پراکسی
      * @return array{status:int, body:string, type:string}
      */
     private function request(string $method, string $url, array $allowedHosts, int $maxBytes, array $headers, ?array $json, int $maxRedirects, ?string $proxy = null, ?int $timeout = null, ?array $multipart = null): array
     {
         $proxy = match (true) {
             $proxy === self::DIRECT => null,
-            $proxy === null || $proxy === '' => config('pedigree.social.proxy'),
+            $proxy === null || $proxy === '' => Outbound::foreign(config('pedigree.social.proxy')),
             default => $proxy,
         };
         $timeout ??= (int) config('pedigree.social.timeout', 8);

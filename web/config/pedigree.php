@@ -385,6 +385,14 @@ return [
     // اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت فقط IP ایران را می‌پذیرد
     'iran_proxy' => env('PEDIGREE_IRAN_PROXY'),
 
+    // محل سرور و پراکسی خروجی سرویس‌های خارجی (App\Support\Outbound)
+    'network' => [
+        // iran | abroad
+        'location' => env('PEDIGREE_SERVER_LOCATION', 'iran'),
+        // سرور در ایران: هوش مصنوعی، Firebase و شبکه‌های اجتماعی از این پراکسی (مثلاً socks5h://127.0.0.1:1080 تونل SSH به سرور آلمان)
+        'foreign_proxy' => env('PEDIGREE_FOREIGN_PROXY'),
+    ],
+
     // حمایت از سازنده (پنل مدیریت ← تنظیمات ← حمایت از سازنده، و تب «حمایت» برای کارت و شبا)
     'donate' => [
         'enabled' => (bool) env('PEDIGREE_DONATE', true),

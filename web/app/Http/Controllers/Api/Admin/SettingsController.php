@@ -11,8 +11,10 @@ use App\Services\Settings\SettingsSchema;
 use App\Services\Settings\SettingsStore;
 use App\Services\Sms\SmsException;
 use App\Services\Sms\SmsManager;
+use App\Services\Social\SafeHttp;
 use App\Services\Social\SocialProfileFetcher;
 use App\Support\ErrorReporter;
+use App\Support\Outbound;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -86,11 +88,11 @@ class SettingsController extends Controller
     }
 
     /** آزمایش اتصال: اعتبار پنل پیامکی، پیامک آزمایشی به موبایل خود مدیر، Firebase، شبکه اجتماعی، دستیار هوش مصنوعی */
-    public function test(Request $request, SmsManager $sms, FcmClient $fcm, SocialProfileFetcher $social, AssistantService $assistant): JsonResponse
+    public function test(Request $request, SmsManager $sms, FcmClient $fcm, SocialProfileFetcher $social, AssistantService $assistant, SafeHttp $http): JsonResponse
     {
         $this->authorizeSuperAdmin($request);
         $data = $request->validate([
-            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai'])],
+            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai', 'proxy'])],
             'provider' => ['required_if:action,sms_credit,sms_send', 'nullable', Rule::in(SmsManager::names())],
             'network' => ['required_if:action,social', 'nullable', Rule::in(SocialProfileFetcher::FETCHABLE)],
             'handle' => ['required_if:action,social', 'nullable', 'string', 'max:200'],
@@ -103,6 +105,7 @@ class SettingsController extends Controller
                 'push' => $fcm->test(),
                 'social' => $this->socialTest($social, $data['network'], (string) $data['handle']),
                 'ai' => $assistant->ping(),
+                'proxy' => $this->proxyTest($http),
             };
         } catch (SmsException|DomainException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -134,6 +137,32 @@ class SettingsController extends Controller
         $sms->driver($provider)->send($phone, 'پیامک آزمایشی '.config('pedigree.site_name').' — اتصال پنل پیامکی درست است.');
 
         return 'پیامک آزمایشی به شماره خودتان ارسال شد.';
+    }
+
+    /** آزمایش پراکسی خروجی: IP و کشور خروجی و دسترسی به سرویس‌های گوگل (هوش مصنوعی و Firebase) */
+    private function proxyTest(SafeHttp $http): string
+    {
+        $proxy = Outbound::foreign();
+        $via = $proxy === null ? 'بدون پراکسی (مستقیم)' : 'از پراکسی خروجی';
+        $res = $http->get('https://ipinfo.io/json', ['ipinfo.io'], 64 * 1024, ['Accept' => 'application/json'], 0, $proxy ?? SafeHttp::DIRECT, 15);
+        $info = json_decode($res['body'], true);
+        if ($res['status'] !== 200 || ! is_array($info) || empty($info['ip'])) {
+            throw new DomainException("اتصال {$via} به اینترنت بین‌الملل برقرار نشد.");
+        }
+        $parts = ["{$via}: IP خروجی ".$info['ip'].(! empty($info['country']) ? ' ('.$info['country'].')' : '')];
+        foreach (['هوش مصنوعی گوگل' => 'https://generativelanguage.googleapis.com/', 'Firebase' => 'https://fcm.googleapis.com/'] as $label => $url) {
+            try {
+                $r = $http->get($url, [parse_url($url, PHP_URL_HOST)], 16 * 1024, [], 0, $proxy ?? SafeHttp::DIRECT, 15);
+                $parts[] = $label.($r['status'] > 0 && $r['status'] !== 403 ? ' ✓' : ' ✗ (IP پذیرفته نشد)');
+            } catch (Throwable) {
+                $parts[] = $label.' ✗ (در دسترس نیست)';
+            }
+        }
+        if (Outbound::location() === 'iran' && ($info['country'] ?? '') === 'IR') {
+            $parts[] = 'هشدار: IP خروجی ایران است؛ سرویس‌های خارجی آن را نمی‌پذیرند. پراکسی خروجی را طبق راهنما بگذارید.';
+        }
+
+        return implode(' — ', $parts);
     }
 
     private function socialTest(SocialProfileFetcher $social, string $network, string $handle): string
@@ -297,6 +326,7 @@ class SettingsController extends Controller
                 'label' => $group['label'],
                 'icon' => $group['icon'],
                 'description' => $group['description'] ?? null,
+                'guide' => $group['guide'] ?? null,
                 'link' => $group['link'] ?? null,
                 'provider' => $group['provider'] ?? null,
                 'status' => $status,

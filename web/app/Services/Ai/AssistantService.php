@@ -6,6 +6,7 @@ use App\Exceptions\DomainException;
 use App\Models\User;
 use App\Services\Social\SafeHttp;
 use App\Support\Jalali;
+use App\Support\Outbound;
 use App\Support\PersianText;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -352,7 +353,7 @@ class AssistantService
             $body,
             self::MAX_RESPONSE_BYTES,
             $headers + ['Accept' => 'application/json'],
-            config('pedigree.ai.proxy') ?: null,
+            Outbound::foreign(config('pedigree.ai.proxy') ?: config('pedigree.social.proxy')),
             (int) config('pedigree.ai.timeout', 60),
         );
         $json = json_decode($response['body'], true);

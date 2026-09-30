@@ -6,6 +6,7 @@ use App\Exceptions\DomainException;
 use App\Models\User;
 use App\Services\Media\VoiceService;
 use App\Services\Social\SafeHttp;
+use App\Support\Outbound;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -124,7 +125,7 @@ class VoiceAi
 
         $audio = $this->toOgg($path) ?? (string) file_get_contents($path);
         $mime = str_starts_with($audio, 'OggS') ? 'audio/ogg' : (string) ($file->getMimeType() ?: 'audio/webm');
-        $proxy = config('pedigree.ai.proxy') ?: null;
+        $proxy = Outbound::foreign(config('pedigree.ai.proxy') ?: config('pedigree.social.proxy'));
 
         if ($provider === 'gemini') {
             $model = (string) config('pedigree.ai.providers.gemini.model', 'gemini-flash-latest');
@@ -187,7 +188,7 @@ class VoiceAi
         }
         RateLimiter::hit('ai-tts-u:'.$user->id, 86400);
         RateLimiter::hit('ai-tts-g:'.now('Asia/Tehran')->format('Ymd'), 86400);
-        $proxy = config('pedigree.ai.proxy') ?: null;
+        $proxy = Outbound::foreign(config('pedigree.ai.proxy') ?: config('pedigree.social.proxy'));
         $voice = (string) config("pedigree.ai.voice.tts_voice.{$provider}", $provider === 'gemini' ? 'Kore' : 'alloy');
         if (! preg_match('/^[A-Za-z0-9_-]{1,40}$/', $voice)) {
             $voice = $provider === 'gemini' ? 'Kore' : 'alloy';
@@ -259,7 +260,7 @@ class VoiceAi
         $instructions = $this->assistant->instructionsFor($user, $mode)
             ."\n\nاین یک گفتگوی صوتی زنده است: کوتاه، گرم و گفتاری به فارسی صحبت کن؛ فهرست و نشانه‌های نوشتاری نگو. اگر کاربر حرفت را قطع کرد، کوتاه کن و گوش بده.";
         $seconds = $this->liveMinutes() * 60;
-        $proxy = config('pedigree.ai.proxy') ?: null;
+        $proxy = Outbound::foreign(config('pedigree.ai.proxy') ?: config('pedigree.social.proxy'));
 
         if ($provider === 'gemini') {
             $model = (string) config('pedigree.ai.live.gemini_model', 'gemini-2.5-flash-native-audio-preview-09-2025');

@@ -89,7 +89,7 @@ export async function adminSettings(body) {
     return h('section', { class: 'card settings-card', id: `set-${g.key}` },
       h('div', { class: 'settings-head' },
         h('div', { class: 's-icon' }, icon(g.icon)),
-        h('div', { class: 'grow' }, h('h3', null, g.label), g.description ? h('p', { class: 'muted small' }, g.description) : null),
+        h('div', { class: 'grow' }, h('h3', null, g.label), g.description ? h('p', { class: 'muted small' }, g.description) : null, guide(g.guide)),
         h('div', { class: 'row wrap', style: { gap: '6px', justifyContent: 'flex-end' } }, roles, configured,
           g.link ? h('a', { class: 'btn ghost xs', href: g.link, target: '_blank', rel: 'noopener noreferrer' }, icon('external'), 'پنل / مستندات') : null),
       ),
@@ -220,6 +220,10 @@ export async function adminSettings(body) {
       } }, icon('refresh'), 'آزمایش دریافت');
       out.push(h('span', { class: 'row wrap', style: { gap: '6px' } }, net, handle, test));
     }
+    if (g.key === 'network') {
+      const test = h('button', { class: 'btn soft sm', type: 'button', title: 'پس از ذخیره: IP و کشور خروجی و دسترسی به هوش مصنوعی و Firebase', onclick: () => run(test, { action: 'proxy' }) }, icon('compass'), 'آزمایش پراکسی');
+      out.push(test);
+    }
     if (g.key === 'ai' || g.key === 'ai_keys') {
       const test = h('button', { class: 'btn soft sm', type: 'button', title: 'یک پیام کوتاه با سرویس انتخاب‌شده (پس از ذخیره)', onclick: () => run(test, { action: 'ai' }) }, icon('bot'), 'آزمایش دستیار');
       out.push(test);
@@ -227,6 +231,25 @@ export async function adminSettings(body) {
     if (out.length) out.push(result);
     return out;
   }
+}
+
+/** راهنمای گام‌به‌گام یک بخش (با فرمان‌های قابل کپی) */
+function guide(steps) {
+  if (!steps?.length) return null;
+  return h('details', { class: 'set-guide' },
+    h('summary', null, icon('info'), ' راهنمای گام‌به‌گام'),
+    h('ol', null, ...steps.map((st) => h('li', null,
+      h('div', null, st.text),
+      st.code ? h('div', { class: 'set-code' },
+        h('pre', { dir: 'ltr' }, st.code),
+        h('button', { class: 'btn ghost xs', type: 'button', onclick: async () => {
+          try {
+            await navigator.clipboard.writeText(st.code);
+            toast('کپی شد.');
+          } catch {
+            toast('کپی ممکن نشد؛ متن را انتخاب و کپی کنید.', 'warning');
+          }
+        } }, icon('copy'), 'کپی')) : null))));
 }
 
 /** گزارش پیامک‌های تبریک اعضا */

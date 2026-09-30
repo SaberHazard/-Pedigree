@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Media\MediaFormats;
 use App\Services\Media\MediaService;
 use App\Services\Social\SafeHttp;
+use App\Support\Outbound;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -128,7 +129,7 @@ class PhotoRestorer
             ],
             40 * 1024 * 1024,
             ['x-goog-api-key' => (string) config('pedigree.ai.providers.gemini.api_key'), 'Accept' => 'application/json'],
-            config('pedigree.ai.proxy') ?: null,
+            Outbound::foreign(config('pedigree.ai.proxy') ?: config('pedigree.social.proxy')),
             (int) config('pedigree.ai.image.timeout', 120),
         );
         $json = json_decode($response['body'], true);

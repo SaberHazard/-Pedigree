@@ -2,6 +2,8 @@
 
 namespace App\Services\Push;
 
+use App\Support\Outbound;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -54,7 +56,7 @@ class FcmClient
             }
             $jwt = "{$header}.{$claims}.".$this->base64Url($signature);
 
-            $response = Http::asForm()->timeout(10)->post('https://oauth2.googleapis.com/token', [
+            $response = $this->http()->asForm()->post('https://oauth2.googleapis.com/token', [
                 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                 'assertion' => $jwt,
             ]);
@@ -72,7 +74,7 @@ class FcmClient
     {
         $credentials ??= $this->credentials();
 
-        return Http::withToken($this->accessToken($credentials))->timeout(10)
+        return $this->http()->withToken($this->accessToken($credentials))
             ->post("https://fcm.googleapis.com/v1/projects/{$credentials['project_id']}/messages:send", [
                 'message' => [
                     'token' => $deviceToken,
@@ -80,6 +82,15 @@ class FcmClient
                     'data' => array_map('strval', $message['data'] ?? []),
                 ],
             ]);
+    }
+
+    /** اگر سرور در ایران است، Firebase (گوگل) از پراکسی خروجی خارج در دسترس است */
+    private function http(): PendingRequest
+    {
+        $request = Http::timeout(10);
+        $proxy = Outbound::foreign();
+
+        return $proxy !== null ? $request->withOptions(['proxy' => $proxy]) : $request;
     }
 
     /** بررسی اتصال برای پنل مدیریت */

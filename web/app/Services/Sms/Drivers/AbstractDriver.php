@@ -4,6 +4,7 @@ namespace App\Services\Sms\Drivers;
 
 use App\Services\Sms\SmsDriver;
 use App\Services\Sms\SmsException;
+use App\Support\Outbound;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
@@ -21,9 +22,9 @@ abstract class AbstractDriver implements SmsDriver
             ->acceptJson()
             ->retry(2, 300, fn ($e) => $e instanceof ConnectionException, throw: false);
         // اگر سرور بیرون از ایران است و پنل پیامکی فقط IP ایران را می‌پذیرد: پراکسی داخلی
-        $proxy = (string) config('pedigree.iran_proxy');
+        $proxy = Outbound::iran();
 
-        return $proxy !== '' ? $request->withOptions(['proxy' => $proxy]) : $request;
+        return $proxy !== null ? $request->withOptions(['proxy' => $proxy]) : $request;
     }
 
     /** مقدار تنظیم الزامی یا خطا */

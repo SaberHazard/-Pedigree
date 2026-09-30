@@ -17,6 +17,8 @@ use App\Notifications\Broadcast;
 use App\Services\Ai\AssistantService;
 use App\Services\AuditLogger;
 use App\Services\Sms\SmsManager;
+use App\Support\Outbound;
+use App\Support\ServerClock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -140,6 +142,8 @@ class OverviewController extends Controller
             ['key' => 'sms', 'ok' => $sms->driverName() !== 'log', 'label' => 'پنل پیامکی واقعی تنظیم شده', 'value' => $sms->driverName(), 'fix' => 'در «تنظیمات و اتصال‌ها» پنل پیامکی را انتخاب کنید'],
             ['key' => 'ai', 'ok' => app(AssistantService::class)->configured() ? true : null, 'label' => 'دستیار هوش مصنوعی', 'value' => app(AssistantService::class)->label(), 'fix' => 'کلید یکی از سرویس‌ها را وارد کنید (اختیاری)'],
             ['key' => 'push', 'ok' => config('services.fcm.enabled') ? true : null, 'label' => 'اعلان روی گوشی (Firebase)', 'value' => null, 'fix' => 'اختیاری؛ برای اپ اندروید و iOS'],
+            ['key' => 'clock', 'ok' => ($drift = ServerClock::drift()) === null ? null : abs($drift) <= 20, 'label' => 'ساعت سرور دقیق است (هشدارها و پیامک ساعت ۰۰:۰۰)', 'value' => $drift === null ? 'قابل سنجش نبود' : ($drift === 0 ? 'بدون اختلاف' : abs($drift).' ثانیه '.($drift > 0 ? 'جلو' : 'عقب')).' • وقت تهران '.now('Asia/Tehran')->format('H:i:s'), 'fix' => 'timedatectl set-ntp true (همگام‌سازی خودکار ساعت)'],
+            ['key' => 'proxy', 'ok' => Outbound::location() === 'iran' ? (Outbound::foreign() !== null ? true : null) : true, 'label' => Outbound::location() === 'iran' ? 'پراکسی خروجی برای سرویس‌های خارجی (سرور ایران)' : 'سرور خارج از ایران', 'value' => Outbound::location() === 'iran' ? (Outbound::foreign() !== null ? 'تنظیم شده' : 'تنظیم نشده') : (Outbound::iran() !== null ? 'پراکسی داخل ایران تنظیم شده' : null), 'fix' => 'تنظیمات ← «محل سرور و پراکسی» (برای هوش مصنوعی و نوتیفیکیشن گوشی)'],
             ['key' => 'php', 'ok' => version_compare(PHP_VERSION, '8.3.0', '>='), 'label' => 'نسخه PHP', 'value' => PHP_VERSION.' • '.config('database.default'), 'fix' => 'PHP 8.3 یا بالاتر'],
         ];
     }

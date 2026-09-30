@@ -7,6 +7,7 @@ use App\Models\Donation;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\Social\SafeHttp;
+use App\Support\Outbound;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -281,7 +282,7 @@ class DonationService
 
     private function post(string $url, array $hosts, array $body): array
     {
-        $res = $this->http->postJson($url, $hosts, $body, 256 * 1024, ['Accept' => 'application/json'], config('pedigree.iran_proxy') ?: SafeHttp::DIRECT, 20);
+        $res = $this->http->postJson($url, $hosts, $body, 256 * 1024, ['Accept' => 'application/json'], Outbound::iran() ?? SafeHttp::DIRECT, 20);
         $json = json_decode($res['body'], true);
 
         return is_array($json) ? $json + ['_status' => $res['status']] : ['_status' => $res['status']];

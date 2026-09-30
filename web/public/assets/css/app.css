@@ -2600,3 +2600,11 @@ a.tl-title:hover { color: var(--primary); text-decoration: underline; }
 .err-meta .icon { width: 13px; height: 13px; vertical-align: -2px; }
 .err-meta bdi { overflow-wrap: anywhere; }
 .err-search { width: 150px; min-height: 34px; }
+
+/* ---------- راهنمای گام‌به‌گام تنظیمات ---------- */
+.set-guide { margin-top: 6px; font-size: 0.86rem; }
+.set-guide summary { cursor: pointer; color: var(--primary); font-weight: 600; }
+.set-guide ol { margin: 8px 0 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; line-height: 1.8; }
+.set-code { position: relative; margin-top: 4px; }
+.set-code pre { margin: 0; padding: 10px 12px; background: var(--surface-3); border-radius: 10px; font-size: 0.78rem; overflow-x: auto; white-space: pre; text-align: left; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.set-code .btn { position: absolute; top: 4px; right: 4px; }
