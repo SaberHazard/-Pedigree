@@ -95,3 +95,17 @@ export function scheduleNativeAlarms(items) {
   }
   return false;
 }
+
+/** اندروید: آیا گوشی اجازه «زنگ دقیق» داده؟ (null = نامعلوم یا اپ نیست) */
+export function nativeExactAlarms() {
+  try {
+    return isAndroidApp() && typeof window.PedigreeNative.exactAlarms === 'function' ? !!window.PedigreeNative.exactAlarms() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** اندروید: باز کردن تنظیمات «زنگ‌ها و یادآورها» */
+export function openNativeAlarmSettings() {
+  if (isAndroidApp() && typeof window.PedigreeNative.openAlarmSettings === 'function') window.PedigreeNative.openAlarmSettings();
+}

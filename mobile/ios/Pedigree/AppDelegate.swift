@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 
 /// نقطه شروع اپ iOS شجره‌نامه
 @main
@@ -11,6 +12,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
         window.rootViewController = WebViewController()
         window.makeKeyAndVisible()
         self.window = window
+        UNUserNotificationCenter.current().delegate = self
         return true
     }
 
@@ -23,5 +25,27 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
               let controller = window?.rootViewController as? WebViewController else { return false }
         controller.open(url)
         return true
+    }
+}
+
+// MARK: - هشدارهای محلی
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// اپ باز است: اعلان هشدار با صدا نمایش داده شود
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    /// لمس اعلان: همان روز در تقویم سایت باز شود
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        defer { completionHandler() }
+        guard response.notification.request.identifier.hasPrefix(LocalAlarms.prefix),
+              let controller = window?.rootViewController as? WebViewController else { return }
+        let link = LocalAlarms.validLink(response.notification.request.content.userInfo["link"] as? String)
+        if let url = URL(string: Config.baseURL.absoluteString + link) {
+            controller.open(url)
+        }
     }
 }

@@ -8,4 +8,6 @@
     <string name="offline_title">اتصال برقرار نیست</string>
     <string name="offline_body">اتصال اینترنت را بررسی کنید و دوباره تلاش کنید.</string>
     <string name="retry">تلاش دوباره</string>
+    <string name="alarm_channel">هشدارها و یادآورها</string>
+    <string name="alarm_channel_description">زنگ هشدارهای شخصی و یادآوری تولدها، سالگردها و مناسبت‌ها</string>
 </resources>

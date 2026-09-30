@@ -9,7 +9,7 @@ import { icon } from './icons.js';
 import { get } from './api.js';
 import { store } from './store.js';
 import { modal } from './ui.js';
-import { syncClock, serverNow } from './clock.js';
+import { syncClock, serverNow, clockOffset } from './clock.js';
 import { isNativeApp, scheduleNativeAlarms } from './native.js';
 
 const timers = new Map();
@@ -23,7 +23,8 @@ export async function refreshAlarms() {
     await syncClock();
     const native = isNativeApp();
     const res = await get(`/api/reminders/upcoming?days=${native ? 30 : 2}${native ? '&native=1' : ''}`);
-    if (native) scheduleNativeAlarms(res.data);
+    // زمان‌ها به ساعت سرور است؛ اگر ساعت گوشی جلو/عقب باشد، زنگ محلی به همان اندازه جابه‌جا تنظیم می‌شود
+    if (native) scheduleNativeAlarms(res.data.map((i) => ({ ...i, at: i.at - clockOffset() })));
     schedule(res.data);
   } catch {
     /* بعداً دوباره */

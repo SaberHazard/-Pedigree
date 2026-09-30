@@ -142,6 +142,8 @@ public class MainActivity extends AppCompatActivity {
         cookies.setAcceptThirdPartyCookies(webView, false);
 
         webView.addJavascriptInterface(new NativeBridge(this, webView), "PedigreeNative");
+        // کانال اعلان «هشدارها» (برای زنگ محلی و پوش هشدار Firebase)
+        AlarmScheduler.ensureChannel(this);
         webView.setWebViewClient(new Client());
         webView.setWebChromeClient(new ChromeClient());
 

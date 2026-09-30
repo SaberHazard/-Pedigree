@@ -12,6 +12,7 @@ import { syncClock, serverNow, tehranClock, tehranHM } from '../core/clock.js';
 import { prayerTimes, CITIES, PRAYER_LABELS } from '../core/praytimes.js';
 import { openReminderEditor, REPEATS } from '../components/reminder-editor.js';
 import { askNotificationPermission, refreshAlarms } from '../core/alarms.js';
+import { nativeExactAlarms, openNativeAlarmSettings } from '../core/native.js';
 
 const WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const WEEK_SHORT = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'];
@@ -324,12 +325,16 @@ export default async function calendarPage(container, { query }) {
       const notifyBtn = 'Notification' in window && Notification.permission === 'default'
         ? h('button', { class: 'btn soft sm', type: 'button', onclick: async (e) => { await askNotificationPermission(); e.target.closest('button')?.remove(); } }, icon('bell'), 'اجازه اعلان مرورگر')
         : null;
+      // اندروید ۱۲ به بعد: بدون اجازه «زنگ دقیق» ممکن است زنگ چند دقیقه دیر شود
+      const exactBtn = nativeExactAlarms() === false
+        ? h('button', { class: 'btn soft sm', type: 'button', onclick: () => openNativeAlarmSettings() }, icon('clock'), 'اجازه زنگ دقیق گوشی')
+        : null;
       body.replaceChildren(
         h('div', { class: 'card' },
           h('div', { class: 'row between wrap', style: { gap: '8px' } },
             h('div', null, h('h3', { style: { margin: 0 } }, 'هشدارها و یادآورهای من'),
               h('p', { class: 'muted small', style: { margin: '4px 0 0' } }, 'هر هشدار دقیقاً سر ساعت تهران زنگ می‌زند: در اپ گوشی توسط خود گوشی (حتی بدون اینترنت)، در سایت باز با صدا و پنجره، و همیشه در اعلان‌ها.')),
-            h('div', { class: 'row wrap', style: { gap: '6px' } }, notifyBtn,
+            h('div', { class: 'row wrap', style: { gap: '6px' } }, notifyBtn, exactBtn,
               h('button', { class: 'btn primary sm', type: 'button', onclick: () => openReminderEditor(null, { onSaved: () => alarmsTab() }) }, icon('plus'), 'هشدار تازه')))),
         list.length ? h('div', { class: 'rem-list' }, ...list.map((r) => h('button', {
           type: 'button', class: `card rem-row${r.active ? '' : ' off'}`, onclick: () => openReminderEditor(r, { onSaved: () => alarmsTab() }),

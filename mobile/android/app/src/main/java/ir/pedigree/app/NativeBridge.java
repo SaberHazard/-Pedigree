@@ -165,6 +165,62 @@ public class NativeBridge {
         });
     }
 
+    /**
+     * هشدارهای محلی: فهرست زنگ‌های آینده (JSON) از سایت؛ گوشی خودش سر ثانیه زنگ می‌زند
+     * (حتی با اپ بسته و بدون اینترنت). تعداد زنگ‌های تنظیم‌شده برمی‌گردد.
+     */
+    @JavascriptInterface
+    public int scheduleAlarms(String json) {
+        if (!trusted() || json == null || json.length() > 200_000) {
+            return -1;
+        }
+        int count = AlarmScheduler.replaceAll(context, json);
+        if (count > 0) {
+            askNotificationPermission();
+        }
+        return count;
+    }
+
+    /** آیا اندروید اجازه «زنگ دقیق» داده است؟ */
+    @JavascriptInterface
+    public boolean exactAlarms() {
+        return AlarmScheduler.exactAllowed(context);
+    }
+
+    /** صفحه تنظیمات «زنگ‌ها و یادآورها» برای دادن اجازه زنگ دقیق (اندروید ۱۲ به بعد) */
+    @JavascriptInterface
+    public void openAlarmSettings() {
+        if (!trusted() || Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return;
+        }
+        Intent intent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.getPackageName()))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            context.startActivity(intent);
+        } catch (Exception ignored) {
+            // برخی گوشی‌ها این صفحه را ندارند
+        }
+    }
+
+    /** اجازه نمایش اعلان (اندروید ۱۳ به بعد)؛ فقط یک بار پرسیده می‌شود */
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !(context instanceof android.app.Activity)) {
+            return;
+        }
+        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+                == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        android.content.SharedPreferences prefs = context.getSharedPreferences("alarms", Context.MODE_PRIVATE);
+        if (prefs.getBoolean("asked_notifications", false)) {
+            return;
+        }
+        prefs.edit().putBoolean("asked_notifications", true).apply();
+        final android.app.Activity activity = (android.app.Activity) context;
+        webView.post(() -> androidx.core.app.ActivityCompat.requestPermissions(activity,
+                new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 7301));
+    }
+
     /** اشتراک‌گذاری لینک با برنامه‌های دیگر */
     @JavascriptInterface
     public void share(String title, String url) {

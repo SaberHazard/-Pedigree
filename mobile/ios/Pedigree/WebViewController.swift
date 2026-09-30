@@ -4,7 +4,7 @@ import WebKit
 /// صفحه اصلی اپ: همان وب‌اپ سایت در WKWebView، به همراه قابلیت‌های بومی
 /// (ذخیره/اشتراک فایل، چاپ، اشتراک لینک) از طریق پیام‌های جاوااسکریپت.
 ///
-/// در وب‌اپ: window.webkit.messageHandlers.pedigree.postMessage({action: 'saveFile' | 'print' | 'share', ...})
+/// در وب‌اپ: window.webkit.messageHandlers.pedigree.postMessage({action: 'saveFile' | 'print' | 'share' | 'alarms', ...})
 final class WebViewController: UIViewController {
 
     private var webView: WKWebView!
@@ -140,6 +140,10 @@ extension WebViewController: WKScriptMessageHandler {
             printPage()
         case "share":
             share(title: body["title"] as? String ?? "", link: body["url"] as? String ?? "")
+        case "alarms":
+            if let items = body["items"] as? [[String: Any]] {
+                LocalAlarms.replace(with: Array(items.prefix(200)))
+            }
         default:
             break
         }
