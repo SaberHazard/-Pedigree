@@ -71,6 +71,13 @@ return [
 
     'attributes' => [
         'phone' => 'شماره موبایل',
+        'person_ids' => 'افراد',
+        'starts_on' => 'تاریخ',
+        'until_on' => 'تاریخ پایان تکرار',
+        'remind_before' => 'زمان یادآوری',
+        'repeat' => 'تکرار',
+        'url' => 'لینک',
+        'kind' => 'نوع تماس',
         'join_note' => 'معرفی',
         'code' => 'کد تأیید',
         'national_code' => 'کد ملی',

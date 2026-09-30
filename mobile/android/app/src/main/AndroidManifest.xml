@@ -4,10 +4,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!--
-      عکس و فیلم با اپ دوربین خود گوشی گرفته می‌شود (Intent)، پس مجوز CAMERA لازم نیست.
-      نکته مهم: اگر CAMERA در مانیفست اعلام شود ولی در زمان اجرا گرفته نشود،
-      اندروید اجرای ACTION_IMAGE_CAPTURE را با SecurityException رد می‌کند.
+      دوربین برای تماس تصویری داخل سایت (WebRTC). نکته مهم: چون CAMERA اعلام شده، اندروید اجرای
+      ACTION_IMAGE_CAPTURE را بدون اجازه دوربین رد می‌کند؛ برای همین MainActivity پیش از نشان دادن گزینه
+      «عکس/فیلم گرفتن» اجازه دوربین را می‌پرسد و اگر داده نشد فقط گالری را نشان می‌دهد.
     -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- پیام صوتی و گفتگوی صوتی با دستیار هوشمند (فقط هنگام استفاده، با اجازه کاربر) -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />

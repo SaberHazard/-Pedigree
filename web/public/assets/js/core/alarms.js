@@ -22,7 +22,7 @@ export async function refreshAlarms() {
   try {
     await syncClock();
     const native = isNativeApp();
-    const res = await get(`/api/reminders/upcoming?days=${native ? 30 : 2}${native ? '&native=1' : ''}`);
+    const res = await get(`/api/reminders/upcoming?days=${native ? 30 : 2}${native ? '&native=1' : ''}`, null, { quiet: true });
     // زمان‌ها به ساعت سرور است؛ اگر ساعت گوشی جلو/عقب باشد، زنگ محلی به همان اندازه جابه‌جا تنظیم می‌شود
     if (native) scheduleNativeAlarms(res.data.map((i) => ({ ...i, at: i.at - clockOffset() })));
     schedule(res.data);

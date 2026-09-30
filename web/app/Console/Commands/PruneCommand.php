@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CallInvite;
 use App\Models\OtpCode;
 use Illuminate\Console\Command;
 use Laravel\Sanctum\PersonalAccessToken;
@@ -19,6 +20,8 @@ class PruneCommand extends Command
     {
         $otp = OtpCode::where('created_at', '<', now()->subDays(2))->delete();
         $tokens = PersonalAccessToken::where('expires_at', '<', now())->delete();
+        // دعوت‌های تماس با لینک بعد از یک ماه
+        CallInvite::where('created_at', '<', now()->subDays(30))->delete();
 
         // فایل‌های موقت پردازش ویدیو که بیش از یک روز مانده‌اند
         foreach (glob(storage_path('app/tmp/*')) ?: [] as $dir) {

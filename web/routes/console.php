@@ -1,5 +1,7 @@
 <?php
 
+use App\Services\Calls\CallService;
+use App\Support\ErrorReporter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
@@ -30,6 +32,15 @@ Schedule::command('pedigree:reminders')->everyMinute()->withoutOverlapping(5);
 // تقویم رسمی (holidayapi.ir): هر ده دقیقه حداکثر ۴۰ روز تا امسال و سال بعد کامل و به‌روز بماند (وقتی همه روزها
 // همگام است فقط دو پرس‌وجوی کوچک پایگاه داده است و هیچ درخواستی بیرون نمی‌رود)
 Schedule::command('pedigree:calendar-sync --limit=40')->everyTenMinutes()->withoutOverlapping(15);
+
+// تماس‌ها: پیام‌های راه‌اندازی قدیمی و تماس‌های رهاشده (زنگ بی‌پاسخ ← «تماس از دست رفته»)
+Schedule::call(function () {
+    try {
+        app(CallService::class)->prune();
+    } catch (Throwable $e) {
+        ErrorReporter::record($e);
+    }
+})->everyFiveMinutes()->name('calls-prune')->withoutOverlapping(10);
 
 // نشانه زنده بودن زمان‌بند برای «سلامت سرور» در پنل مدیریت
 Schedule::call(fn () => Cache::put('scheduler:heartbeat', now()->toIso8601String(), 86400))->everyFiveMinutes()->name('scheduler-heartbeat');

@@ -26,6 +26,7 @@ import { socialProfiles } from '../components/social.js';
 import { openMarriage } from '../components/marriage-sheet.js';
 import { authorLink } from '../components/author.js';
 import { timelineTab } from '../components/timeline.js';
+import { startCall } from '../core/calls.js';
 
 const TABS = ['details', 'gallery', 'relatives', 'timeline', 'opinions', 'history'];
 
@@ -141,6 +142,8 @@ export default async function personPage(container, { params }) {
         h('div', { class: 'ph-actions' },
           h('a', { class: 'btn soft', href: `#/tree/${person.id}?mode=hourglass` }, icon('tree'), 'درخت'),
           canMessage(person) ? h('button', { class: 'btn', type: 'button', title: 'پیام متنی به این عضو', onclick: () => import('./messages.js').then((m) => m.startConversation(person)) }, icon('chat'), 'پیام') : null,
+          canCall(person) ? h('button', { class: 'btn', type: 'button', title: 'تماس صوتی مستقیم (از سرور سایت نمی‌گذرد)', onclick: () => startCall([person.id], 'audio') }, icon('call'), 'تماس') : null,
+          canCall(person) ? h('button', { class: 'btn ghost icon-only', type: 'button', title: 'تماس تصویری', 'aria-label': 'تماس تصویری', onclick: () => startCall([person.id], 'video') }, icon('video')) : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/edit` }, icon('edit'), 'ویرایش') : null,
           !perms.edit && perms.suggest ? h('a', { class: 'btn', href: `#/person/${person.id}/edit`, title: 'بستگان درجه دو و سه: تغییر شما پس از تأیید مدیر نمایش داده می‌شود' }, icon('edit'), 'پیشنهاد ویرایش') : null,
           perms.edit ? h('a', { class: 'btn', href: `#/person/${person.id}/interview`, title: 'تکمیل پروفایل با جواب دادن به سؤال‌های کوتاه' }, icon('sparkles'), 'پرسش‌وپاسخ') : null,
@@ -432,4 +435,9 @@ function saveLocalPref(key, value) {
 /** دکمه «پیام» فقط برای عضو فعالِ دیگر (نه خودم، نه مهمان) */
 function canMessage(person) {
   return Boolean(store.config.messaging?.enabled !== false && store.user && person.account?.active && store.user.person?.id !== person.id);
+}
+
+/** تماس مستقیم با این عضو ممکن است؟ */
+function canCall(person) {
+  return Boolean(store.config.calls?.enabled !== false && store.user && person.account?.active && store.user.person?.id !== person.id);
 }

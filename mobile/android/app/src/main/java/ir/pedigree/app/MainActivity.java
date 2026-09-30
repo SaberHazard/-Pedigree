@@ -65,21 +65,29 @@ public class MainActivity extends AppCompatActivity {
     private final ActivityResultLauncher<Intent> filePicker = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), this::onFilePicked);
 
-    /** درخواست میکروفون صفحه که منتظر اجازه اندروید است */
-    private PermissionRequest pendingMicRequest;
+    /** درخواست میکروفون/دوربین صفحه که منتظر اجازه اندروید است */
+    private PermissionRequest pendingMediaRequest;
 
-    /** اجازه میکروفون (پیام صوتی و گفتگوی صوتی با دستیار) */
-    private final ActivityResultLauncher<String> micPermission = registerForActivityResult(
-            new ActivityResultContracts.RequestPermission(), granted -> {
-                PermissionRequest request = pendingMicRequest;
-                pendingMicRequest = null;
-                if (request == null) {
-                    return;
+    /** اجازه میکروفون و دوربین (پیام صوتی، گفتگوی صوتی با دستیار، تماس صوتی و تصویری) */
+    private final ActivityResultLauncher<String[]> mediaPermission = registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+                PermissionRequest request = pendingMediaRequest;
+                pendingMediaRequest = null;
+                if (request != null) {
+                    grantAllowed(request);
                 }
-                if (Boolean.TRUE.equals(granted)) {
-                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
-                } else {
-                    request.deny();
+            });
+
+    /** انتخاب فایلی که منتظر اجازه دوربین است (برای گزینه «عکس/فیلم گرفتن») */
+    private WebChromeClient.FileChooserParams pendingChooser;
+
+    private final ActivityResultLauncher<String> cameraForChooser = registerForActivityResult(
+            new ActivityResultContracts.RequestPermission(), granted -> {
+                WebChromeClient.FileChooserParams params = pendingChooser;
+                pendingChooser = null;
+                if (params != null && !openChooser(params, Boolean.TRUE.equals(granted)) && fileCallback != null) {
+                    fileCallback.onReceiveValue(null);
+                    fileCallback = null;
                 }
             });
 
@@ -299,33 +307,45 @@ public class MainActivity extends AppCompatActivity {
         }
 
         /**
-         * فقط میکروفون و فقط برای خود سایت شجره‌نامه (پیام صوتی و گفتگوی صوتی با دستیار).
-         * دوربین داخل صفحه لازم نیست (عکس و فیلم با اپ دوربین گوشی گرفته می‌شود).
+         * فقط میکروفون و دوربین و فقط برای خود سایت شجره‌نامه (پیام صوتی، دستیار صوتی، تماس صوتی و تصویری).
          */
         @Override
         public void onPermissionRequest(PermissionRequest request) {
             runOnUiThread(() -> {
-                boolean audio = java.util.Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE);
-                if (!audio || !isOwnUrl(request.getOrigin())) {
+                java.util.List<String> resources = java.util.Arrays.asList(request.getResources());
+                boolean onlyMedia = !resources.isEmpty();
+                for (String r : resources) {
+                    if (!PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r) && !PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) {
+                        onlyMedia = false;
+                    }
+                }
+                if (!onlyMedia || !isOwnUrl(request.getOrigin())) {
                     request.deny();
                     return;
                 }
-                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                List<String> missing = new ArrayList<>();
+                if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE) && !has(Manifest.permission.RECORD_AUDIO)) {
+                    missing.add(Manifest.permission.RECORD_AUDIO);
+                }
+                if (resources.contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE) && !has(Manifest.permission.CAMERA)) {
+                    missing.add(Manifest.permission.CAMERA);
+                }
+                if (missing.isEmpty()) {
+                    grantAllowed(request);
                     return;
                 }
-                if (pendingMicRequest != null) {
-                    pendingMicRequest.deny();
+                if (pendingMediaRequest != null) {
+                    pendingMediaRequest.deny();
                 }
-                pendingMicRequest = request;
-                micPermission.launch(Manifest.permission.RECORD_AUDIO);
+                pendingMediaRequest = request;
+                mediaPermission.launch(missing.toArray(new String[0]));
             });
         }
 
         @Override
         public void onPermissionRequestCanceled(PermissionRequest request) {
-            if (request == pendingMicRequest) {
-                pendingMicRequest = null;
+            if (request == pendingMediaRequest) {
+                pendingMediaRequest = null;
             }
         }
 
@@ -335,45 +355,78 @@ public class MainActivity extends AppCompatActivity {
                 fileCallback.onReceiveValue(null);
             }
             fileCallback = callback;
-
-            String accept = String.join(",", params.getAcceptTypes()).toLowerCase(java.util.Locale.ROOT);
-            boolean wantsImage = accept.isEmpty() || accept.contains("image") || accept.contains("*");
-            boolean wantsVideo = accept.isEmpty() || accept.contains("video") || accept.contains("*");
-
-            // گزینه‌های «عکس گرفتن» و «فیلم گرفتن» با دوربین گوشی
-            cameraUri = null;
-            videoUri = null;
-            List<Intent> extra = new ArrayList<>();
-            if (wantsImage) {
-                cameraUri = newCaptureUri("photo_", ".jpg");
-                if (cameraUri != null) {
-                    extra.add(captureIntent(MediaStore.ACTION_IMAGE_CAPTURE, cameraUri));
-                }
+            // گزینه «عکس/فیلم گرفتن» بدون اجازه دوربین ممکن نیست (CAMERA در مانیفست اعلام شده)
+            if (!has(Manifest.permission.CAMERA)) {
+                pendingChooser = params;
+                cameraForChooser.launch(Manifest.permission.CAMERA);
+                return true;
             }
-            if (wantsVideo) {
-                videoUri = newCaptureUri("video_", ".mp4");
-                if (videoUri != null) {
-                    extra.add(captureIntent(MediaStore.ACTION_VIDEO_CAPTURE, videoUri));
-                }
-            }
-
-            Intent launch;
-            if (params.isCaptureEnabled() && extra.size() == 1) {
-                // <input capture> : مستقیم دوربین باز شود (دکمه «ضبط استوری»)
-                launch = extra.get(0);
-            } else {
-                Intent pick = params.createIntent();
-                pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE);
-                launch = Intent.createChooser(pick, getString(R.string.choose_file));
-                launch.putExtra(Intent.EXTRA_INITIAL_INTENTS, extra.toArray(new Intent[0]));
-            }
-            try {
-                filePicker.launch(launch);
-            } catch (ActivityNotFoundException | SecurityException e) {
+            if (!openChooser(params, true)) {
                 fileCallback = null;
                 return false;
             }
             return true;
+        }
+    }
+
+    private boolean has(String permission) {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** فقط منابعی که اندروید اجازه‌شان را دارد به صفحه داده می‌شود */
+    private void grantAllowed(PermissionRequest request) {
+        List<String> allowed = new ArrayList<>();
+        for (String r : request.getResources()) {
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r) && has(Manifest.permission.RECORD_AUDIO)) {
+                allowed.add(r);
+            } else if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) && has(Manifest.permission.CAMERA)) {
+                allowed.add(r);
+            }
+        }
+        if (allowed.isEmpty()) {
+            request.deny();
+        } else {
+            request.grant(allowed.toArray(new String[0]));
+        }
+    }
+
+    /** انتخاب عکس/ویدیو از گالری، و اگر اجازه دوربین هست گزینه‌های «عکس گرفتن» و «فیلم گرفتن» */
+    private boolean openChooser(WebChromeClient.FileChooserParams params, boolean camera) {
+        String accept = String.join(",", params.getAcceptTypes()).toLowerCase(java.util.Locale.ROOT);
+        boolean wantsImage = accept.isEmpty() || accept.contains("image") || accept.contains("*");
+        boolean wantsVideo = accept.isEmpty() || accept.contains("video") || accept.contains("*");
+
+        cameraUri = null;
+        videoUri = null;
+        List<Intent> extra = new ArrayList<>();
+        if (camera && wantsImage) {
+            cameraUri = newCaptureUri("photo_", ".jpg");
+            if (cameraUri != null) {
+                extra.add(captureIntent(MediaStore.ACTION_IMAGE_CAPTURE, cameraUri));
+            }
+        }
+        if (camera && wantsVideo) {
+            videoUri = newCaptureUri("video_", ".mp4");
+            if (videoUri != null) {
+                extra.add(captureIntent(MediaStore.ACTION_VIDEO_CAPTURE, videoUri));
+            }
+        }
+
+        Intent launch;
+        if (params.isCaptureEnabled() && extra.size() == 1) {
+            // <input capture> : مستقیم دوربین باز شود (دکمه «ضبط استوری»)
+            launch = extra.get(0);
+        } else {
+            Intent pick = params.createIntent();
+            pick.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE);
+            launch = Intent.createChooser(pick, getString(R.string.choose_file));
+            launch.putExtra(Intent.EXTRA_INITIAL_INTENTS, extra.toArray(new Intent[0]));
+        }
+        try {
+            filePicker.launch(launch);
+            return true;
+        } catch (ActivityNotFoundException | SecurityException e) {
+            return false;
         }
     }
 

@@ -386,6 +386,21 @@ return [
     'iran_proxy' => env('PEDIGREE_IRAN_PROXY'),
 
     // تقویم: همگام‌سازی تقویم رسمی (time.ir از طریق holidayapi.ir) و محاسبه دقیق تاریخ قمری
+    // تماس مستقیم صوتی/تصویری بین اعضا (WebRTC): صدا و تصویر مستقیم بین گوشی‌ها؛ سرور فقط راه‌اندازی.
+    // STUN نشانی عمومی هر طرف را پیدا می‌کند؛ اگر اینترنت دو طرف اتصال مستقیم نداد، رله TURN (مثلاً coturn روی یک سرور
+    // جدا یا سرویس ابری) صدا را جابه‌جا می‌کند. «فقط رله» نشانی IP اعضا را از هم پنهان می‌کند.
+    'calls' => [
+        'enabled' => (bool) env('PEDIGREE_CALLS_ENABLED', true),
+        'max_participants' => (int) env('PEDIGREE_CALLS_MAX', 4),
+        'links' => (bool) env('PEDIGREE_CALL_LINKS', true),
+        'stun' => env('PEDIGREE_STUN', 'stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478'),
+        'turn_urls' => env('PEDIGREE_TURN_URLS'),
+        'turn_username' => env('PEDIGREE_TURN_USERNAME'),
+        'turn_credential' => env('PEDIGREE_TURN_CREDENTIAL'),
+        'turn_secret' => env('PEDIGREE_TURN_SECRET'),
+        'relay_only' => (bool) env('PEDIGREE_TURN_RELAY_ONLY', false),
+    ],
+
     'calendar' => [
         'official_sync' => (bool) env('PEDIGREE_CALENDAR_SYNC', true),
         // فقط اگر سرور به holidayapi.ir دسترسی مستقیم ندارد

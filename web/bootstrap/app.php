@@ -29,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->statefulApi();
         // بازگشت درگاه پرداخت با POST از سایت درگاه می‌آید (توکن تصادفی خودش را دارد)
         $middleware->validateCsrfTokens(except: ['donate/callback/*']);
+        // پیام‌های راه‌اندازی تماس (SDP) باید دست‌نخورده برسند؛ حذف «\r\n» پایانی آن‌ها را نامعتبر می‌کند
+        $middleware->trimStrings(except: [fn (Request $request) => $request->is('api/calls/*/signal')]);
+        $middleware->convertEmptyStringsToNull(except: [fn (Request $request) => $request->is('api/calls/*/signal')]);
         $middleware->prepend(ResetScopedServices::class);
         $middleware->append(SecurityHeaders::class);
         $middleware->alias([

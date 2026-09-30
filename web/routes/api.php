@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CalendarController;
+use App\Http\Controllers\Api\CallController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DonateController;
 use App\Http\Controllers\Api\ExportController;
@@ -217,6 +218,19 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
     Route::get('calendar', [CalendarController::class, 'month'])->middleware('throttle:60,1,calendar');
     Route::get('calendar/convert', [CalendarController::class, 'convert'])->middleware('throttle:60,1,calendar-convert');
     Route::get('time', [CalendarController::class, 'time'])->middleware('throttle:30,1,server-time');
+
+    // تماس مستقیم صوتی/تصویری (WebRTC؛ سرور فقط پیام‌های راه‌اندازی را جابه‌جا می‌کند) و دعوت با لینک تماس
+    Route::get('calls', [CallController::class, 'index'])->middleware('throttle:30,1,calls-index');
+    Route::post('calls', [CallController::class, 'store'])->middleware(['throttle:8,1,call-start', 'throttle:60,60,call-start-hour']);
+    Route::get('calls/ring', [CallController::class, 'ring'])->middleware('throttle:40,1,call-ring');
+    Route::get('calls/people', [CallController::class, 'people'])->middleware('throttle:60,1,call-people');
+    Route::post('calls/{call}/answer', [CallController::class, 'answer'])->where('call', '[0-9a-z]{26}')->middleware('throttle:20,1,call-answer');
+    Route::post('calls/{call}/decline', [CallController::class, 'decline'])->where('call', '[0-9a-z]{26}')->middleware('throttle:20,1,call-decline');
+    Route::post('calls/{call}/leave', [CallController::class, 'leave'])->where('call', '[0-9a-z]{26}')->middleware('throttle:30,1,call-leave');
+    Route::get('calls/{call}/poll', [CallController::class, 'poll'])->where('call', '[0-9a-z]{26}')->middleware('throttle:150,1,call-poll');
+    Route::post('calls/{call}/signal', [CallController::class, 'signal'])->where('call', '[0-9a-z]{26}')->middleware('throttle:240,1,call-signal');
+    Route::post('call-invites', [CallController::class, 'invite'])->middleware('throttle:10,60,call-invite');
+    Route::delete('call-invites/{invite}', [CallController::class, 'destroyInvite'])->whereNumber('invite')->middleware('throttle:30,1,call-invite-delete');
 
     // بینش‌های خاندان و ابزارهای هوشمند
     Route::get('insights/stats', [InsightController::class, 'stats'])->middleware('throttle:20,1,insights-stats');

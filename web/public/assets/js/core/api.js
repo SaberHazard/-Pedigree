@@ -71,9 +71,11 @@ function query(params) {
  * درخواست عمومی
  * @returns {Promise<any>} بدنه JSON پاسخ
  */
-export async function request(method, path, body, { raw = false, signal } = {}) {
+export async function request(method, path, body, { raw = false, signal, quiet = false } = {}) {
   if (method !== 'GET') await ensureCsrf();
-  busy(1);
+  // quiet: پرسش‌های دوره‌ای پس‌زمینه (زنگ تماس، وضعیت تماس) نوار بارگذاری بالای صفحه را روشن نکنند
+  const step = quiet ? 0 : 1;
+  busy(step);
   let response;
   try {
     const isForm = body instanceof FormData;
@@ -85,11 +87,11 @@ export async function request(method, path, body, { raw = false, signal } = {}) 
       signal,
     });
   } catch (e) {
-    busy(-1);
+    busy(-step);
     if (e.name === 'AbortError') throw e;
     throw new ApiError(0, null);
   }
-  busy(-1);
+  busy(-step);
 
   if (raw && response.ok) return response;
 
@@ -105,7 +107,7 @@ export async function request(method, path, body, { raw = false, signal } = {}) 
       if (!request._retry) {
         request._retry = true;
         try {
-          return await request(method, path, body, { raw, signal });
+          return await request(method, path, body, { raw, signal, quiet });
         } finally {
           request._retry = false;
         }
@@ -124,6 +126,15 @@ export const patch = (path, body, opts) => request('PATCH', path, body ?? {}, op
 export const del = (path, body, opts) => request('DELETE', path, body, opts);
 
 /** دانلود فایل از API (مثلاً GEDCOM) */
+/** درخواست کوتاه که حتی هنگام بستن صفحه فرستاده می‌شود (مثلاً «ترک تماس») */
+export function beacon(path, body = {}) {
+  try {
+    fetch(url(path), { method: 'POST', keepalive: true, credentials: 'same-origin', headers: headers({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) }).catch(() => {});
+  } catch {
+    /* مرورگر قدیمی */
+  }
+}
+
 export async function download(path, params) {
   const res = await request('GET', path + query(params), undefined, { raw: true });
   const blob = await res.blob();

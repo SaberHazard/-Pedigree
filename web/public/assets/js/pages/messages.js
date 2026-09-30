@@ -15,6 +15,7 @@ import { toast, toastError, loader, emptyState, confirmDialog, dropdown } from '
 import { avatar } from '../components/avatar.js';
 import { emojiPanel, insertAtCursor } from '../components/emoji.js';
 import { voiceButton, voicePlayer, voiceForm, voiceSupported } from '../components/voice.js';
+import { startCall } from '../core/calls.js';
 
 const LIST_POLL = 20000;
 const CHAT_POLL = 4000;
@@ -156,6 +157,7 @@ export default async function messagesPage(container, { params }) {
       }
     });
 
+    const canCall = store.config.calls?.enabled !== false && other?.person && other?.active && !current.blocked_by_me && !current.blocked;
     const menuBtn = h('button', { class: 'icon-btn', type: 'button', title: 'بیشتر', onclick: () => dropdown(menuBtn, [
       other?.person ? { label: 'دیدن پروفایل', icon: 'user', onClick: () => navigate(`/person/${other.person.id}`) } : null,
       { label: current.blocked_by_me ? 'رفع مسدودی' : 'مسدود کردن', icon: 'ban', danger: !current.blocked_by_me, onClick: toggleBlock },
@@ -166,6 +168,8 @@ export default async function messagesPage(container, { params }) {
         h('button', { class: 'icon-btn msg-back', type: 'button', title: 'بازگشت', onclick: () => { page.classList.remove('has-chat'); current = null; history.replaceState(null, '', '#/messages'); renderList(); } }, icon('chevron-right')),
         avatar(other?.person, 'sm'),
         h('div', { class: 'grow', style: { minWidth: 0 } }, h('b', { class: 'ellipsis' }, other?.person ? fullName(other.person) : other?.name || '—')),
+        canCall ? h('button', { class: 'icon-btn', type: 'button', title: 'تماس صوتی', 'aria-label': 'تماس صوتی', onclick: () => startCall([other.person.id], 'audio') }, icon('call')) : null,
+        canCall ? h('button', { class: 'icon-btn', type: 'button', title: 'تماس تصویری', 'aria-label': 'تماس تصویری', onclick: () => startCall([other.person.id], 'video') }, icon('video')) : null,
         menuBtn,
       ),
       messagesEl,

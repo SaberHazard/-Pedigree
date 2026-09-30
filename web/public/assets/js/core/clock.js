@@ -26,7 +26,7 @@ export function syncClock(force = false) {
   pending = (async () => {
     try {
       const t0 = Date.now();
-      const res = await get('/api/time');
+      const res = await get('/api/time', null, { quiet: true });
       const t1 = Date.now();
       // تأخیر شبکه نصف می‌شود (فرض رفت و برگشت برابر)
       if (t1 - t0 < 5000) {

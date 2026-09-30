@@ -34,10 +34,10 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSCameraUsageDescription: برای گرفتن عکس پروفایل و عکس‌های خانوادگی
+        NSCameraUsageDescription: برای گرفتن عکس پروفایل و عکس‌های خانوادگی و تماس تصویری با بستگان
         NSPhotoLibraryUsageDescription: برای انتخاب عکس و ویدیو از گالری
         NSPhotoLibraryAddUsageDescription: برای ذخیره خروجی شجره‌نامه در گالری
-        NSMicrophoneUsageDescription: برای پیام صوتی، ضبط ویدیو از خاطرات خانوادگی و گفتگوی صوتی با دستیار هوشمند
+        NSMicrophoneUsageDescription: برای پیام صوتی، تماس صوتی و تصویری با بستگان، ضبط ویدیو از خاطرات خانوادگی و گفتگوی صوتی با دستیار هوشمند
         NSLocationWhenInUseUsageDescription: برای علامت زدن محل خانه یا مزار روی نقشه با دکمه «موقعیت من»
         ITSAppUsesNonExemptEncryption: false
         PedigreeBaseURL: $(PEDIGREE_BASE_URL)

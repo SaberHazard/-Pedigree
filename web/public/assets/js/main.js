@@ -14,6 +14,7 @@ import { get, post } from './core/api.js';
 import { renderHeader, brand } from './components/header.js';
 import { installErrorHandlers } from './core/errors.js';
 import { startAlarms } from './core/alarms.js';
+import { startRingWatcher } from './core/calls.js';
 
 // خطاهای پیش‌بینی‌نشده مرورگر برای پنل مدیریت گزارش می‌شوند (بدون نمایش جزئیات به کاربر)
 installErrorHandlers();
@@ -49,6 +50,7 @@ route('/assistant', () => import('./pages/assistant.js'));
 route('/group', () => import('./pages/group.js'));
 route('/games', () => import('./pages/games.js'));
 route('/calendar', () => import('./pages/calendar.js'));
+route('/calls', () => import('./pages/calls.js'));
 route('/insights', () => import('./pages/insights.js'));
 route('/support', () => import('./pages/support.js'));
 route('/donate', () => import('./pages/donate.js'));
@@ -104,7 +106,7 @@ store.on('user', (user) => {
 async function refreshCounters() {
   if (!store.user || document.hidden) return;
   try {
-    const res = await get('/api/auth/me');
+    const res = await get('/api/auth/me', null, { quiet: true });
     store.user = res.data;
     store.emit('counters', res.data.counters);
   } catch {
@@ -142,6 +144,7 @@ const maybeStartAlarms = () => {
   if (store.user && store.user.status !== 'pending' && !alarmsStarted) {
     alarmsStarted = true;
     startAlarms();
+    startRingWatcher();
   }
 };
 store.on('user', maybeStartAlarms);

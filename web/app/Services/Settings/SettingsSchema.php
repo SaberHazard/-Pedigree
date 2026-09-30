@@ -107,6 +107,38 @@ systemctl enable --now pedigree-tunnel'],
         ];
     }
 
+    /**
+     * راهنمای راه‌اندازی رله TURN (coturn) برای وقتی اینترنت دو طرف تماس مستقیم را اجازه نمی‌دهد
+     *
+     * @return array<int, array{text: string, code?: string}>
+     */
+    private static function turnGuide(): array
+    {
+        return [
+            ['text' => 'بیشتر تماس‌ها با STUN مستقیم وصل می‌شوند و هیچ بار صوتی/تصویری روی سرور نیست. در اینترنت همراه (CGNAT) گاهی اتصال مستقیم ممکن نیست؛ برای این موارد یک رله TURN لازم است. بهتر است روی یک سرور کوچک جدا باشد تا IP سرور سایت (اگر پشت CDN است) معلوم نشود.'],
+            ['text' => 'نصب coturn (اوبونتو/دبیان):', 'code' => 'apt install -y coturn'],
+            ['text' => 'فایل ‎/etc/turnserver.conf‎ (به جای SECRET یک رمز بلند تصادفی و به جای turn.example.com دامنه یا IP سرور رله):', 'code' => 'listening-port=3478
+fingerprint
+use-auth-secret
+static-auth-secret=SECRET
+realm=turn.example.com
+total-quota=100
+bps-capacity=0
+stale-nonce=600
+no-multicast-peers
+no-cli
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=172.16.0.0-172.31.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
+denied-peer-ip=127.0.0.0-127.255.255.255'],
+            ['text' => 'روشن کردن و باز کردن پورت‌ها (UDP/TCP 3478 و بازه رله):', 'code' => 'systemctl enable --now coturn
+ufw allow 3478
+ufw allow 49152:65535/udp'],
+            ['text' => 'در همین فرم «نشانی‌های TURN» را ‎turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp‎ و «رمز مشترک TURN» را همان SECRET بگذارید. رمز هرگز به مرورگر نمی‌رود؛ هر تماس یک اعتبار موقت ۶ ساعته می‌گیرد.'],
+            ['text' => 'جایگزین بدون سرور: سرویس‌های ابری TURN (مثل Cloudflare یا metered.ca) نام کاربری و رمز ثابت می‌دهند؛ آن‌ها را در «نام کاربری/رمز TURN ثابت» بگذارید.'],
+        ];
+    }
+
     /** @return array<string, array> گروه‌ها به ترتیب نمایش */
     public static function groups(): array
     {
@@ -252,6 +284,23 @@ systemctl enable --now pedigree-tunnel'],
                 'fields' => [
                     'pedigree.calendar.official_sync' => ['label' => 'همگام‌سازی با تقویم رسمی کشور', 'type' => 'bool', 'help' => 'خاموش = فقط تقویم داخلی سایت (مناسبت‌های ثابت و قمری حسابی)'],
                     'pedigree.calendar.proxy' => ['label' => 'پراکسی جداگانه برای تقویم رسمی (اختیاری)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'سرور ایران: لازم نیست. سرور خارج: خالی = همان «پراکسی داخل ایران» اگر تنظیم شده باشد'],
+                ],
+            ],
+            'calls' => [
+                'label' => 'تماس صوتی و تصویری',
+                'icon' => 'phone',
+                'description' => 'اعضا از پروفایل هر عضو یا صفحه «تماس‌ها» با هم تماس صوتی یا تصویری دونفره یا گروهی می‌گیرند. صدا و تصویر مستقیم بین گوشی‌ها رد و بدل می‌شود و از سرور سایت نمی‌گذرد (سرور فقط چند پیام کوچک راه‌اندازی را جابه‌جا می‌کند). در تماس گروهی هر نفر مستقیم به بقیه وصل است؛ برای اینترنت همراه بیش از ۴ نفر توصیه نمی‌شود. «دعوت با لینک» برای تماس گروهی بزرگ با واتس‌اپ، گوگل‌میت، اسکای‌روم و ... است.',
+                'guide' => self::turnGuide(),
+                'fields' => [
+                    'pedigree.calls.enabled' => ['label' => 'تماس مستقیم داخل سایت فعال باشد', 'type' => 'bool'],
+                    'pedigree.calls.max_participants' => ['label' => 'بیشترین نفرات تماس گروهی (با تماس‌گیرنده)', 'type' => 'int', 'min' => 2, 'max' => 6],
+                    'pedigree.calls.links' => ['label' => 'دعوت بستگان به تماس گروهی با لینک (واتس‌اپ، گوگل‌میت، اسکای‌روم ...)', 'type' => 'bool'],
+                    'pedigree.calls.stun' => ['label' => 'سرورهای STUN (با کاما)', 'type' => 'text', 'max' => 300, 'pattern' => '/^(stuns?:[A-Za-z0-9.\-]+(:\d{2,5})?)?(\s*,\s*stuns?:[A-Za-z0-9.\-]+(:\d{2,5})?)*$/', 'placeholder' => 'stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478'],
+                    'pedigree.calls.turn_urls' => ['label' => 'نشانی‌های TURN (با کاما، اختیاری)', 'type' => 'text', 'max' => 300, 'pattern' => '/^(turns?:[A-Za-z0-9.\-]+(:\d{2,5})?(\?transport=(udp|tcp))?)?(\s*,\s*turns?:[A-Za-z0-9.\-]+(:\d{2,5})?(\?transport=(udp|tcp))?)*$/', 'placeholder' => 'turn:turn.example.com:3478?transport=udp'],
+                    'pedigree.calls.turn_secret' => ['label' => 'رمز مشترک TURN (coturn: static-auth-secret)', 'type' => 'secret', 'help' => 'بهترین حالت: هر تماس یک اعتبار موقت می‌گیرد و رمز اصلی به مرورگر نمی‌رود'],
+                    'pedigree.calls.turn_username' => ['label' => 'نام کاربری TURN ثابت (سرویس ابری)', 'type' => 'text', 'max' => 120, 'pattern' => '/^[A-Za-z0-9._:@\-]*$/'],
+                    'pedigree.calls.turn_credential' => ['label' => 'رمز TURN ثابت (سرویس ابری)', 'type' => 'secret'],
+                    'pedigree.calls.relay_only' => ['label' => 'همه تماس‌ها فقط از رله TURN (پنهان ماندن IP اعضا از هم)', 'type' => 'bool', 'help' => 'فقط وقتی TURN تنظیم شده؛ همه صدا و تصویر از رله می‌گذرد (پهنای باند رله مصرف می‌شود)'],
                 ],
             ],
             'birthdays' => [

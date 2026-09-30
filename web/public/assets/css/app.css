@@ -2757,3 +2757,62 @@ a.tl-title:hover { color: var(--primary); text-decoration: underline; }
 .cal-history summary { cursor: pointer; color: var(--text-2); font-weight: 600; font-size: 0.88rem; }
 .cal-history .cal-events { margin-top: 8px; }
 .cal-history .cal-events li { background: var(--surface-2); font-size: 0.88rem; }
+
+/* ---------- تماس مستقیم (WebRTC) ---------- */
+.call-btn.accept { background: #16a34a; color: #fff; box-shadow: 0 8px 22px rgba(22, 163, 74, .35); animation: callPulse 1.4s ease-in-out infinite; }
+@keyframes callPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.call-overlay.incoming .call-card { gap: 10px; padding-top: 26px; }
+.call-kind { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: .9rem; }
+.call-kind .icon { width: 16px; height: 16px; }
+.call-ring-avatar { position: relative; margin: 6px 0; display: grid; place-items: center; line-height: 0; border-radius: 50%; }
+.call-ring-avatar::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; border: 3px solid var(--primary); opacity: .5; animation: orbRipple 1.6s ease-out infinite; }
+.call-name { font-size: 1.2rem; }
+.call-overlay.live .call-card { width: min(520px, 100%); position: relative; }
+.call-head { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.call-stage { width: 100%; display: grid; gap: 8px; grid-template-columns: 1fr; min-height: 180px; place-items: center; }
+.call-stage[data-count="2"], .call-stage[data-count="3"], .call-stage[data-count="4"], .call-stage[data-count="5"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.call-waiting { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; padding: 10px 0; }
+.call-waiting .avatar { animation: orbBreath 1.8s ease-in-out infinite; }
+.call-tile { position: relative; width: 100%; min-height: 150px; border-radius: 18px; background: var(--surface-2); display: grid; place-items: center; overflow: hidden; }
+.call-tile.connecting { opacity: .7; }
+.call-tile audio { display: none; }
+.call-tile.has-video { background: #000; aspect-ratio: 3 / 4; }
+.call-tile video.call-remote { width: 100%; height: 100%; object-fit: cover; }
+.call-tile-avatar { padding: 18px 0 30px; }
+.call-tile-name { position: absolute; bottom: 8px; inset-inline-start: 10px; font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(0, 0, 0, .45); color: #fff; }
+.call-tile:not(.has-video) .call-tile-name { background: transparent; color: var(--text-2); inset-inline: 0; text-align: center; }
+.call-local { position: absolute; top: 70px; inset-inline-end: 14px; width: 96px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 14px; background: #000; transform: scaleX(-1); box-shadow: var(--shadow); z-index: 2; border: 2px solid var(--surface); }
+.call-overlay.is-video { padding: 0; }
+.call-overlay.is-video .call-card { width: 100%; max-width: 900px; height: 100dvh; max-height: none; border-radius: 0; justify-content: space-between; background: #0b1214; color: #fff; }
+.call-overlay.is-video .call-stage { flex: 1 1 auto; min-height: 0; align-self: stretch; grid-auto-rows: minmax(0, 1fr); place-items: stretch; }
+.call-overlay.is-video .call-tile { min-height: 0; height: 100%; }
+.call-overlay.is-video .call-tile.has-video { aspect-ratio: auto; }
+.call-overlay.is-video .call-waiting { align-self: center; justify-self: center; }
+.call-overlay.is-video .muted, .call-overlay.is-video .call-status { color: rgba(255, 255, 255, .75); }
+.call-overlay.is-video .call-btn:not(.end):not(.off) { background: rgba(255, 255, 255, .14); color: #fff; }
+@media (min-width: 700px) { .call-overlay.is-video .call-card { border-radius: 24px; height: min(100dvh - 32px, 860px); } .call-overlay.is-video { padding: 16px; } }
+@media (orientation: landscape) and (max-height: 500px) {
+  .call-overlay.is-video .call-stage[data-count="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .call-local { top: 12px; width: 72px; }
+}
+@media (prefers-reduced-motion: reduce) { .call-btn.accept, .call-ring-avatar::after, .call-waiting .avatar { animation: none; } }
+
+/* ---------- صفحه تماس‌ها ---------- */
+.calls-page .card > .input[type="search"] { margin: 6px 0 8px; }
+.call-people { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.call-people.compact { margin-top: 4px; }
+.call-person { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 12px; min-width: 0; }
+.call-person:hover { background: var(--surface-2); }
+.call-person > a { color: var(--text); text-decoration: none; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call-person.pick { border: 0; background: var(--surface-2); font: inherit; color: inherit; cursor: pointer; text-align: start; width: 100%; }
+.call-group { gap: 6px; margin: 4px 0; }
+.chip-x { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 0; margin-inline-start: 4px; display: inline-grid; place-items: center; }
+.chip-x .icon { width: 13px; height: 13px; }
+.call-list { display: flex; flex-direction: column; gap: 6px; }
+.call-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.call-row .grow b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.call-row-icon { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); flex: none; }
+.call-row-icon .icon { width: 18px; height: 18px; }
+.call-row-icon.invite { background: var(--accent-soft); color: var(--accent); }
+.call-row.missed .call-row-icon { background: var(--danger-soft); color: var(--danger); }
+.call-row.missed b { color: var(--danger); }

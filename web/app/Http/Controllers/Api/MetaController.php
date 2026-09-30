@@ -9,6 +9,7 @@ use App\Services\Ai\FamilyFacts;
 use App\Services\Ai\PhotoReader;
 use App\Services\Ai\PhotoRestorer;
 use App\Services\Ai\VoiceAi;
+use App\Services\Calls\CallService;
 use App\Services\Social\SocialProfileFetcher;
 use App\Support\Countries;
 use App\Support\SocialNetworks;
@@ -116,6 +117,7 @@ class MetaController extends Controller
             ],
             'group' => ['enabled' => (bool) config('pedigree.group.enabled', true), 'name' => (string) config('pedigree.group.name')],
             'messaging' => ['enabled' => (bool) config('pedigree.messaging.enabled', true)],
+            'calls' => ['enabled' => CallService::enabled(), 'links' => (bool) config('pedigree.calls.links', true), 'max' => CallService::maxParticipants()],
             'announcement' => config('pedigree.announcement.enabled') && trim((string) config('pedigree.announcement.text')) !== ''
                 ? ['text' => (string) config('pedigree.announcement.text'), 'level' => (string) config('pedigree.announcement.level', 'info')]
                 : null,

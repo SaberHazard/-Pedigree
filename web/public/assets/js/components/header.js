@@ -129,6 +129,7 @@ export function renderHeader() {
         { grid: true, items: [...NAV.map(navItem), page('/search', 'جستجو', 'search')] },
         { title: 'ابزارها و هوش مصنوعی', items: [
           page('/calendar', 'تقویم و هشدارها', 'calendar', { hint: 'مناسبت‌ها، اوقات شرعی، یادآور تولد و سالگرد' }),
+          store.config.calls?.enabled !== false || store.config.calls?.links !== false ? page('/calls', 'تماس‌ها', 'call', { hint: 'تماس صوتی و تصویری، دونفره و گروهی' }) : null,
           page('/assistant', 'دستیار هوشمند', 'bot', { hint: 'پرسش، تماس صوتی، بازسازی عکس' }),
           page('/insights', 'بینش‌های خاندان', 'layers', { hint: 'آمار، نمودارها و بررسی درستی اطلاعات' }),
           page('/games', 'بازی‌های خانوادگی', 'gamepad'),
