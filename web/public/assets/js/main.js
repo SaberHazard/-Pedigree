@@ -13,6 +13,7 @@ import { route, start, navigate } from './core/router.js';
 import { get, post } from './core/api.js';
 import { renderHeader, brand } from './components/header.js';
 import { installErrorHandlers } from './core/errors.js';
+import { startAlarms } from './core/alarms.js';
 
 // خطاهای پیش‌بینی‌نشده مرورگر برای پنل مدیریت گزارش می‌شوند (بدون نمایش جزئیات به کاربر)
 installErrorHandlers();
@@ -47,6 +48,7 @@ route('/messages/:id', () => import('./pages/messages.js'), { layout: 'full' });
 route('/assistant', () => import('./pages/assistant.js'));
 route('/group', () => import('./pages/group.js'));
 route('/games', () => import('./pages/games.js'));
+route('/calendar', () => import('./pages/calendar.js'));
 route('/insights', () => import('./pages/insights.js'));
 route('/support', () => import('./pages/support.js'));
 route('/donate', () => import('./pages/donate.js'));
@@ -133,6 +135,17 @@ window.pedigreeRegisterDevice = (platform, token, appVersion = null) => {
   registerDevice();
 };
 store.on('user', registerDevice);
+
+// هشدارها و یادآورها: زنگ در صفحه باز و در خود گوشی (اپ)
+let alarmsStarted = false;
+const maybeStartAlarms = () => {
+  if (store.user && store.user.status !== 'pending' && !alarmsStarted) {
+    alarmsStarted = true;
+    startAlarms();
+  }
+};
+store.on('user', maybeStartAlarms);
+maybeStartAlarms();
 
 // ------------------------------------------------------------------ PWA
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

@@ -21,6 +21,16 @@ export function latin(value) {
 }
 
 /** عدد با جداکننده هزارگان فارسی */
+/**
+ * سال رویداد تاریخی از یادداشت تقویم رسمی (مثل «۱۳ دی 1338» یا «January 3 1892»)؛ «1900» یعنی سال نامعلوم.
+ * رویدادهای سال‌دار «سالروز تاریخی»اند و از مناسبت‌های اصلی روز جدا نمایش داده می‌شوند.
+ */
+export function eventYear(note) {
+  const m = /(\d{4})\s*$/.exec(latin(note || ''));
+  if (!m || m[1] === '1900') return '';
+  return /[A-Za-z]/.test(note) ? `${fa(m[1])} میلادی` : `سال ${fa(m[1])}`;
+}
+
 export function num(n) {
   return fa(Number(n || 0).toLocaleString('en-US').replace(/,/g, '٬'));
 }

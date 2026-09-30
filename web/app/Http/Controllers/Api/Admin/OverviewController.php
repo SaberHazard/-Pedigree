@@ -132,7 +132,7 @@ class OverviewController extends Controller
             ['key' => 'https', 'ok' => str_starts_with((string) config('app.url'), 'https://'), 'label' => 'سایت روی HTTPS است', 'value' => (string) config('app.url'), 'fix' => 'گواهی SSL بگیرید و APP_URL را https کنید'],
             ['key' => 'cookie', 'ok' => (bool) config('session.secure'), 'label' => 'کوکی امن (فقط HTTPS)', 'value' => null, 'fix' => 'SESSION_SECURE_COOKIE=true'],
             ['key' => 'blind', 'ok' => ! empty(config('pedigree.blind_index_key')), 'label' => 'کلید ایندکس رمزنگاری تنظیم شده', 'value' => null, 'fix' => 'PEDIGREE_BLIND_INDEX_KEY را در .env بگذارید'],
-            ['key' => 'scheduler', 'ok' => $heartbeat && now()->diffInMinutes($heartbeat) < 15, 'label' => 'زمان‌بند (cron) اجرا می‌شود', 'value' => $heartbeat, 'fix' => '* * * * * php artisan schedule:run'],
+            ['key' => 'scheduler', 'ok' => $heartbeat && now()->diffInMinutes($heartbeat, true) < 15, 'label' => 'زمان‌بند (cron) اجرا می‌شود', 'value' => $heartbeat, 'fix' => '* * * * * php artisan schedule:run'],
             ['key' => 'queue', 'ok' => $failed === 0, 'label' => 'صف کارها بدون خطا', 'value' => "در صف: {$pending} • ناموفق: {$failed}", 'fix' => 'php artisan queue:failed'],
             ['key' => 'ffmpeg', 'ok' => $bin((string) config('pedigree.media.video.ffmpeg', 'ffmpeg')), 'label' => 'ffmpeg (فشرده‌سازی فیلم و تبدیل TIFF و ...)', 'value' => null, 'fix' => 'apt install ffmpeg'],
             ['key' => 'ffprobe', 'ok' => $bin((string) config('pedigree.media.video.ffprobe', 'ffprobe')), 'label' => 'ffprobe (بررسی فیلم‌ها)', 'value' => null, 'fix' => 'apt install ffmpeg'],

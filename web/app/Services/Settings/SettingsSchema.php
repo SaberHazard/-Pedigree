@@ -2,6 +2,7 @@
 
 namespace App\Services\Settings;
 
+use App\Services\Calendar\HijriCalendar;
 use App\Services\Occasions\OccasionCalendar;
 use App\Services\People\ProfileService;
 use App\Services\Sms\SmsTemplates;
@@ -70,7 +71,7 @@ final class SettingsSchema
     private static function hijriHelp(): string
     {
         $today = now('Asia/Tehran');
-        [$y, $m, $d] = Hijri::fromGregorian((int) $today->format('Y'), (int) $today->format('n'), (int) $today->format('j'), OccasionCalendar::hijriOffset());
+        [$y, $m, $d] = app(HijriCalendar::class)->fromGregorian((int) $today->format('Y'), (int) $today->format('n'), (int) $today->format('j'));
 
         return PersianText::toPersianDigits("امروز طبق محاسبه سایت: {$d} ".Hijri::MONTHS[$m]." {$y}. اگر با تقویم رسمی فرق دارد، اختلاف را وارد کنید (‎+1 = یک روز جلوتر، ‎-1 = یک روز عقب‌تر).");
     }
@@ -238,10 +239,19 @@ systemctl enable --now pedigree-tunnel'],
             'occasions' => [
                 'label' => 'مناسبت‌های تبریک',
                 'icon' => 'calendar',
-                'description' => 'مناسبت‌هایی که اعضا می‌توانند با پیامک از پنل سایت تبریک بگویند (تبریک تولد همیشه فعال است). متن هر مناسبت در تب «قالب پیامک‌ها» است. مناسبت‌های قمری با تقویم قمری حسابی محاسبه می‌شوند؛ اگر تاریخ رسمی ایران یک روز فرق داشت، «اختلاف روز» را تنظیم کنید.',
+                'description' => 'مناسبت‌هایی که اعضا می‌توانند با پیامک از پنل سایت تبریک بگویند (تبریک تولد همیشه فعال است). متن هر مناسبت در تب «قالب پیامک‌ها» است. تاریخ قمری از تقویم رسمی کشور (بخش «تقویم») گرفته می‌شود؛ «اختلاف روز» فقط برای ماه‌هایی است که هنوز تقویم رسمی‌شان همگام نشده.',
                 'fields' => [
                     'pedigree.occasions.enabled' => ['label' => 'مناسبت‌های فعال', 'type' => 'multi', 'options' => self::occasionOptions(), 'min' => 0],
                     'pedigree.occasions.hijri_offset' => ['label' => 'اختلاف روز تقویم قمری', 'type' => 'int', 'min' => -3, 'max' => 3, 'help' => self::hijriHelp()],
+                ],
+            ],
+            'calendar' => [
+                'label' => 'تقویم رسمی و هشدارها',
+                'icon' => 'calendar',
+                'description' => 'تعطیلات و مناسبت‌های رسمی، مذهبی و جهانی هر روز از تقویم رسمی کشور (time.ir از طریق holidayapi.ir) گرفته و در سایت ذخیره می‌شود و آغاز رسمی ماه‌های قمری از روی آن تنظیم می‌شود؛ پس تاریخ قمری تقویم، مناسبت‌ها و هشدارهای قمری دقیقاً مطابق تقویم رسمی است. همگام‌سازی خودکار هر ساعت (روزهای گذشته یک بار، آینده هر ۳۰ روز) انجام می‌شود. برای زنگ دقیق هشدارها، cron هر دقیقه و ساعت سرور (NTP) باید درست باشد؛ وضعیت ساعت در «نمای کلی» دیده می‌شود.',
+                'fields' => [
+                    'pedigree.calendar.official_sync' => ['label' => 'همگام‌سازی با تقویم رسمی کشور', 'type' => 'bool', 'help' => 'خاموش = فقط تقویم داخلی سایت (مناسبت‌های ثابت و قمری حسابی)'],
+                    'pedigree.calendar.proxy' => ['label' => 'پراکسی جداگانه برای تقویم رسمی (اختیاری)', 'type' => 'secret', 'kind' => 'proxy', 'placeholder' => 'http://user:pass@1.2.3.4:3128', 'help' => 'سرور ایران: لازم نیست. سرور خارج: خالی = همان «پراکسی داخل ایران» اگر تنظیم شده باشد'],
                 ],
             ],
             'birthdays' => [

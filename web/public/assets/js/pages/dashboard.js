@@ -6,7 +6,7 @@ import { icon } from '../core/icons.js';
 import { get } from '../core/api.js';
 import { store } from '../core/store.js';
 import { navigate } from '../core/router.js';
-import { fa, num, fullName, formatDate, timeAgo } from '../core/format.js';
+import { fa, num, fullName, formatDate, timeAgo, eventYear } from '../core/format.js';
 import { countUp, emptyState } from '../core/ui.js';
 import { avatar } from '../components/avatar.js';
 import { openFamilyDialog } from '../components/family-dialog.js';
@@ -81,6 +81,27 @@ export default async function dashboard(container) {
         h('span', null, h('b', null, fullName(r.person)), h('span', { class: 'muted tiny' }, [r.age ? `${fa(r.age)} سالگی` : null, r.relation].filter(Boolean).join(' • '))),
         h('span', { class: 'btn primary xs' }, icon('mail'), 'تبریک'),
       ))),
+    ));
+  }).catch(() => {});
+
+  // امروز در تقویم: تاریخ سه‌گانه، تعطیلی و مناسبت‌ها
+  const todayCard = h('div');
+  page.append(todayCard);
+  get('/api/calendar').then(({ data }) => {
+    const d = data.days.find((x) => x.today);
+    if (!d) return;
+    const hijri = ['محرم', 'صفر', 'ربیع‌الاول', 'ربیع‌الثانی', 'جمادی‌الاول', 'جمادی‌الثانی', 'رجب', 'شعبان', 'رمضان', 'شوال', 'ذی‌القعده', 'ذی‌الحجه'][d.h[1] - 1];
+    const week = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'][d.weekday];
+    const lines = [...d.events.filter((e) => !eventYear(e.note)).map((e) => e.title), ...d.family.map((f) => f.person.name)];
+    todayCard.replaceChildren(h('a', { class: 'card hover row mt today-card', href: '#/calendar' },
+      h('div', { class: `today-day${d.holiday ? ' holiday' : ''}` }, h('b', null, fa(d.day)), h('span', null, data.month_name)),
+      h('div', { class: 'grow' },
+        h('b', null, `${week} ${fa(d.day)} ${data.month_name} ${fa(data.year)}`, d.holiday ? h('span', { class: 'chip danger tiny', style: { marginInlineStart: '6px' } }, 'تعطیل') : null),
+        h('div', { class: 'muted small' }, `${fa(d.h[2])} ${hijri} ${fa(d.h[0])} • ${new Intl.DateTimeFormat('fa-IR-u-ca-gregory', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(d.g[0], d.g[1] - 1, d.g[2]))}`),
+        lines.length ? h('div', { class: 'small today-events' }, lines.slice(0, 4).join(' • ')) : null,
+      ),
+      h('span', { class: 'btn ghost sm hide-mobile' }, icon('calendar'), 'تقویم و هشدارها'),
+      icon('chevron-left'),
     ));
   }).catch(() => {});
 

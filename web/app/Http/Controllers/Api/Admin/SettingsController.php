@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\DomainException;
 use App\Http\Controllers\Controller;
+use App\Models\CalendarDay;
+use App\Models\HijriMonth;
 use App\Services\Ai\AssistantService;
 use App\Services\AuditLogger;
+use App\Services\Calendar\HijriCalendar;
+use App\Services\Calendar\OfficialCalendarSync;
 use App\Services\Push\FcmClient;
 use App\Services\Settings\SettingsSchema;
 use App\Services\Settings\SettingsStore;
@@ -14,7 +18,10 @@ use App\Services\Sms\SmsManager;
 use App\Services\Social\SafeHttp;
 use App\Services\Social\SocialProfileFetcher;
 use App\Support\ErrorReporter;
+use App\Support\Hijri;
+use App\Support\Jalali;
 use App\Support\Outbound;
+use App\Support\PersianText;
 use App\Support\SocialNetworks;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -92,7 +99,7 @@ class SettingsController extends Controller
     {
         $this->authorizeSuperAdmin($request);
         $data = $request->validate([
-            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai', 'proxy'])],
+            'action' => ['required', Rule::in(['sms_credit', 'sms_send', 'push', 'social', 'ai', 'proxy', 'calendar'])],
             'provider' => ['required_if:action,sms_credit,sms_send', 'nullable', Rule::in(SmsManager::names())],
             'network' => ['required_if:action,social', 'nullable', Rule::in(SocialProfileFetcher::FETCHABLE)],
             'handle' => ['required_if:action,social', 'nullable', 'string', 'max:200'],
@@ -106,6 +113,7 @@ class SettingsController extends Controller
                 'social' => $this->socialTest($social, $data['network'], (string) $data['handle']),
                 'ai' => $assistant->ping(),
                 'proxy' => $this->proxyTest($http),
+                'calendar' => $this->calendarTest(app(OfficialCalendarSync::class)),
             };
         } catch (SmsException|DomainException $e) {
             return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
@@ -140,6 +148,28 @@ class SettingsController extends Controller
     }
 
     /** آزمایش پراکسی خروجی: IP و کشور خروجی و دسترسی به سرویس‌های گوگل (هوش مصنوعی و Firebase) */
+    /** چند روز از تقویم رسمی همین حالا گرفته می‌شود (بقیه را زمان‌بند هر ده دقیقه می‌گیرد) و وضعیت گزارش می‌شود */
+    private function calendarTest(OfficialCalendarSync $sync): string
+    {
+        if (! OfficialCalendarSync::enabled()) {
+            throw new DomainException('همگام‌سازی تقویم رسمی خاموش است؛ ابتدا روشن و ذخیره کنید.');
+        }
+        [$y, $m, $d] = Jalali::today();
+        if (! $sync->fetchDay($y, $m, $d)) {
+            throw new DomainException('تقویم رسمی (holidayapi.ir) پاسخ نداد. اگر سرور خارج از ایران است، «پراکسی داخل ایران» یا پراکسی همین بخش را تنظیم کنید.');
+        }
+        $stats = $sync->sync([$y, $y + 1], 12);
+        $months = HijriMonth::query()->count();
+        $days = CalendarDay::query()->count();
+        $total = (Jalali::isLeap($y) ? 366 : 365) + (Jalali::isLeap($y + 1) ? 366 : 365);
+        [$hy, $hm, $hd] = app(HijriCalendar::class)->fromGregorian(...Jalali::toGregorian($y, $m, $d));
+
+        return PersianText::toPersianDigits(sprintf(
+            'اتصال برقرار است. %d روز از %d روز امسال و سال بعد همگام شده (%d روز همین حالا)، %d ماه قمری با تقویم رسمی تنظیم است. امروز: %d %s %d. بقیه روزها خودکار هر ده دقیقه گرفته می‌شوند.',
+            min($days, $total), $total, $stats['fetched'] + 1, $months, $hd, Hijri::MONTHS[$hm], $hy,
+        ));
+    }
+
     private function proxyTest(SafeHttp $http): string
     {
         $proxy = Outbound::foreign();
@@ -317,6 +347,8 @@ class SettingsController extends Controller
                 $status = ['configured' => $missingSecrets === 0, 'roles' => $roles];
             } elseif ($groupKey === 'push') {
                 $status = ['configured' => (bool) config('services.fcm.enabled') && $missingSecrets === 0, 'roles' => []];
+            } elseif ($groupKey === 'calendar') {
+                $status = ['configured' => OfficialCalendarSync::enabled() && CalendarDay::query()->exists(), 'roles' => []];
             } elseif ($groupKey === 'ai') {
                 $status = ['configured' => app(AssistantService::class)->configured(), 'roles' => []];
             }

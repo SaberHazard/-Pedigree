@@ -385,6 +385,13 @@ return [
     // اگر سرور بیرون از ایران است و پنل پیامکی یا درگاه پرداخت فقط IP ایران را می‌پذیرد
     'iran_proxy' => env('PEDIGREE_IRAN_PROXY'),
 
+    // تقویم: همگام‌سازی تقویم رسمی (time.ir از طریق holidayapi.ir) و محاسبه دقیق تاریخ قمری
+    'calendar' => [
+        'official_sync' => (bool) env('PEDIGREE_CALENDAR_SYNC', true),
+        // فقط اگر سرور به holidayapi.ir دسترسی مستقیم ندارد
+        'proxy' => env('PEDIGREE_CALENDAR_PROXY'),
+    ],
+
     // محل سرور و پراکسی خروجی سرویس‌های خارجی (App\Support\Outbound)
     'network' => [
         // iran | abroad

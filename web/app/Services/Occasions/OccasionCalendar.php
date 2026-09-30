@@ -4,6 +4,7 @@ namespace App\Services\Occasions;
 
 use App\Models\Marriage;
 use App\Models\Person;
+use App\Services\Calendar\HijriCalendar;
 use App\Support\Hijri;
 use App\Support\Jalali;
 use App\Support\PersianText;
@@ -107,7 +108,7 @@ class OccasionCalendar
         [$y, $m, $d] = $this->birthdays->today();
         if ($def['calendar'] === 'hijri') {
             [$gy, $gm, $gd] = Jalali::toGregorian($y, $m, $d);
-            [, $m, $d] = Hijri::fromGregorian($gy, $gm, $gd, self::hijriOffset());
+            [, $m, $d] = app(HijriCalendar::class)->fromGregorian($gy, $gm, $gd);
         }
 
         return $m === $am && $d === $ad;
@@ -122,7 +123,7 @@ class OccasionCalendar
         }
         [$gy, $gm, $gd] = $gregorian;
         [, $m, $d] = $def['calendar'] === 'hijri'
-            ? Hijri::fromGregorian($gy, $gm, $gd, self::hijriOffset())
+            ? app(HijriCalendar::class)->fromGregorian($gy, $gm, $gd)
             : Jalali::fromGregorian($gy, $gm, $gd);
         foreach ($def['ranges'] as [$m1, $d1, $m2, $d2]) {
             $v = $m * 100 + $d;

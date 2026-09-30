@@ -69,19 +69,24 @@ class FcmClient
         });
     }
 
-    /** @param array{title:string, body:string, data?:array} $message */
+    /** @param array{title:string, body:string, data?:array, alarm?:bool} $message */
     public function send(string $deviceToken, array $message, ?array $credentials = null): Response
     {
         $credentials ??= $this->credentials();
 
+        $payload = [
+            'token' => $deviceToken,
+            'notification' => ['title' => $message['title'], 'body' => $message['body']],
+            'data' => array_map('strval', $message['data'] ?? []),
+        ];
+        if (! empty($message['alarm'])) {
+            // هشدار و یادآور: اولویت بالا و صدای زنگ (کانال «alarms» در اپ اندروید)
+            $payload['android'] = ['priority' => 'high', 'notification' => ['sound' => 'default', 'channel_id' => 'alarms']];
+            $payload['apns'] = ['headers' => ['apns-priority' => '10'], 'payload' => ['aps' => ['sound' => 'default', 'interruption-level' => 'time-sensitive']]];
+        }
+
         return $this->http()->withToken($this->accessToken($credentials))
-            ->post("https://fcm.googleapis.com/v1/projects/{$credentials['project_id']}/messages:send", [
-                'message' => [
-                    'token' => $deviceToken,
-                    'notification' => ['title' => $message['title'], 'body' => $message['body']],
-                    'data' => array_map('strval', $message['data'] ?? []),
-                ],
-            ]);
+            ->post("https://fcm.googleapis.com/v1/projects/{$credentials['project_id']}/messages:send", ['message' => $payload]);
     }
 
     /** اگر سرور در ایران است، Firebase (گوگل) از پراکسی خروجی خارج در دسترس است */

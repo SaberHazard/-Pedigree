@@ -78,3 +78,20 @@ export async function shareLink(title, url) {
     return false;
   }
 }
+
+/**
+ * هشدارهای پیش رو به اپ گوشی داده می‌شود تا خود گوشی سر ثانیه (حتی بدون اینترنت) زنگ بزند.
+ * هر بار کل فهرست جایگزین می‌شود. خروجی: آیا اپ این قابلیت را دارد؟
+ */
+export function scheduleNativeAlarms(items) {
+  const clean = items.slice(0, 60).map((i) => ({ key: String(i.key), title: String(i.title).slice(0, 120), body: String(i.body || '').slice(0, 400), at: Number(i.at), link: String(i.link || '') }));
+  if (isAndroidApp() && typeof window.PedigreeNative.scheduleAlarms === 'function') {
+    window.PedigreeNative.scheduleAlarms(JSON.stringify(clean));
+    return true;
+  }
+  if (isIosApp()) {
+    window.webkit.messageHandlers.pedigree.postMessage({ action: 'alarms', items: clean });
+    return true;
+  }
+  return false;
+}

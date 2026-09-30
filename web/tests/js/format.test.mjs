@@ -63,3 +63,13 @@ test('شماره کارت و شبا خوانا نمایش داده می‌شون
   assert.equal(bankNumber('account', '0101-123'), '0101-123');
   assert.equal(bankNumber('link', null), '');
 });
+
+test('سال رویداد تاریخی از یادداشت تقویم رسمی', async () => {
+  const { eventYear } = await import('../../public/assets/js/core/format.js');
+  assert.equal(eventYear('۱۳ دی 1338'), 'سال ۱۳۳۸');
+  assert.equal(eventYear('January 3 1892'), '۱۸۹۲ میلادی');
+  assert.equal(eventYear('March 21 1900'), '');
+  assert.equal(eventYear('۱۳ رجب'), '');
+  assert.equal(eventYear(''), '');
+  assert.equal(eventYear(null), '');
+});

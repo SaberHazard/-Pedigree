@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\SmsTemplateController;
 use App\Http\Controllers\Api\Admin\UserController;
 use App\Http\Controllers\Api\AssistantController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CalendarController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DonateController;
 use App\Http\Controllers\Api\ExportController;
@@ -33,6 +34,7 @@ use App\Http\Controllers\Api\OpinionController;
 use App\Http\Controllers\Api\PersonController;
 use App\Http\Controllers\Api\ProfileTextController;
 use App\Http\Controllers\Api\RelativeController;
+use App\Http\Controllers\Api\ReminderController;
 use App\Http\Controllers\Api\SocialController;
 use App\Http\Controllers\Api\SupportController;
 use App\Http\Controllers\Api\TreeController;
@@ -202,6 +204,19 @@ Route::middleware(['auth:sanctum', 'active', 'throttle:api'])->group(function ()
 
     // گزارش خطای مرورگر برای پنل مدیریت (با سقف تا سیل درخواست دیسک را پر نکند)
     Route::post('client-errors', [ErrorReportController::class, 'client'])->middleware('throttle:10,1,client-errors');
+
+    // هشدارها و یادآورها
+    Route::get('reminders', [ReminderController::class, 'index']);
+    Route::post('reminders', [ReminderController::class, 'store'])->middleware('throttle:30,1,reminder-store');
+    Route::get('reminders/upcoming', [ReminderController::class, 'upcoming'])->middleware('throttle:30,1,reminder-upcoming');
+    Route::put('reminders/settings', [ReminderController::class, 'settings'])->middleware('throttle:20,1,reminder-settings');
+    Route::match(['put', 'patch'], 'reminders/{reminder}', [ReminderController::class, 'update'])->whereNumber('reminder')->middleware('throttle:60,1,reminder-update');
+    Route::delete('reminders/{reminder}', [ReminderController::class, 'destroy'])->whereNumber('reminder');
+
+    // تقویم فارسی و ساعت دقیق تهران
+    Route::get('calendar', [CalendarController::class, 'month'])->middleware('throttle:60,1,calendar');
+    Route::get('calendar/convert', [CalendarController::class, 'convert'])->middleware('throttle:60,1,calendar-convert');
+    Route::get('time', [CalendarController::class, 'time'])->middleware('throttle:30,1,server-time');
 
     // بینش‌های خاندان و ابزارهای هوشمند
     Route::get('insights/stats', [InsightController::class, 'stats'])->middleware('throttle:20,1,insights-stats');

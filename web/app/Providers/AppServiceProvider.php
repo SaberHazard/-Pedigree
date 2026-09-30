@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\Access\PersonAccess;
+use App\Services\Calendar\HijriCalendar;
 use App\Services\Kinship;
 use App\Services\KinshipDegrees;
 use App\Services\Settings\SettingsStore;
@@ -20,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(Kinship::class);
         $this->app->scoped(PersonAccess::class);
         $this->app->scoped(KinshipDegrees::class);
+        $this->app->scoped(HijriCalendar::class);
         $this->app->singleton(SmsManager::class);
         $this->app->singleton(SettingsStore::class);
     }
